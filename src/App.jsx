@@ -1557,6 +1557,7 @@ function DoubleDateInviteModal({ match, onSend, onClose }) {
 // ═══════════════════════════════════════════════════════
 const FREE_LIMIT = 5;
 const PRO_LIMIT = 10;
+const FOUNDER_LIMIT = 2000; // Első 2000 regisztráló = Alapító tag, örökös Pro
 
 function MatchList({ matches, onOpen, isPro, onUpgrade, onExpire, onRevive }) {
   const limit = isPro ? PRO_LIMIT : FREE_LIMIT;
@@ -2901,6 +2902,9 @@ export default function App() {
   const [filters, setFilters] = useState({ ...DEFAULT_FILTERS });
   const [profile, setProfile] = useState({});
   const [isPro, setIsPro] = useState(false);
+  const [isFounder, setIsFounder] = useState(false);
+  const [userNumber, setUserNumber] = useState(null); // Hányadik regisztráló
+  const [showFounderWelcome, setShowFounderWelcome] = useState(false);
   const [doubleDate, setDoubleDate] = useState(null); // active double date group
   const toastId = useRef(200);
 
@@ -2964,7 +2968,18 @@ export default function App() {
     <Shell>
       <StatusBar />
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <Onboarding onComplete={(data) => { setProfile(data); if (data.isPro) setIsPro(true); setAppState("main"); }} />
+        <Onboarding onComplete={(data) => {
+          setProfile(data);
+          // Szimulált regisztrációs szám — éles appban backend adja
+          const simUserNum = Math.floor(Math.random() * 2500) + 1;
+          setUserNumber(simUserNum);
+          if (simUserNum <= FOUNDER_LIMIT) {
+            setIsFounder(true);
+            setIsPro(true);
+            setShowFounderWelcome(true);
+          }
+          setAppState("main");
+        }} />
       </div>
     </Shell>
   );
@@ -2978,7 +2993,10 @@ export default function App() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px 6px", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 24, fontWeight: 900, fontFamily: "Georgia,serif", background: `linear-gradient(135deg,${C.accent},${C.orange})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NearMatch</span>
-            {isPro && (
+            {isFounder && (
+              <div style={{ background: "linear-gradient(135deg,#a78bfa,#6366f1)", borderRadius: 8, padding: "2px 8px", fontSize: 10, fontWeight: 900, color: "#fff", letterSpacing: 0.5 }}>👑 ALAPÍTÓ</div>
+            )}
+            {isPro && !isFounder && (
               <div style={{ background: "linear-gradient(135deg,#ffd43b,#ff8c42)", borderRadius: 8, padding: "2px 8px", fontSize: 10, fontWeight: 900, color: "#000", letterSpacing: 0.5 }}>⚡ PRO</div>
             )}
           </div>
@@ -3018,7 +3036,54 @@ export default function App() {
 
       {/* Main content */}
       <div style={{ flex: 1, overflow: "hidden" }}>
-        {/* Filter modal */}
+        {/* Alapító tag üdvözlő modal */}
+        {showFounderWelcome && (
+          <div style={{ position: "absolute", inset: 0, zIndex: 100, background: "rgba(8,11,16,0.92)", backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+            <div style={{ background: C.surface, borderRadius: 28, padding: "32px 24px", border: "1px solid rgba(167,139,250,0.3)", boxShadow: "0 0 60px rgba(167,139,250,0.2)", maxWidth: 360, width: "100%", textAlign: "center" }}>
+
+              {/* Crown animation */}
+              <div style={{ fontSize: 64, marginBottom: 16, animation: "pulse 2s infinite" }}>👑</div>
+
+              <h2 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 8px", color: C.text, fontFamily: "Georgia,serif" }}>
+                Alapító Tag vagy!
+              </h2>
+
+              <div style={{ background: "linear-gradient(135deg,rgba(167,139,250,0.15),rgba(99,102,241,0.15))", border: "1px solid rgba(167,139,250,0.3)", borderRadius: 14, padding: "12px 16px", marginBottom: 16 }}>
+                <div style={{ color: "#a78bfa", fontWeight: 800, fontSize: 16 }}>#{userNumber}. regisztráló</div>
+                <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>az első {FOUNDER_LIMIT.toLocaleString()} alapító tag egyike</div>
+              </div>
+
+              <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>
+                Köszönjük hogy az elsők között csatlakoztál! Jutalmul örökös <span style={{ color: "#ffd43b", fontWeight: 700 }}>Pro előfizetést</span> kapsz — teljesen ingyen, örökre.
+              </p>
+
+              {/* Benefits */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24, textAlign: "left" }}>
+                {[
+                  "⚡ Örökös Pro — soha nem jár le",
+                  "💬 10 aktív match egyszerre",
+                  "🔓 Lejárt matchek felébresztése",
+                  "👑 Alapító tag badge a profilodon",
+                  "🎯 Korai hozzáférés új funkciókhoz",
+                ].map(b => (
+                  <div key={b} style={{ display: "flex", alignItems: "center", gap: 10, background: C.card, borderRadius: 10, padding: "10px 14px", border: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: 14, color: C.text }}>{b}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => setShowFounderWelcome(false)} style={{
+                width: "100%", padding: "16px",
+                background: "linear-gradient(135deg, #a78bfa, #6366f1)",
+                border: "none", borderRadius: 16, color: "#fff",
+                fontSize: 16, fontWeight: 800, cursor: "pointer",
+                boxShadow: "0 8px 24px rgba(167,139,250,0.4)",
+              }}>
+                🚀 Kezdjük el!
+              </button>
+            </div>
+          </div>
+        )}
         {showFilters && <FilterModal filters={filters} onApply={f => { setFilters(f); setRadius(f.maxDistance); }} onClose={() => setShowFilters(false)} />}
 
         {doubleDate ? (
