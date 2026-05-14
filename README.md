@@ -1,2 +1,2 @@
-# nearmatch
+# Nearmatch
 Közelségen alapuló társkereső alkalmazás
