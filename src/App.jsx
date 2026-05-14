@@ -210,11 +210,12 @@ function StatusBar() {
 // ═══════════════════════════════════════════════════════
 // ONBOARDING
 // ═══════════════════════════════════════════════════════
-const ONBOARDING_STEPS = 6;
+const ONBOARDING_STEPS = 7;
 
 function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
   const [data, setData] = useState({ name: "", birthdate: "", gender: "", bio: "", interests: [], phone: "", code: ["","","","","",""] });
+  const [claimed, setClaimed] = useState(false);
   const next = () => step < ONBOARDING_STEPS - 1 ? setStep(s => s + 1) : onComplete(data);
   const back = () => setStep(s => Math.max(0, s - 1));
 
@@ -582,7 +583,7 @@ function Onboarding({ onComplete }) {
         {/* CTA buttons */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <button
-            onClick={() => { setData(d => ({ ...d, locationGranted: true })); onComplete(data); }}
+            onClick={() => { setData(d => ({ ...d, locationGranted: true })); setStep(6); }}
             style={{
               width: "100%", padding: "16px",
               background: `linear-gradient(135deg, ${C.accent}, ${C.orange})`,
@@ -593,7 +594,7 @@ function Onboarding({ onComplete }) {
           >📍  Helyadat engedélyezése</button>
 
           <button
-            onClick={() => { setData(d => ({ ...d, locationGranted: false })); onComplete(data); }}
+            onClick={() => { setData(d => ({ ...d, locationGranted: false })); setStep(6); }}
             style={{
               width: "100%", padding: "14px",
               background: "transparent", border: `1px solid ${C.border}`,
@@ -609,80 +610,386 @@ function Onboarding({ onComplete }) {
       </div>
     </div>
   );
-}
 
-// ═══════════════════════════════════════════════════════
-// RADAR SCREEN
-// ═══════════════════════════════════════════════════════
-function RadarScreen({ users, radius, setRadius, onUserClick }) {
-  const canvasRef = useRef(null);
-  const [pulse, setPulse] = useState(0);
-  useEffect(() => { const t = setInterval(() => setPulse(p => (p + 1) % 100), 50); return () => clearInterval(t); }, []);
-  useEffect(() => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2;
-    ctx.clearRect(0,0,W,H);
-    const bg = ctx.createRadialGradient(cx,cy,0,cx,cy,cx);
-    bg.addColorStop(0,"#0d1117"); bg.addColorStop(1,"#060809");
-    ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
-    [0.25,0.5,0.75,1].forEach(r => { ctx.beginPath(); ctx.arc(cx,cy,cx*r,0,Math.PI*2); ctx.strokeStyle="rgba(255,92,92,0.07)"; ctx.lineWidth=1; ctx.stroke(); });
-    const angle = (pulse/100)*Math.PI*2 - Math.PI/2;
-    ctx.save(); ctx.translate(cx,cy);
-    for(let i=0;i<40;i++){const a=angle-(i/40)*(Math.PI*0.6);ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,cx*0.97,a-0.04,a+0.04);ctx.closePath();ctx.fillStyle=`rgba(255,92,92,${(1-i/40)*0.1})`;ctx.fill();}
-    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(angle)*cx*0.97,Math.sin(angle)*cx*0.97);ctx.strokeStyle="rgba(255,92,92,0.6)";ctx.lineWidth=1.5;ctx.stroke();
-    ctx.restore();
-    users.filter(u=>u.active&&u.distance<=radius).forEach((u,i,arr)=>{
-      const r=(u.distance/radius)*cx*0.88, a=(i/arr.length)*Math.PI*2+0.5;
-      const x=cx+r*Math.cos(a), y=cy+r*Math.sin(a);
-      const glow=ctx.createRadialGradient(x,y,0,x,y,14);glow.addColorStop(0,"rgba(255,92,92,0.3)");glow.addColorStop(1,"transparent");
-      ctx.beginPath();ctx.arc(x,y,14,0,Math.PI*2);ctx.fillStyle=glow;ctx.fill();
-      ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fillStyle="#ff5c5c";ctx.shadowBlur=8;ctx.shadowColor="#ff5c5c";ctx.fill();ctx.shadowBlur=0;
-      ctx.fillStyle="rgba(255,255,255,0.75)";ctx.font="bold 10px sans-serif";ctx.fillText(u.name,x+8,y-3);
-      ctx.fillStyle="rgba(255,92,92,0.6)";ctx.font="9px monospace";ctx.fillText(u.distance+"m",x+8,y+8);
-    });
-    const cg=ctx.createRadialGradient(cx,cy,0,cx,cy,10);cg.addColorStop(0,"rgba(255,92,92,0.4)");cg.addColorStop(1,"transparent");
-    ctx.beginPath();ctx.arc(cx,cy,10,0,Math.PI*2);ctx.fillStyle=cg;ctx.fill();
-    ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.fillStyle="#fff";ctx.shadowBlur=10;ctx.shadowColor="#fff";ctx.fill();ctx.shadowBlur=0;
-  }, [pulse,users,radius]);
+  // Step 6: Alapító tag — Pro ingyen
+  if (step === 6) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.bg }}>
 
-  const visible = users.filter(u=>u.active&&u.distance<=radius);
-  return (
-    <div style={{ padding: "0 20px", overflowY: "auto", height: "100%" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
-        <canvas ref={canvasRef} width={280} height={280} style={{ borderRadius: "50%", border: "1px solid rgba(255,92,92,0.12)" }} />
-        <div style={{ marginTop: 20, width: "100%" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ color: C.muted, fontSize: 12 }}>Sugár</span>
-            <span style={{ color: C.accent, fontSize: 12, fontWeight: 700 }}>
-              {radius < 1000 ? `${radius}m` : `${(radius / 1000).toFixed(1).replace(".0", "")} km`}
-            </span>
+        {/* Arany konfetti animáció felül */}
+        <div style={{ position: "relative", overflow: "hidden", height: 6, flexShrink: 0 }}>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, #ffd43b, #ff8c42, #ffd43b)", backgroundSize: "200% 100%", animation: "shimmer 2s linear infinite" }} />
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "32px 28px 40px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+
+          {/* Hero ikon */}
+          <div style={{
+            width: 110, height: 110, borderRadius: 32, marginBottom: 24,
+            background: "linear-gradient(135deg, #ffd43b, #ff8c42)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 52, boxShadow: "0 20px 60px rgba(255,212,59,0.5)",
+            animation: "pulse 2s ease infinite",
+          }}>⚡</div>
+
+          <div style={{ background: "linear-gradient(135deg,#ffd43b,#ff8c42)", borderRadius: 20, padding: "4px 16px", marginBottom: 16 }}>
+            <span style={{ color: "#000", fontSize: 12, fontWeight: 900, letterSpacing: 1 }}>ALAPÍTÓ TAG</span>
           </div>
-          <input type="range" min="50" max="20000" step="50" value={radius} onChange={e => setRadius(+e.target.value)} style={{ width: "100%", accentColor: C.accent }} />
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-            <span style={{ color: C.dim, fontSize: 10 }}>50m</span>
-            <span style={{ color: C.dim, fontSize: 10 }}>20 km</span>
+
+          <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 12px", color: C.text, fontFamily: "Georgia,serif", textAlign: "center", lineHeight: 1.2 }}>
+            Pro verzió —{"\n"}teljesen ingyen! 🎉
+          </h1>
+
+          <p style={{ color: C.muted, fontSize: 15, textAlign: "center", lineHeight: 1.7, margin: "0 0 32px" }}>
+            Az első <span style={{ color: C.yellow, fontWeight: 700 }}>2 000 felhasználónak</span> a NearMatch Pro verzióját ingyenesen adjuk. Te benne vagy!
+          </p>
+
+          {/* Pro előnyök */}
+          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
+            {[
+              { icon: "💥", title: "10 aktív match", sub: "Ingyenes limitnél 5, neked 10 jár" },
+              { icon: "⚡", title: "Korlátlan Boost", sub: "Kerülj a radar tetejére bármikor" },
+              { icon: "🔔", title: "Lejárt matchek felébresztése", sub: "48 óra után is újraindíthatod" },
+              { icon: "🛰", title: "Műholdas radar", sub: "Valós idejű térkép nézettel" },
+              { icon: "👑", title: "Pro badge a profilodon", sub: "Kitűnsz a többi felhasználó között" },
+            ].map(item => (
+              <div key={item.title} style={{
+                display: "flex", gap: 14, alignItems: "center",
+                background: "linear-gradient(135deg, rgba(255,212,59,0.06), rgba(255,140,66,0.06))",
+                border: "1px solid rgba(255,212,59,0.15)",
+                borderRadius: 14, padding: "13px 16px",
+              }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                  background: "linear-gradient(135deg,#ffd43b22,#ff8c4222)",
+                  border: "1px solid rgba(255,212,59,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+                }}>{item.icon}</div>
+                <div>
+                  <div style={{ color: C.text, fontWeight: 700, fontSize: 14 }}>{item.title}</div>
+                  <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{item.sub}</div>
+                </div>
+                <div style={{ marginLeft: "auto", flexShrink: 0 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: "linear-gradient(135deg,#ffd43b,#ff8c42)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ color: "#000", fontSize: 12, fontWeight: 900 }}>✓</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
+
+          {/* Helyek számlálója */}
+          <div style={{
+            width: "100%", background: C.card, borderRadius: 14,
+            border: "1px solid rgba(255,212,59,0.2)", padding: "14px 16px",
+            marginBottom: 24, display: "flex", alignItems: "center", gap: 12,
+          }}>
+            <span style={{ fontSize: 24 }}>⏳</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ color: C.yellow, fontWeight: 700, fontSize: 13 }}>Korlátozott ajánlat</div>
+              <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>Az ingyenes Pro csak az első 2 000 regisztrálónak jár.</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ color: C.yellow, fontWeight: 900, fontSize: 18 }}>1 247</div>
+              <div style={{ color: C.dim, fontSize: 10 }}>hely maradt</div>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <button
+            onClick={() => { setClaimed(true); setTimeout(() => onComplete({ ...data, isPro: true }), 1200); }}
+            style={{
+              width: "100%", padding: "18px",
+              background: claimed ? C.green : "linear-gradient(135deg, #ffd43b, #ff8c42)",
+              border: "none", borderRadius: 18, color: claimed ? "#fff" : "#000",
+              fontSize: 17, fontWeight: 900, cursor: "pointer",
+              boxShadow: claimed ? `0 8px 24px rgba(62,207,142,0.4)` : "0 8px 32px rgba(255,212,59,0.45)",
+              transition: "all 0.3s",
+            }}
+          >
+            {claimed ? "✓ Pro aktiválva — Belépés!" : "⚡  Alapító Pro aktiválása — Ingyenes"}
+          </button>
+
+          <p style={{ color: C.dim, fontSize: 11, textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>
+            Nincs kártyaszám. Nincs rejtett díj. Az ajánlat az első 2 000 usernek szól.
+          </p>
         </div>
       </div>
-      <div style={{ color: C.dim, fontSize: 11, letterSpacing: 2, marginBottom: 10, textTransform: "uppercase" }}>Közelben — {visible.length} fő</div>
-      {visible.map(u => (
-        <div key={u.id} onClick={() => onUserClick(u)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: `1px solid ${C.border}`, cursor: "pointer" }}>
-          <div style={{ position: "relative" }}>
-            <img src={u.photo} style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
-            {u.active && <div style={{ position: "absolute", bottom: 1, right: 1, width: 10, height: 10, borderRadius: "50%", background: C.green, border: `2px solid ${C.bg}` }} />}
+    );
+  }
+
+// ═══════════════════════════════════════════════════════
+// RADAR SCREEN — Térkép alapú, műholdas nézettel
+// ═══════════════════════════════════════════════════════
+function RadarScreen({ users, radius, setRadius, onUserClick }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+  const circleRef = useRef(null);
+  const [mapMode, setMapMode] = useState("satellite"); // satellite | street
+  const [userPos] = useState({ lat: 47.4979, lng: 19.0402 }); // Budapest mock
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  const visible = users.filter(u => u.active && u.distance <= radius);
+
+  // Load Leaflet dynamically
+  useEffect(() => {
+    if (mapInstanceRef.current) return;
+
+    // Add Leaflet CSS
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+      document.head.appendChild(link);
+    }
+
+    // Add Leaflet JS
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    script.onload = () => initMap();
+    document.head.appendChild(script);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  const getTileUrl = (mode) => {
+    if (mode === "satellite") {
+      return "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+    }
+    return "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+  };
+
+  const initMap = () => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+    const L = window.L;
+
+    const map = L.map(mapRef.current, {
+      center: [userPos.lat, userPos.lng],
+      zoom: 16,
+      zoomControl: false,
+      attributionControl: false,
+    });
+
+    mapInstanceRef.current = map;
+
+    // Satellite tile layer
+    L.tileLayer(getTileUrl("satellite"), {
+      maxZoom: 19,
+    }).addTo(map);
+
+    // User position marker
+    const userIcon = L.divIcon({
+      html: `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff5c5c,#ff8c42);border:3px solid #fff;box-shadow:0 0 20px rgba(255,92,92,0.8);display:flex;align-items:center;justify-content:center;font-size:18px;">📍</div>`,
+      className: "",
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+    });
+    L.marker([userPos.lat, userPos.lng], { icon: userIcon }).addTo(map);
+
+    // Radius circle
+    circleRef.current = L.circle([userPos.lat, userPos.lng], {
+      radius: radius,
+      color: "rgba(255,92,92,0.8)",
+      fillColor: "rgba(255,92,92,0.05)",
+      fillOpacity: 1,
+      weight: 1.5,
+      dashArray: "6,4",
+    }).addTo(map);
+
+    // Add user markers
+    addUserMarkers(map, visible);
+
+    // Pulsing animation ring
+    setInterval(() => {
+      if (mapInstanceRef.current) {
+        map.invalidateSize();
+      }
+    }, 1000);
+  };
+
+  const addUserMarkers = (map, users) => {
+    const L = window.L;
+    if (!L) return;
+
+    // Clear old markers
+    markersRef.current.forEach(m => map.removeLayer(m));
+    markersRef.current = [];
+
+    users.forEach((u, i) => {
+      // Place users around the center at their distance
+      const angle = (i / users.length) * Math.PI * 2 + 0.3;
+      const latOffset = (u.distance / 111000) * Math.cos(angle);
+      const lngOffset = (u.distance / (111000 * Math.cos(userPos.lat * Math.PI/180))) * Math.sin(angle);
+
+      const lat = userPos.lat + latOffset;
+      const lng = userPos.lng + lngOffset;
+
+      const ghostScore = u.ghostScore || 1;
+      const badgeColor = ghostScore >= 0.8 ? "#3ecf8e" : ghostScore >= 0.6 ? "#4dabf7" : "#ffd43b";
+
+      const icon = L.divIcon({
+        html: `
+          <div style="position:relative;cursor:pointer;">
+            <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:2.5px solid ${badgeColor};box-shadow:0 0 16px rgba(255,92,92,0.5);">
+              <img src="${u.photo}" style="width:100%;height:100%;object-fit:cover;" />
+            </div>
+            <div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#3ecf8e;border:2px solid #080b10;"></div>
+            <div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);background:rgba(8,11,16,0.9);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:2px 6px;white-space:nowrap;font-size:10px;color:#fff;font-weight:700;">${u.name}, ${u.age}</div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ color: C.text, fontWeight: 600, fontSize: 15 }}>{u.name}, {u.age}</div>
-            <div style={{ color: C.muted, fontSize: 12 }}>{u.bio.slice(0,40)}...</div>
+        `,
+        className: "",
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      });
+
+      const marker = L.marker([lat, lng], { icon })
+        .addTo(map)
+        .on("click", () => {
+          setSelectedUser(u);
+        });
+
+      markersRef.current.push(marker);
+    });
+  };
+
+  // Update radius circle when radius changes
+  useEffect(() => {
+    if (!circleRef.current) return;
+    circleRef.current.setRadius(radius);
+  }, [radius]);
+
+  // Update markers when users/radius change
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.L) return;
+    addUserMarkers(mapInstanceRef.current, visible);
+  }, [users, radius]);
+
+  // Switch tile layer
+  const switchMapMode = (mode) => {
+    if (!mapInstanceRef.current || !window.L) return;
+    const L = window.L;
+    setMapMode(mode);
+    mapInstanceRef.current.eachLayer(layer => {
+      if (layer instanceof L.TileLayer) {
+        mapInstanceRef.current.removeLayer(layer);
+      }
+    });
+    L.tileLayer(getTileUrl(mode), { maxZoom: 19 }).addTo(mapInstanceRef.current);
+  };
+
+  return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}>
+
+      {/* Map */}
+      <div ref={mapRef} style={{ flex: 1, position: "relative" }} />
+
+      {/* Map mode toggle */}
+      <div style={{ position: "absolute", top: 12, right: 12, zIndex: 1000, display: "flex", gap: 6 }}>
+        {[
+          { id: "satellite", label: "🛰 Műhold" },
+          { id: "street", label: "🗺 Térkép" },
+        ].map(m => (
+          <button key={m.id} onClick={() => switchMapMode(m.id)} style={{
+            background: mapMode === m.id ? `linear-gradient(135deg,${C.accent},${C.orange})` : "rgba(8,11,16,0.8)",
+            border: `1px solid ${mapMode === m.id ? "transparent" : "rgba(255,255,255,0.15)"}`,
+            borderRadius: 10, padding: "6px 12px", fontSize: 11, fontWeight: 700,
+            color: "#fff", cursor: "pointer", backdropFilter: "blur(8px)",
+          }}>{m.label}</button>
+        ))}
+      </div>
+
+      {/* Zoom controls */}
+      <div style={{ position: "absolute", top: 56, right: 12, zIndex: 1000, display: "flex", flexDirection: "column", gap: 4 }}>
+        {["+", "−"].map((btn, i) => (
+          <button key={btn} onClick={() => {
+            if (!mapInstanceRef.current) return;
+            i === 0 ? mapInstanceRef.current.zoomIn() : mapInstanceRef.current.zoomOut();
+          }} style={{
+            width: 34, height: 34, borderRadius: 10, background: "rgba(8,11,16,0.8)",
+            border: "1px solid rgba(255,255,255,0.15)", color: "#fff", fontSize: 18,
+            fontWeight: 700, cursor: "pointer", backdropFilter: "blur(8px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>{btn}</button>
+        ))}
+      </div>
+
+      {/* Radius slider */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 1000,
+        background: "linear-gradient(to top, rgba(8,11,16,0.97) 70%, transparent)",
+        padding: "20px 20px 16px",
+      }}>
+        {/* Online count */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, boxShadow: `0 0 6px ${C.green}` }} />
+            <span style={{ color: C.text, fontSize: 13, fontWeight: 700 }}>{visible.length} fő a közelben</span>
           </div>
-          <div style={{ color: C.accent, fontSize: 12, fontWeight: 700, background: C.accentSoft, borderRadius: 12, padding: "3px 9px" }}>{u.distance}m</div>
+          <span style={{ color: C.accent, fontSize: 12, fontWeight: 700 }}>
+            {radius < 1000 ? `${radius}m` : `${(radius/1000).toFixed(1).replace(".0","")} km`}
+          </span>
         </div>
-      ))}
+
+        {/* Slider */}
+        <input type="range" min={50} max={20000} step={50} value={radius}
+          onChange={e => setRadius(+e.target.value)}
+          style={{ width: "100%", accentColor: C.accent, marginBottom: 10 }} />
+
+        {/* User list */}
+        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+          {visible.map(u => (
+            <div key={u.id} onClick={() => { setSelectedUser(u); onUserClick(u); }}
+              style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer" }}>
+              <div style={{ position: "relative" }}>
+                <img src={u.photo} style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.accent}` }} />
+                <div style={{ position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: "50%", background: C.green, border: `2px solid ${C.bg}` }} />
+              </div>
+              <span style={{ color: C.text, fontSize: 10, fontWeight: 600 }}>{u.name}</span>
+              <span style={{ color: C.dim, fontSize: 9 }}>{u.distance}m</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Selected user popup */}
+      {selectedUser && (
+        <div style={{
+          position: "absolute", bottom: 160, left: 16, right: 16, zIndex: 1001,
+          background: C.surface, borderRadius: 20, padding: "16px",
+          border: `1px solid ${C.border}`, boxShadow: "0 -8px 32px rgba(0,0,0,0.5)",
+          animation: "slideUp 0.3s ease",
+        }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <img src={selectedUser.photo} style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: `2px solid ${C.accent}` }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ color: C.text, fontWeight: 800, fontSize: 16 }}>{selectedUser.name}, {selectedUser.age}</div>
+              <div style={{ color: C.accent, fontSize: 12, marginTop: 2 }}>● {selectedUser.distance}m · Aktív most</div>
+              <div style={{ color: C.muted, fontSize: 12, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedUser.bio}</div>
+            </div>
+            <button onClick={() => setSelectedUser(null)} style={{ background: "none", border: "none", color: C.dim, fontSize: 20, cursor: "pointer" }}>✕</button>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button onClick={() => { setSelectedUser(null); onUserClick(selectedUser); }} style={{
+              flex: 1, padding: "10px", background: `linear-gradient(135deg,${C.accent},${C.orange})`,
+              border: "none", borderRadius: 12, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+            }}>❤️ Swipe-olj rá</button>
+            <button onClick={() => setSelectedUser(null)} style={{
+              padding: "10px 14px", background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 12, color: C.muted, fontSize: 13, cursor: "pointer",
+            }}>Bezár</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 // ═══════════════════════════════════════════════════════
 // SWIPE SCREEN
 // ═══════════════════════════════════════════════════════
@@ -2657,7 +2964,7 @@ export default function App() {
     <Shell>
       <StatusBar />
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <Onboarding onComplete={(data) => { setProfile(data); setAppState("main"); }} />
+        <Onboarding onComplete={(data) => { setProfile(data); if (data.isPro) setIsPro(true); setAppState("main"); }} />
       </div>
     </Shell>
   );
@@ -2669,7 +2976,12 @@ export default function App() {
       {/* Header */}
       {!activeChat && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px 6px", flexShrink: 0 }}>
-          <span style={{ fontSize: 24, fontWeight: 900, fontFamily: "Georgia,serif", background: `linear-gradient(135deg,${C.accent},${C.orange})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NearMatch</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 24, fontWeight: 900, fontFamily: "Georgia,serif", background: `linear-gradient(135deg,${C.accent},${C.orange})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>NearMatch</span>
+            {isPro && (
+              <div style={{ background: "linear-gradient(135deg,#ffd43b,#ff8c42)", borderRadius: 8, padding: "2px 8px", fontSize: 10, fontWeight: 900, color: "#000", letterSpacing: 0.5 }}>⚡ PRO</div>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {/* Boost button */}
             <BoostButton />
@@ -2731,6 +3043,7 @@ export default function App() {
       {!activeChat && !doubleDate && <BottomNav active={tab} setActive={setTab} unreadNotifs={unreadNotifs} />}
 
       <style>{`
+        @keyframes shimmer { from { background-position: 200% center; } to { background-position: -200% center; } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes pulseRing { 0%{transform:translate(-50%,-50%) scale(0.8);opacity:0.8} 100%{transform:translate(-50%,-50%) scale(1.6);opacity:0} }
         @keyframes heartbeat { 0%,100%{transform:scale(1)} 30%{transform:scale(1.25)} 60%{transform:scale(1.1)} }
