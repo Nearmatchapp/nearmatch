@@ -638,7 +638,7 @@ function Onboarding({ onComplete }) {
           </div>
 
           <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 12px", color: C.text, fontFamily: "Georgia,serif", textAlign: "center", lineHeight: 1.2 }}>
-            Pro verzió —{"\n"}teljesen ingyen! 🎉
+            Pro verzió — teljesen ingyen! 🎉
           </h1>
 
           <p style={{ color: C.muted, fontSize: 15, textAlign: "center", lineHeight: 1.7, margin: "0 0 32px" }}>
