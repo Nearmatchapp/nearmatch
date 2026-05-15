@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef } from "react";
 
 // ═══════════════════════════════════════════════════════
 // PHOTO MODERATION
@@ -2896,7 +2895,7 @@ function Shell({ children }) {
   );
 }
 
-export default function App() {
+function App() {
   const [appState, setAppState] = useState("onboarding");
   const [tab, setTab] = useState("radar");
   const [radius, setRadius] = useState(200);
