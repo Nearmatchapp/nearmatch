@@ -1,3 +1,5 @@
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
 
 // ═══════════════════════════════════════════════════════
 // PHOTO MODERATION
@@ -3131,3 +3133,5 @@ function App() {
     </Shell>
   );
 }
+
+window.App = App;
