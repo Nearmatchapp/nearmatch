@@ -2888,6 +2888,14 @@ function FilterModal({ filters, onApply, onClose }) {
   );
 }
 
+function Shell({ children }) {
+  return (
+    <div style={{ width: "100%", maxWidth: 390, margin: "0 auto", height: "100vh", maxHeight: 844, background: C.bg, overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "'SF Pro Text',-apple-system,sans-serif", borderRadius: 44, boxShadow: "0 40px 120px rgba(0,0,0,0.8),inset 0 0 0 1px rgba(255,255,255,0.07)", position: "relative" }}>
+      {children}
+    </div>
+  );
+}
+
 export default function App() {
   const [appState, setAppState] = useState("onboarding");
   const [tab, setTab] = useState("radar");
@@ -3122,13 +3130,5 @@ export default function App() {
         textarea::placeholder,input::placeholder{color:rgba(240,244,255,0.2)}
       `}</style>
     </Shell>
-  );
-}
-
-function Shell({ children }) {
-  return (
-    <div style={{ width: "100%", maxWidth: 390, margin: "0 auto", height: "100vh", maxHeight: 844, background: C.bg, overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "'SF Pro Text',-apple-system,sans-serif", borderRadius: 44, boxShadow: "0 40px 120px rgba(0,0,0,0.8),inset 0 0 0 1px rgba(255,255,255,0.07)", position: "relative" }}>
-      {children}
-    </div>
   );
 }
