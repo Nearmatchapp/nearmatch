@@ -373,7 +373,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
           </div>
         </div>
       )}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"10px 16px", gap:10, overflowY:"auto" }}>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"10px 16px", gap:10, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
         {boostActive && (
           <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))", border:"1px solid rgba(255,212,59,0.4)", borderRadius:13, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>⚡</span>
@@ -1007,7 +1007,7 @@ export default function App() {
         {!myLocation && <div style={{ color:C.yellow,fontSize:11 }}>📍 GPS szükséges</div>}
       </div>
 
-      <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative" }}>
+      <div style={{ flex:1,overflow:"auto",display:"flex",flexDirection:"column",position:"relative" }}>
         {matchOverlay && <MatchOverlay user={matchOverlay} onMessage={() => { const m=matches.find(x=>x.other?.id===matchOverlay.id); setMatchOverlay(null); if(m){setActiveChat(m);setTab("matches");} }} onClose={()=>setMatchOverlay(null)} />}
         {activeChat ? (
           <ChatView match={activeChat} myId={session.user.id} onBack={()=>setActiveChat(null)} />
