@@ -657,6 +657,8 @@ function ChatView({ match, myId, onBack }) {
 function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onUpgrade, onSignOut }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [draft, setDraft] = useState({
     name: myProfile?.name||"",
     bio: myProfile?.bio||"",
@@ -674,6 +676,34 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
     setEditing(false);
   };
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Max 5MB
+    if (file.size > 5 * 1024 * 1024) { setUploadError("Max 5MB!"); return; }
+    // Csak kép
+    if (!file.type.startsWith("image/")) { setUploadError("Csak képfájl tölthető fel!"); return; }
+    setUploadError("");
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${myProfile.id}/avatar.${ext}`;
+      // Feltöltés Supabase Storage-ba
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      // Publikus URL lekérése
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      const photo_url = urlData.publicUrl + "?t=" + Date.now(); // cache bust
+      // Profil frissítése
+      const { data } = await supabase.from("profiles").update({ photo_url }).eq("id", myProfile.id).select().single();
+      if (data) setMyProfile(p=>({...p, photo_url}));
+    } catch (err) {
+      setUploadError("Hiba: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const SelectRow = ({ label, value, options, onChange }) => (
     <div style={{ marginBottom:14 }}>
       <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8 }}>{label}</label>
@@ -685,9 +715,24 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
 
   return (
     <div style={{ flex:1,overflowY:"auto" }}>
-      <div style={{ position:"relative",height:200,background:`linear-gradient(135deg,${C.accent},#ff8c42)`,display:"flex",alignItems:"center",justifyContent:"center" }}>
-        {myProfile?.photo_url ? (<img src={myProfile.photo_url} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt="Profil" />) : (<div style={{ textAlign:"center" }}><div style={{ fontSize:60 }}>📷</div><div style={{ color:"rgba(255,255,255,0.7)",fontSize:13 }}>Nincs profilkép</div></div>)}
+      <div style={{ position:"relative",height:200,background:`linear-gradient(135deg,${C.accent},#ff8c42)`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden" }}>
+        {myProfile?.photo_url
+          ? <img src={myProfile.photo_url} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt="Profil" />
+          : <div style={{ textAlign:"center" }}><div style={{ fontSize:60 }}>📷</div><div style={{ color:"rgba(255,255,255,0.7)",fontSize:13 }}>Nincs profilkép</div></div>
+        }
+        {uploading && (
+          <div style={{ position:"absolute",inset:0,background:"rgba(8,11,16,0.7)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12 }}>
+            <Spinner />
+            <span style={{ color:C.text,fontSize:13 }}>Feltöltés...</span>
+          </div>
+        )}
+        {/* Feltöltés gomb */}
+        <label style={{ position:"absolute",bottom:12,right:12,background:"rgba(8,11,16,0.8)",border:`1px solid ${C.border}`,borderRadius:12,padding:"9px 14px",color:C.text,cursor:"pointer",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:6 }}>
+          📷 {myProfile?.photo_url ? "Csere" : "Feltöltés"}
+          <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploading} />
+        </label>
         <button onClick={onSignOut} style={{ position:"absolute",top:12,left:12,background:"rgba(8,11,16,0.7)",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px 14px",color:C.muted,cursor:"pointer",fontSize:12 }}>Kilépés</button>
+        {uploadError && <div style={{ position:"absolute",bottom:52,left:"50%",transform:"translateX(-50%)",background:"rgba(255,92,92,0.9)",borderRadius:10,padding:"6px 14px",color:"#fff",fontSize:12,whiteSpace:"nowrap" }}>{uploadError}</div>}
       </div>
       <div style={{ padding:"16px 20px" }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
