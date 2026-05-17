@@ -1,12 +1,6 @@
--- Avatars bucket policy
-create policy "Avatar képek nyilvánosan láthatók"
-  on storage.objects for select
-  using ( bucket_id = 'avatars' );
+import { createClient } from '@supabase/supabase-js'
 
-create policy "Saját avatar feltöltése"
-  on storage.objects for insert
-  with check ( bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1] );
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-create policy "Saját avatar felülírása"
-  on storage.objects for update
-  using ( bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1] );
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
