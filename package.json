@@ -1,19 +1,117 @@
-{
-  "name": "nearmatch",
-  "private": true,
-  "version": "0.0.1",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.1.0"
-  }
-}
+-- NearMatch adatbázis séma
+-- Futtatsd a Supabase SQL Editor-ban
+
+-- Profil tábla
+create table profiles (
+  id uuid references auth.users on delete cascade primary key,
+  name text,
+  bio text,
+  age integer,
+  gender text,
+  height integer,
+  education text,
+  smoking text,
+  looking_for text,
+  interests text[] default '{}',
+  photo_url text,
+  is_pro boolean default false,
+  is_founder boolean default false,
+  boost_active boolean default false,
+  boost_expires_at timestamptz,
+  last_boost_week integer,
+  super_like_count integer default 0,
+  super_like_day text,
+  lat double precision,
+  lng double precision,
+  last_seen timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+-- Swipe tábla (ki kit liked/passed/superliked)
+create table swipes (
+  id uuid default gen_random_uuid() primary key,
+  swiper_id uuid references profiles(id) on delete cascade,
+  swiped_id uuid references profiles(id) on delete cascade,
+  action text check (action in ('like','pass','superlike')),
+  created_at timestamptz default now(),
+  unique(swiper_id, swiped_id)
+);
+
+-- Match tábla
+create table matches (
+  id uuid default gen_random_uuid() primary key,
+  user1_id uuid references profiles(id) on delete cascade,
+  user2_id uuid references profiles(id) on delete cascade,
+  status text default 'active' check (status in ('active','expired')),
+  created_at timestamptz default now(),
+  expires_at timestamptz default (now() + interval '48 hours')
+);
+
+-- Üzenet tábla
+create table messages (
+  id uuid default gen_random_uuid() primary key,
+  match_id uuid references matches(id) on delete cascade,
+  sender_id uuid references profiles(id) on delete cascade,
+  text text not null,
+  created_at timestamptz default now(),
+  read boolean default false
+);
+
+-- ── RLS (Row Level Security) ──────────────────────────
+
+alter table profiles enable row level security;
+alter table swipes enable row level security;
+alter table matches enable row level security;
+alter table messages enable row level security;
+
+-- Profiles: mindenki láthatja, csak saját magát szerkesztheti
+create policy "Profiles are viewable by everyone" on profiles for select using (true);
+create policy "Users can insert own profile" on profiles for insert with check (auth.uid() = id);
+create policy "Users can update own profile" on profiles for update using (auth.uid() = id);
+
+-- Swipes: csak saját swipe-ok
+create policy "Users can insert own swipes" on swipes for insert with check (auth.uid() = swiper_id);
+create policy "Users can view own swipes" on swipes for select using (auth.uid() = swiper_id or auth.uid() = swiped_id);
+
+-- Matches: csak saját matchek
+create policy "Users can view own matches" on matches for select using (auth.uid() = user1_id or auth.uid() = user2_id);
+create policy "Users can insert matches" on matches for insert with check (auth.uid() = user1_id);
+create policy "Users can update own matches" on matches for update using (auth.uid() = user1_id or auth.uid() = user2_id);
+
+-- Messages: csak a match résztvevői
+create policy "Users can view messages in their matches" on messages for select using (
+  exists (select 1 from matches where id = match_id and (user1_id = auth.uid() or user2_id = auth.uid()))
+);
+create policy "Users can send messages in their matches" on messages for insert with check (
+  auth.uid() = sender_id and
+  exists (select 1 from matches where id = match_id and (user1_id = auth.uid() or user2_id = auth.uid()))
+);
+
+-- ── Automatikus match létrehozás ──────────────────────
+-- Ha ketten egymást likeolják, automatikusan match jön létre
+create or replace function check_mutual_like()
+returns trigger as $$
+begin
+  if new.action in ('like', 'superlike') then
+    if exists (
+      select 1 from swipes
+      where swiper_id = new.swiped_id
+        and swiped_id = new.swiper_id
+        and action in ('like', 'superlike')
+    ) then
+      insert into matches (user1_id, user2_id)
+      values (new.swiper_id, new.swiped_id)
+      on conflict do nothing;
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_swipe_insert
+  after insert on swipes
+  for each row execute procedure check_mutual_like();
+
+-- ── Realtime engedélyezés ─────────────────────────────
+alter publication supabase_realtime add table messages;
+alter publication supabase_realtime add table matches;
