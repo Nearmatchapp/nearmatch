@@ -47,7 +47,7 @@ function getTodayKey() { const d = new Date(); return `${d.getFullYear()}-${d.ge
 // ── SHELL ──────────────────────────────────────────────
 function Shell({ children }) {
   return (
-    <div style={{ width:"100%", maxWidth:390, margin:"0 auto", height:"100vh", maxHeight:844, background:C.bg, display:"flex", flexDirection:"column", position:"relative", overflow:"hidden" }}>
+    <div style={{ width:"100%", maxWidth:390, margin:"0 auto", height:"100dvh", minHeight:"-webkit-fill-available", background:C.bg, display:"flex", flexDirection:"column", position:"relative", overflow:"hidden" }}>
       {children}
       <style>{`* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; } ::-webkit-scrollbar{display:none;} input[type=range]{-webkit-appearance:none;height:3px;background:rgba(240,244,255,0.15);border-radius:2px;outline:none;width:100%;} input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#ff5c5c;cursor:pointer;} @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}} @keyframes spin{to{transform:rotate(360deg);}}`}</style>
     </div>
@@ -1007,7 +1007,7 @@ export default function App() {
         {!myLocation && <div style={{ color:C.yellow,fontSize:11 }}>📍 GPS szükséges</div>}
       </div>
 
-      <div style={{ flex:1,overflow:"auto",display:"flex",flexDirection:"column",position:"relative" }}>
+      <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",minHeight:0 }}>
         {matchOverlay && <MatchOverlay user={matchOverlay} onMessage={() => { const m=matches.find(x=>x.other?.id===matchOverlay.id); setMatchOverlay(null); if(m){setActiveChat(m);setTab("matches");} }} onClose={()=>setMatchOverlay(null)} />}
         {activeChat ? (
           <ChatView match={activeChat} myId={session.user.id} onBack={()=>setActiveChat(null)} />
