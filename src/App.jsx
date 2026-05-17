@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
+const STRIPE_PRICE_ID = "price_1TY5hhBtOhui3FKbzxznfDa9";
+
 const C = {
   bg: "#080b10", surface: "#0f1520", card: "#141c2b",
   border: "rgba(255,255,255,0.07)", accent: "#ff5c5c",
@@ -853,6 +855,41 @@ export default function App() {
 
   const isPro = myProfile?.is_pro||false;
 
+  const handleUpgrade = async () => {
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      const token = authSession?.access_token;
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            price_id: STRIPE_PRICE_ID,
+            success_url: window.location.origin + "?pro=success",
+            cancel_url: window.location.origin + "?pro=cancel",
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (err) {
+      console.error("Stripe hiba:", err);
+    }
+  };
+
+  // Pro success visszairányítás kezelése
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("pro") === "success") {
+      setMyProfile(p => p ? {...p, is_pro: true} : p);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   // Auth listener
   useEffect(() => {
     supabase.auth.getSession().then(({ data:{ session } }) => {
@@ -976,10 +1013,10 @@ export default function App() {
           <ChatView match={activeChat} myId={session.user.id} onBack={()=>setActiveChat(null)} />
         ) : (
           <>
-            {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={()=>setMyProfile(p=>({...p,is_pro:true}))} />}
-            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={()=>setMyProfile(p=>({...p,is_pro:true}))} />}
-            {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={()=>setMyProfile(p=>({...p,is_pro:true}))} />}
-            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onUpgrade={()=>setMyProfile(p=>({...p,is_pro:true}))} onSignOut={handleSignOut} />}
+            {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} />}
+            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
+            {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
+            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} />}
           </>
         )}
       </div>
