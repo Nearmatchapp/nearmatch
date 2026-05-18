@@ -321,6 +321,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
   const [dots, setDots] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showProWall, setShowProWall] = useState(false);
+  const [satelliteMode, setSatelliteMode] = useState(false);
   const animRef = useRef(null);
   const angleRef = useRef(0);
 
@@ -374,6 +375,11 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
         </div>
       )}
       <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"10px 16px", gap:10, overflowY:"scroll", WebkitOverflowScrolling:"touch", minHeight:0 }}>
+        <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+          <button onClick={() => setSatelliteMode(m => !m)} style={{ flex:1, padding:"10px 14px", borderRadius:12, border:`1px solid ${satelliteMode ? "#4dabf7" : C.border}`, background:satelliteMode ? "rgba(77,171,247,0.12)" : C.card, color:satelliteMode ? "#4dabf7" : C.muted, cursor:"pointer", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            🛰️ {satelliteMode ? "Műholdas" : "Radar"} nézet
+          </button>
+        </div>
         {boostActive && (
           <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))", border:"1px solid rgba(255,212,59,0.4)", borderRadius:13, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>⚡</span>
@@ -382,7 +388,30 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
           </div>
         )}
         <div style={{ position:"relative", display:"flex", justifyContent:"center" }}>
-          <canvas ref={canvasRef} width={300} height={300} onClick={handleCanvasClick} style={{ borderRadius:"50%", cursor:"crosshair", width:300, height:300, flexShrink:0 }} />
+          {satelliteMode ? (
+            <div style={{ width:300, height:300, borderRadius:16, overflow:"hidden", position:"relative", flexShrink:0 }}>
+              <iframe
+                src={`https://maps.google.com/maps?q=${myProfile?.lat||47.497},${myProfile?.lng||19.040}&z=15&output=embed&t=k`}
+                style={{ width:"100%", height:"100%", border:"none" }}
+                title="Műholdas nézet"
+                loading="lazy"
+              />
+              {nearbyUsers.filter(u=>u.lat&&u.lng).map(u => {
+                const latDiff = (u.lat - (myProfile?.lat||47.497)) * 111320;
+                const lngDiff = (u.lng - (myProfile?.lng||19.040)) * 111320 * Math.cos((myProfile?.lat||47.497) * Math.PI/180);
+                const scale = 300 / 400;
+                const px = 150 + lngDiff * scale * 0.3;
+                const py = 150 - latDiff * scale * 0.3;
+                if (px < 10 || px > 290 || py < 10 || py > 290) return null;
+                return (
+                  <div key={u.id} onClick={() => setSelected(u)} style={{ position:"absolute", left:px-8, top:py-8, width:16, height:16, borderRadius:"50%", background:C.accent, border:"2px solid #fff", cursor:"pointer", zIndex:10, boxShadow:"0 2px 8px rgba(255,92,92,0.6)" }} />
+                );
+              })}
+              <div style={{ position:"absolute", top:8, left:8, background:"rgba(8,11,16,0.8)", borderRadius:8, padding:"4px 8px", color:C.text, fontSize:11 }}>🛰️ Műholdas</div>
+            </div>
+          ) : (
+            <canvas ref={canvasRef} width={300} height={300} onClick={handleCanvasClick} style={{ borderRadius:"50%", cursor:"crosshair", width:300, height:300, flexShrink:0 }} />
+          )}
           {selected && (
             <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, padding:"10px 14px", display:"flex", alignItems:"center", gap:10, minWidth:220 }}>
               {isPro ? (<img src={selected.photo_url||`https://i.pravatar.cc/300?u=${selected.id}`} style={{ width:42, height:42, borderRadius:"50%", objectFit:"cover" }} alt={selected.name} />) : (<div style={{ width:42, height:42, borderRadius:"50%", background:C.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🔒</div>)}
@@ -511,14 +540,19 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           </div>
         )}
         <div onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-          onClick={(e) => { if(Math.abs(drag.x)>5) return; const rect=e.currentTarget.getBoundingClientRect(); const x=e.clientX-rect.left; if(x>rect.width*0.75) setCardPage(p=>Math.min(p+1,1)); else if(x<rect.width*0.25) setCardPage(p=>Math.max(p-1,0)); }}
+          onClick={(e) => { if(Math.abs(drag.x)>5) return; const rect=e.currentTarget.getBoundingClientRect(); const x=e.clientX-rect.left; const maxPage=(cur.photos||(cur.photo_url?[cur.photo_url]:[])).length; if(x>rect.width*0.75) setCardPage(p=>Math.min(p+1,maxPage)); else if(x<rect.width*0.25) setCardPage(p=>Math.max(p-1,0)); }}
           style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab",transform,transition }}>
           <div style={{ position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4,zIndex:10 }}>
-            {[0,1].map(p => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
+            {Array.from({length: Math.min((cur.photos||[cur.photo_url].filter(Boolean)).length + 1, 7)}).map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
           </div>
           {cardPage===0 ? (
             <>
-              <img src={cur.photo_url||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />
+              {(() => {
+                const photos = cur.photos || (cur.photo_url ? [cur.photo_url] : []);
+                const photoIdx = Math.max(0, cardPage - 0);
+                const photoUrl = photos[photoIdx] || cur.photo_url || `https://i.pravatar.cc/300?u=${cur.id}`;
+                return <img src={photoUrl} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />;
+              })()}
               <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,11,16,0.9) 0%,transparent 50%)" }} />
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
               <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
@@ -679,31 +713,44 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
   };
 
   const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // Max 5MB
-    if (file.size > 5 * 1024 * 1024) { setUploadError("Max 5MB!"); return; }
-    // Csak kép
-    if (!file.type.startsWith("image/")) { setUploadError("Csak képfájl tölthető fel!"); return; }
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const currentPhotos = myProfile?.photos || (myProfile?.photo_url ? [myProfile.photo_url] : []);
+    if (currentPhotos.length + files.length > 6) { setUploadError("Max 6 kép tölthető fel!"); return; }
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) { setUploadError("Max 5MB/kép!"); return; }
+      if (!file.type.startsWith("image/")) { setUploadError("Csak képfájl tölthető fel!"); return; }
+    }
     setUploadError("");
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `${myProfile.id}/avatar.${ext}`;
-      // Feltöltés Supabase Storage-ba
-      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw upErr;
-      // Publikus URL lekérése
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-      const photo_url = urlData.publicUrl + "?t=" + Date.now(); // cache bust
-      // Profil frissítése
-      const { data } = await supabase.from("profiles").update({ photo_url }).eq("id", myProfile.id).select().single();
-      if (data) setMyProfile(p=>({...p, photo_url}));
+      const newUrls = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const ext = file.name.split(".").pop();
+        const path = `${myProfile.id}/photo_${Date.now()}_${i}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: false, contentType: file.type });
+        if (upErr) throw upErr;
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+        newUrls.push(urlData.publicUrl + "?t=" + Date.now());
+      }
+      const updatedPhotos = [...currentPhotos, ...newUrls].slice(0, 6);
+      const photo_url = updatedPhotos[0];
+      const { data } = await supabase.from("profiles").update({ photo_url, photos: updatedPhotos }).eq("id", myProfile.id).select().single();
+      if (data) setMyProfile(p=>({...p, photo_url, photos: updatedPhotos}));
     } catch (err) {
       setUploadError("Hiba: " + err.message);
     } finally {
       setUploading(false);
     }
+  };
+
+  const handlePhotoDelete = async (idx) => {
+    const currentPhotos = myProfile?.photos || [];
+    const updatedPhotos = currentPhotos.filter((_, i) => i !== idx);
+    const photo_url = updatedPhotos[0] || null;
+    const { data } = await supabase.from("profiles").update({ photo_url, photos: updatedPhotos }).eq("id", myProfile.id).select().single();
+    if (data) setMyProfile(p=>({...p, photo_url, photos: updatedPhotos}));
   };
 
   const SelectRow = ({ label, value, options, onChange }) => (
@@ -717,24 +764,31 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
 
   return (
     <div style={{ flex:1,overflowY:"auto" }}>
-      <div style={{ position:"relative",height:200,background:`linear-gradient(135deg,${C.accent},#ff8c42)`,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden" }}>
-        {myProfile?.photo_url
-          ? <img src={myProfile.photo_url} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt="Profil" />
-          : <div style={{ textAlign:"center" }}><div style={{ fontSize:60 }}>📷</div><div style={{ color:"rgba(255,255,255,0.7)",fontSize:13 }}>Nincs profilkép</div></div>
-        }
-        {uploading && (
-          <div style={{ position:"absolute",inset:0,background:"rgba(8,11,16,0.7)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12 }}>
-            <Spinner />
-            <span style={{ color:C.text,fontSize:13 }}>Feltöltés...</span>
-          </div>
-        )}
-        {/* Feltöltés gomb */}
-        <label style={{ position:"absolute",bottom:12,right:12,background:"rgba(8,11,16,0.8)",border:`1px solid ${C.border}`,borderRadius:12,padding:"9px 14px",color:C.text,cursor:"pointer",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:6 }}>
-          📷 {myProfile?.photo_url ? "Csere" : "Feltöltés"}
-          <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploading} />
-        </label>
-        <button onClick={onSignOut} style={{ position:"absolute",top:12,left:12,background:"rgba(8,11,16,0.7)",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px 14px",color:C.muted,cursor:"pointer",fontSize:12 }}>Kilépés</button>
-        {uploadError && <div style={{ position:"absolute",bottom:52,left:"50%",transform:"translateX(-50%)",background:"rgba(255,92,92,0.9)",borderRadius:10,padding:"6px 14px",color:"#fff",fontSize:12,whiteSpace:"nowrap" }}>{uploadError}</div>}
+      {/* Fotó galéria */}
+      <div style={{ padding:"16px 20px 0" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <span style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Fotók ({(myProfile?.photos||[myProfile?.photo_url].filter(Boolean)).length}/6)</span>
+          <button onClick={onSignOut} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:12 }}>Kilépés</button>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:6 }}>
+          {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).map((url, idx) => (
+            <div key={idx} style={{ position:"relative", aspectRatio:"1", borderRadius:12, overflow:"hidden", background:C.card }}>
+              <img src={url} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt={`Fotó ${idx+1}`} />
+              {idx === 0 && <div style={{ position:"absolute", top:4, left:4, background:C.accent, borderRadius:6, padding:"2px 6px", fontSize:10, color:"#fff", fontWeight:700 }}>Fő</div>}
+              <button onClick={() => handlePhotoDelete(idx)} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", background:"rgba(8,11,16,0.8)", border:"none", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
+            </div>
+          ))}
+          {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).length < 6 && (
+            <label style={{ aspectRatio:"1", borderRadius:12, background:C.card, border:`2px dashed ${C.border}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:4 }}>
+              {uploading ? <Spinner /> : <>
+                <span style={{ fontSize:24 }}>+</span>
+                <span style={{ color:C.dim, fontSize:10 }}>Fotó hozzáadása</span>
+              </>}
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploading} />
+            </label>
+          )}
+        </div>
+        {uploadError && <div style={{ marginTop:8, background:"rgba(255,92,92,0.1)", border:`1px solid ${C.accent}`, borderRadius:10, padding:"8px 12px", color:C.accent, fontSize:12 }}>{uploadError}</div>}
       </div>
       <div style={{ padding:"16px 20px" }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
