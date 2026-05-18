@@ -89,7 +89,7 @@ function AuthScreen({ onAuth }) {
 
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 28px", background:C.bg }}>
-      <div style={{ width:80, height:80, borderRadius:24, background:`linear-gradient(135deg,${C.accent},#ff8c42)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:38, marginBottom:20 }}>📍</div>
+      <img src="/icon-512.png" alt="NearMatch" style={{ width:80, height:80, borderRadius:24, marginBottom:20, objectFit:"cover" }} />
       <h1 style={{ fontSize:32, fontWeight:900, color:C.text, fontFamily:"Georgia,serif", margin:"0 0 6px" }}>NearMatch</h1>
       <p style={{ color:C.muted, fontSize:13, margin:"0 0 32px" }}>Közelségen alapuló társkereső</p>
 
