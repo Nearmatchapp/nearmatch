@@ -1,7 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { initializeApp } from "firebase/app";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { supabase } from "./supabase.js";
 
 const STRIPE_PRICE_ID = "price_1TY5hhBtOhui3FKbzxznfDa9";
+const FIREBASE_VAPID_KEY = "BGS3Q-Qb57P-C7tZOvGoByZAhok8PhJPkUoo0gXWHB995U2jDYfXjjqtGrrbNI-k8t9QQu1LiMrNauOcRKdKOmc";
+
+const firebaseApp = initializeApp({
+  apiKey: "AIzaSyCxyDIoNIt7eneyXGmPRPUcNLhr5vdwRII",
+  authDomain: "nearmatch-85c0a.firebaseapp.com",
+  projectId: "nearmatch-85c0a",
+  storageBucket: "nearmatch-85c0a.firebasestorage.app",
+  messagingSenderId: "388455535348",
+  appId: "1:388455535348:web:b5d80dd949c2619a8d84a1",
+});
 
 const C = {
   bg: "#080b10", surface: "#0f1520", card: "#141c2b",
@@ -35,14 +47,42 @@ function distanceKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function ghostLabel(score) {
-  if (score >= 0.8) return { text: "💬 Aktív üzenetküldő", color: "#3ecf8e" };
-  if (score >= 0.6) return { text: "💬 Általában válaszol", color: "#4dabf7" };
-  if (score >= 0.4) return { text: "⏳ Lassan válaszol", color: "#ffd43b" };
-  return null;
+function getTodayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
+
+// ── PUSH HELPERS ───────────────────────────────────────
+async function registerPushToken(userId) {
+  try {
+    if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const messaging = getMessaging(firebaseApp);
+    const token = await getToken(messaging, { vapidKey: FIREBASE_VAPID_KEY, serviceWorkerRegistration: reg });
+    if (token) {
+      await supabase.from("push_tokens").upsert({ user_id: userId, token }, { onConflict: "user_id,token" });
+    }
+    onMessage(messaging, (payload) => {
+      if (Notification.permission === "granted") {
+        new Notification(payload.notification.title, { body: payload.notification.body, icon: "/icon-192.png" });
+      }
+    });
+  } catch (err) {
+    console.warn("Push regisztráció hiba:", err);
+  }
 }
 
-function getTodayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
+async function sendPushNotification(userId, title, body, data = {}) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ user_id: userId, title, body, data }),
+    });
+  } catch (err) {
+    console.warn("Push küldési hiba:", err);
+  }
+}
 
 // ── SHELL ──────────────────────────────────────────────
 function Shell({ children }) {
@@ -60,7 +100,7 @@ function Spinner() {
 
 // ── AUTH SCREEN ────────────────────────────────────────
 function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState("login"); // login | register
+  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,7 +118,6 @@ function AuthScreen({ onAuth }) {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // onAuth called via useEffect in App
       }
     } catch (e) {
       setError(e.message);
@@ -92,7 +131,6 @@ function AuthScreen({ onAuth }) {
       <img src="/icon-512.png" alt="NearMatch" style={{ width:80, height:80, borderRadius:24, marginBottom:20, objectFit:"cover" }} />
       <h1 style={{ fontSize:32, fontWeight:900, color:C.text, fontFamily:"Georgia,serif", margin:"0 0 6px" }}>NearMatch</h1>
       <p style={{ color:C.muted, fontSize:13, margin:"0 0 32px" }}>Közelségen alapuló társkereső</p>
-
       <div style={{ width:"100%", display:"flex", gap:8, marginBottom:24 }}>
         {["login","register"].map(m => (
           <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }}
@@ -101,17 +139,14 @@ function AuthScreen({ onAuth }) {
           </button>
         ))}
       </div>
-
       <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:12 }}>
         <input type="email" placeholder="Email cím" value={email} onChange={e => setEmail(e.target.value)}
           style={{ width:"100%", padding:"14px 16px", borderRadius:13, background:C.card, border:`1px solid ${C.border}`, color:C.text, fontSize:15, outline:"none" }} />
         <input type="password" placeholder="Jelszó" value={password} onChange={e => setPassword(e.target.value)}
           onKeyDown={e => e.key==="Enter" && handle()}
           style={{ width:"100%", padding:"14px 16px", borderRadius:13, background:C.card, border:`1px solid ${C.border}`, color:C.text, fontSize:15, outline:"none" }} />
-
         {error && <div style={{ background:"rgba(255,92,92,0.1)", border:`1px solid ${C.accent}`, borderRadius:10, padding:"10px 14px", color:C.accent, fontSize:13 }}>{error}</div>}
         {success && <div style={{ background:"rgba(62,207,142,0.1)", border:`1px solid ${C.green}`, borderRadius:10, padding:"10px 14px", color:C.green, fontSize:13 }}>{success}</div>}
-
         <button onClick={handle} disabled={loading}
           style={{ width:"100%", padding:"16px", background:loading?C.card:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:loading?"not-allowed":"pointer", marginTop:4 }}>
           {loading ? <Spinner /> : mode === "login" ? "Bejelentkezés →" : "Regisztráció →"}
@@ -136,28 +171,14 @@ function Onboarding({ user, onComplete }) {
     if (locationGranted) {
       try {
         const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 }));
-        lat = pos.coords.latitude;
-        lng = pos.coords.longitude;
+        lat = pos.coords.latitude; lng = pos.coords.longitude;
       } catch {}
     }
     const birthYear = data.birthdate ? new Date(data.birthdate).getFullYear() : null;
     const age = birthYear ? new Date().getFullYear() - birthYear : null;
     const totalUsers = Math.floor(Math.random() * 1800) + 1;
     const isFounder = totalUsers <= 2000;
-    const profile = {
-      id: user.id,
-      name: data.name,
-      bio: data.bio,
-      age,
-      gender: data.gender,
-      interests: data.interests,
-      looking_for: data.lookingFor,
-      is_pro: isFounder,
-      is_founder: isFounder,
-      lat,
-      lng,
-      last_seen: new Date().toISOString(),
-    };
+    const profile = { id: user.id, name: data.name, bio: data.bio, age, gender: data.gender, interests: data.interests, looking_for: data.lookingFor, is_pro: isFounder, is_founder: isFounder, lat, lng, last_seen: new Date().toISOString() };
     const { error } = await supabase.from("profiles").upsert(profile);
     if (!error) onComplete({ ...profile, isFounder });
     setSaving(false);
@@ -326,11 +347,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
   const angleRef = useRef(0);
 
   useEffect(() => {
-    setDots(nearbyUsers.map((u, i) => ({
-      ...u,
-      angle: (i / Math.max(nearbyUsers.length, 1)) * Math.PI * 2,
-      r: Math.min(0.9, 0.2 + (u.distanceKm / 20) * 0.7),
-    })));
+    setDots(nearbyUsers.map((u, i) => ({ ...u, angle: (i / Math.max(nearbyUsers.length, 1)) * Math.PI * 2, r: Math.min(0.9, 0.2 + (u.distanceKm / 20) * 0.7) })));
   }, [nearbyUsers]);
 
   useEffect(() => {
@@ -390,22 +407,14 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
         <div style={{ position:"relative", display:"flex", justifyContent:"center" }}>
           {satelliteMode ? (
             <div style={{ width:300, height:300, borderRadius:16, overflow:"hidden", position:"relative", flexShrink:0 }}>
-              <iframe
-                src={`https://maps.google.com/maps?q=${myProfile?.lat||47.497},${myProfile?.lng||19.040}&z=15&output=embed&t=k`}
-                style={{ width:"100%", height:"100%", border:"none" }}
-                title="Műholdas nézet"
-                loading="lazy"
-              />
+              <iframe src={`https://maps.google.com/maps?q=${myProfile?.lat||47.497},${myProfile?.lng||19.040}&z=15&output=embed&t=k`} style={{ width:"100%", height:"100%", border:"none" }} title="Műholdas nézet" loading="lazy" />
               {nearbyUsers.filter(u=>u.lat&&u.lng).map(u => {
                 const latDiff = (u.lat - (myProfile?.lat||47.497)) * 111320;
                 const lngDiff = (u.lng - (myProfile?.lng||19.040)) * 111320 * Math.cos((myProfile?.lat||47.497) * Math.PI/180);
-                const scale = 300 / 400;
-                const px = 150 + lngDiff * scale * 0.3;
-                const py = 150 - latDiff * scale * 0.3;
+                const px = 150 + lngDiff * (300/400) * 0.3;
+                const py = 150 - latDiff * (300/400) * 0.3;
                 if (px < 10 || px > 290 || py < 10 || py > 290) return null;
-                return (
-                  <div key={u.id} onClick={() => setSelected(u)} style={{ position:"absolute", left:px-8, top:py-8, width:16, height:16, borderRadius:"50%", background:C.accent, border:"2px solid #fff", cursor:"pointer", zIndex:10, boxShadow:"0 2px 8px rgba(255,92,92,0.6)" }} />
-                );
+                return (<div key={u.id} onClick={() => setSelected(u)} style={{ position:"absolute", left:px-8, top:py-8, width:16, height:16, borderRadius:"50%", background:C.accent, border:"2px solid #fff", cursor:"pointer", zIndex:10, boxShadow:"0 2px 8px rgba(255,92,92,0.6)" }} />);
               })}
               <div style={{ position:"absolute", top:8, left:8, background:"rgba(8,11,16,0.8)", borderRadius:8, padding:"4px 8px", color:C.text, fontSize:11 }}>🛰️ Műholdas</div>
             </div>
@@ -476,7 +485,6 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
   const cur = swipeUsers[idx % swipeUsers.length];
   const next = swipeUsers[(idx+1) % swipeUsers.length];
-
   const showLabel = (label) => { setActionLabel(label); setTimeout(() => setActionLabel(null), 900); };
 
   const act = async (dir) => {
@@ -547,12 +555,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           </div>
           {cardPage===0 ? (
             <>
-              {(() => {
-                const photos = cur.photos || (cur.photo_url ? [cur.photo_url] : []);
-                const photoIdx = Math.max(0, cardPage - 0);
-                const photoUrl = photos[photoIdx] || cur.photo_url || `https://i.pravatar.cc/300?u=${cur.id}`;
-                return <img src={photoUrl} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />;
-              })()}
+              {(() => { const photos = cur.photos || (cur.photo_url ? [cur.photo_url] : []); const photoUrl = photos[0] || `https://i.pravatar.cc/300?u=${cur.id}`; return <img src={photoUrl} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />; })()}
               <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,11,16,0.9) 0%,transparent 50%)" }} />
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
               <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
@@ -581,15 +584,12 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
         </div>
         <div style={{ display:"flex",justifyContent:"center",alignItems:"center",gap:16 }}>
           <button onClick={handleRewind} style={{ width:52,height:52,borderRadius:"50%",background:isPro&&history.length>0?"rgba(255,140,66,0.12)":C.card,border:`1px solid ${isPro&&history.length>0?C.orange:C.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",opacity:history.length===0&&isPro?0.4:1,position:"relative" }}>
-            ↩️
-            {!isPro&&<div style={{ position:"absolute",top:-3,right:-3,width:14,height:14,borderRadius:"50%",background:C.yellow,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:900 }}>P</div>}
+            ↩️{!isPro&&<div style={{ position:"absolute",top:-3,right:-3,width:14,height:14,borderRadius:"50%",background:C.yellow,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:900 }}>P</div>}
           </button>
           <button onClick={() => {showLabel("PASS");act("pass");}} style={{ width:60,height:60,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:26,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
           <button onClick={() => {showLabel("LIKE");act("like");}} style={{ width:74,height:74,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",fontSize:32,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accentGlow}` }}>♥</button>
-          <button onClick={() => { if(slLeft<=0){setProWallType("superlike");return;} showLabel("SUPER LIKE"); act("superlike"); }}
-            style={{ width:60,height:60,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.12)":C.card,border:`1px solid ${slLeft>0?"#4dabf7":C.border}`,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative" }}>
-            ⭐
-            {slLeft<=0&&!isPro&&<div style={{ position:"absolute",top:-3,right:-3,width:14,height:14,borderRadius:"50%",background:C.yellow,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:900 }}>P</div>}
+          <button onClick={() => { if(slLeft<=0){setProWallType("superlike");return;} showLabel("SUPER LIKE"); act("superlike"); }} style={{ width:60,height:60,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.12)":C.card,border:`1px solid ${slLeft>0?"#4dabf7":C.border}`,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative" }}>
+            ⭐{slLeft<=0&&!isPro&&<div style={{ position:"absolute",top:-3,right:-3,width:14,height:14,borderRadius:"50%",background:C.yellow,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:900 }}>P</div>}
           </button>
         </div>
       </div>
@@ -641,14 +641,11 @@ function ChatView({ match, myId, onBack }) {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("messages").select("*").eq("match_id", match.id).order("created_at", { ascending:true });
-      setMsgs(data||[]);
-      setLoading(false);
+      setMsgs(data||[]); setLoading(false);
     };
     load();
     const sub = supabase.channel(`messages:${match.id}`)
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages", filter:`match_id=eq.${match.id}` }, payload => {
-        setMsgs(m => [...m, payload.new]);
-      }).subscribe();
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages", filter:`match_id=eq.${match.id}` }, payload => { setMsgs(m => [...m, payload.new]); }).subscribe();
     return () => supabase.removeChannel(sub);
   }, [match.id]);
 
@@ -658,6 +655,10 @@ function ChatView({ match, myId, onBack }) {
     if (!input.trim()) return;
     const text = input; setInput("");
     await supabase.from("messages").insert({ match_id:match.id, sender_id:myId, text });
+    // Push értesítés a másik félnek
+    if (match.other?.id) {
+      await sendPushNotification(match.other.id, `💬 Új üzenet`, text.length > 60 ? text.slice(0,60)+"…" : text, { type:"message", match_id: match.id });
+    }
   };
 
   const timeLabel = (ts) => new Date(ts).toLocaleTimeString("hu", { hour:"2-digit", minute:"2-digit" });
@@ -695,21 +696,13 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [draft, setDraft] = useState({
-    name: myProfile?.name||"",
-    bio: myProfile?.bio||"",
-    height: myProfile?.height||170,
-    education: myProfile?.education||"",
-    smoking: myProfile?.smoking||"",
-    looking_for: myProfile?.looking_for||"",
-  });
+  const [draft, setDraft] = useState({ name: myProfile?.name||"", bio: myProfile?.bio||"", height: myProfile?.height||170, education: myProfile?.education||"", smoking: myProfile?.smoking||"", looking_for: myProfile?.looking_for||"" });
 
   const save = async () => {
     setSaving(true);
     const { data } = await supabase.from("profiles").update(draft).eq("id", myProfile.id).select().single();
     if (data) setMyProfile(p=>({...p,...data}));
-    setSaving(false);
-    setEditing(false);
+    setSaving(false); setEditing(false);
   };
 
   const handlePhotoUpload = async (e) => {
@@ -721,13 +714,11 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
       if (file.size > 5 * 1024 * 1024) { setUploadError("Max 5MB/kép!"); return; }
       if (!file.type.startsWith("image/")) { setUploadError("Csak képfájl tölthető fel!"); return; }
     }
-    setUploadError("");
-    setUploading(true);
+    setUploadError(""); setUploading(true);
     try {
       const newUrls = [];
       for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const ext = file.name.split(".").pop();
+        const file = files[i]; const ext = file.name.split(".").pop();
         const path = `${myProfile.id}/photo_${Date.now()}_${i}.${ext}`;
         const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: false, contentType: file.type });
         if (upErr) throw upErr;
@@ -738,11 +729,7 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
       const photo_url = updatedPhotos[0];
       const { data } = await supabase.from("profiles").update({ photo_url, photos: updatedPhotos }).eq("id", myProfile.id).select().single();
       if (data) setMyProfile(p=>({...p, photo_url, photos: updatedPhotos}));
-    } catch (err) {
-      setUploadError("Hiba: " + err.message);
-    } finally {
-      setUploading(false);
-    }
+    } catch (err) { setUploadError("Hiba: " + err.message); } finally { setUploading(false); }
   };
 
   const handlePhotoDelete = async (idx) => {
@@ -764,7 +751,6 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
 
   return (
     <div style={{ flex:1,overflowY:"auto" }}>
-      {/* Fotó galéria */}
       <div style={{ padding:"16px 20px 0" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <span style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Fotók ({(myProfile?.photos||[myProfile?.photo_url].filter(Boolean)).length}/6)</span>
@@ -780,10 +766,7 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
           ))}
           {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).length < 6 && (
             <label style={{ aspectRatio:"1", borderRadius:12, background:C.card, border:`2px dashed ${C.border}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:4 }}>
-              {uploading ? <Spinner /> : <>
-                <span style={{ fontSize:24 }}>+</span>
-                <span style={{ color:C.dim, fontSize:10 }}>Fotó hozzáadása</span>
-              </>}
+              {uploading ? <Spinner /> : <><span style={{ fontSize:24 }}>+</span><span style={{ color:C.dim, fontSize:10 }}>Fotó hozzáadása</span></>}
               <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploading} />
             </label>
           )}
@@ -797,53 +780,37 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
             {saving?<Spinner />:editing?"✓ Mentés":"✏️ Szerkesztés"}
           </button>
         </div>
-
-        {/* Boost kártya */}
         {!editing && (
           <div style={{ marginBottom:16 }}>
             {boostActive ? (
               <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.15),rgba(255,140,66,0.15))",border:"1px solid rgba(255,212,59,0.4)",borderRadius:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:12 }}>
-                <div style={{ fontSize:28 }}>⚡</div>
-                <div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:800,fontSize:15 }}>Kiemelés aktív!</div><div style={{ color:C.muted,fontSize:12,marginTop:2 }}>30 percig előre kerülsz a közeliek között</div></div>
+                <div style={{ fontSize:28 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:800,fontSize:15 }}>Kiemelés aktív!</div><div style={{ color:C.muted,fontSize:12,marginTop:2 }}>30 percig előre kerülsz a közeliek között</div></div>
                 <div style={{ width:10,height:10,borderRadius:"50%",background:C.green,boxShadow:"0 0 8px #3ecf8e" }} />
               </div>
             ) : isPro && boostAvailable ? (
               <button onClick={onBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left" }}>
-                <div style={{ fontSize:26 }}>⚡</div>
-                <div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Profilod előre kerül — 30 percig • Heti 1 db</div></div>
+                <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Profilod előre kerül — 30 percig • Heti 1 db</div></div>
                 <div style={{ background:"linear-gradient(135deg,#ffd43b,#ff8c42)",borderRadius:10,padding:"6px 12px",color:"#000",fontSize:12,fontWeight:700 }}>Aktiválás</div>
               </button>
             ) : isPro && !boostAvailable ? (
               <div style={{ background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:12,opacity:0.6 }}>
-                <div style={{ fontSize:26 }}>⚡</div>
-                <div style={{ flex:1 }}><div style={{ color:C.text,fontWeight:700,fontSize:14 }}>Kiemelés elhasználva</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Jövő héten újra elérhető</div></div>
+                <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.text,fontWeight:700,fontSize:14 }}>Kiemelés elhasználva</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Jövő héten újra elérhető</div></div>
                 <div style={{ background:C.surface,borderRadius:10,padding:"6px 12px",color:C.dim,fontSize:12 }}>🔄 +7 nap</div>
               </div>
             ) : (
               <button onClick={onUpgrade} style={{ width:"100%",padding:"14px 16px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left" }}>
-                <div style={{ fontSize:26 }}>⚡</div>
-                <div style={{ flex:1 }}><div style={{ color:C.muted,fontWeight:700,fontSize:14 }}>Kiemelés — Pro funkció</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Kerülj előre • Heti 1 db</div></div>
+                <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.muted,fontWeight:700,fontSize:14 }}>Kiemelés — Pro funkció</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Kerülj előre • Heti 1 db</div></div>
                 <div style={{ background:"rgba(255,212,59,0.1)",border:"1px solid rgba(255,212,59,0.3)",borderRadius:10,padding:"6px 12px",color:C.yellow,fontSize:12,fontWeight:700 }}>Pro</div>
               </button>
             )}
           </div>
         )}
-
         {editing ? (
           <div style={{ display:"flex",flexDirection:"column",gap:4 }}>
-            <div style={{ marginBottom:12 }}>
-              <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label>
-              <input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} />
-            </div>
-            <div style={{ marginBottom:12 }}>
-              <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label>
-              <textarea value={draft.bio} onChange={e=>setDraft(d=>({...d,bio:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} />
-            </div>
+            <div style={{ marginBottom:12 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
+            <div style={{ marginBottom:12 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e=>setDraft(d=>({...d,bio:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} /></div>
             <div style={{ marginBottom:14 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}>
-                <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1 }}>📏 Magasság</label>
-                <span style={{ color:C.accent,fontWeight:700,fontSize:13 }}>{draft.height} cm</span>
-              </div>
+              <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1 }}>📏 Magasság</label><span style={{ color:C.accent,fontWeight:700,fontSize:13 }}>{draft.height} cm</span></div>
               <input type="range" min={135} max={230} step={1} value={draft.height} onChange={e=>setDraft(d=>({...d,height:+e.target.value}))} style={{ width:"100%" }} />
               <div style={{ display:"flex",justifyContent:"space-between",marginTop:4 }}><span style={{ color:C.dim,fontSize:10 }}>135 cm</span><span style={{ color:C.dim,fontSize:10 }}>230 cm</span></div>
             </div>
@@ -891,7 +858,7 @@ function MatchOverlay({ user, onMessage, onClose }) {
 export default function App() {
   const [session, setSession] = useState(null);
   const [myProfile, setMyProfile] = useState(null);
-  const [appState, setAppState] = useState("loading"); // loading | auth | onboarding | main
+  const [appState, setAppState] = useState("loading");
   const [tab, setTab] = useState("radar");
   const [nearbyUsers, setNearbyUsers] = useState([]);
   const [swipeUsers, setSwipeUsers] = useState([]);
@@ -900,51 +867,32 @@ export default function App() {
   const [matchOverlay, setMatchOverlay] = useState(null);
   const [myLocation, setMyLocation] = useState(null);
 
-  // Boost
   const [boostActive, setBoostActive] = useState(false);
   const [lastBoostWeek, setLastBoostWeek] = useState(null);
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const boostAvailable = myProfile?.is_pro && lastBoostWeek!==getWeekNumber() && !boostActive;
   const handleBoost = () => { if(!boostAvailable) return; setBoostActive(true); setLastBoostWeek(getWeekNumber()); setTimeout(()=>setBoostActive(false), 30*60*1000); };
-
   const isPro = myProfile?.is_pro||false;
 
   const handleUpgrade = async () => {
     try {
       const { data: { session: authSession } } = await supabase.auth.getSession();
       const token = authSession?.access_token;
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            price_id: STRIPE_PRICE_ID,
-            success_url: window.location.origin + "?pro=success",
-            cancel_url: window.location.origin + "?pro=cancel",
-          }),
-        }
-      );
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ price_id: STRIPE_PRICE_ID, success_url: window.location.origin + "?pro=success", cancel_url: window.location.origin + "?pro=cancel" }),
+      });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-    } catch (err) {
-      console.error("Stripe hiba:", err);
-    }
+    } catch (err) { console.error("Stripe hiba:", err); }
   };
 
-  // Pro success visszairányítás kezelése
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("pro") === "success") {
-      setMyProfile(p => p ? {...p, is_pro: true} : p);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
+    if (params.get("pro") === "success") { setMyProfile(p => p ? {...p, is_pro: true} : p); window.history.replaceState({}, "", window.location.pathname); }
   }, []);
 
-  // Auth listener
   useEffect(() => {
     supabase.auth.getSession().then(({ data:{ session } }) => {
       setSession(session);
@@ -961,11 +909,15 @@ export default function App() {
 
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (data) { setMyProfile(data); setAppState("main"); }
-    else setAppState("onboarding");
+    if (data) {
+      setMyProfile(data);
+      setAppState("main");
+      registerPushToken(userId); // Push token regisztráció
+    } else {
+      setAppState("onboarding");
+    }
   };
 
-  // GPS frissítés
   useEffect(() => {
     if (appState !== "main") return;
     const updateLocation = async () => {
@@ -981,36 +933,24 @@ export default function App() {
     return () => clearInterval(interval);
   }, [appState, session]);
 
-  // Közeli userek betöltése
   const loadNearby = useCallback(async () => {
     if (!myLocation || !session) return;
     const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
     if (!data) return;
-    const withDist = data
-      .filter(u => u.lat && u.lng)
-      .map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) }))
-      .filter(u => u.distanceKm < 20)
-      .sort((a,b) => boostActive ? a.distanceKm-b.distanceKm : a.distanceKm-b.distanceKm);
+    const withDist = data.filter(u => u.lat && u.lng).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
     setNearbyUsers(withDist);
-
-    // Swipe userek — akiket még nem swipeltünk
     const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id);
     const swipedIds = new Set((swipedData||[]).map(s=>s.swiped_id));
-    const forSwipe = data.map(u => ({
-      ...u,
-      distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null
-    })).filter(u => !swipedIds.has(u.id));
+    const forSwipe = data.map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null })).filter(u => !swipedIds.has(u.id));
     setSwipeUsers(boostActive ? [...forSwipe].sort((a,b)=>(a.distanceKm||99)-(b.distanceKm||99)) : forSwipe);
   }, [myLocation, session, boostActive]);
 
   useEffect(() => { loadNearby(); }, [loadNearby]);
 
-  // Matchek betöltése
   const loadMatches = useCallback(async () => {
     if (!session) return;
     const { data } = await supabase.from("matches").select("*, user1:profiles!matches_user1_id_fkey(*), user2:profiles!matches_user2_id_fkey(*)").or(`user1_id.eq.${session.user.id},user2_id.eq.${session.user.id}`).order("created_at", { ascending:false });
     if (!data) return;
-
     const withOther = await Promise.all(data.map(async m => {
       const other = m.user1_id===session.user.id ? m.user2 : m.user1;
       const { data:lastMsg } = await supabase.from("messages").select("text,created_at").eq("match_id",m.id).order("created_at",{ascending:false}).limit(1).single();
@@ -1022,7 +962,6 @@ export default function App() {
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
-  // Realtime match figyelés
   useEffect(() => {
     if (!session) return;
     const sub = supabase.channel("matches_realtime")
@@ -1031,24 +970,26 @@ export default function App() {
         if (m.user1_id===session.user.id || m.user2_id===session.user.id) {
           const otherId = m.user1_id===session.user.id ? m.user2_id : m.user1_id;
           const { data:other } = await supabase.from("profiles").select("*").eq("id",otherId).single();
-          if (other) setMatchOverlay(other);
+          if (other) {
+            setMatchOverlay(other);
+            await sendPushNotification(otherId, "🎉 Új match!", `${myProfile?.name || "Valaki"} kedvelt téged!`, { type:"match" });
+          }
           loadMatches();
         }
       }).subscribe();
     return () => supabase.removeChannel(sub);
-  }, [session, loadMatches]);
+  }, [session, loadMatches, myProfile]);
 
   const handleSwipe = async (targetId, action) => {
     await supabase.from("swipes").upsert({ swiper_id:session.user.id, swiped_id:targetId, action });
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); };
-
   const unreadCount = matches.filter(m=>m.unread).length;
 
   if (appState==="loading") return <Shell><div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20 }}><div style={{ fontSize:48 }}>📍</div><Spinner /></div></Shell>;
   if (appState==="auth") return <Shell><AuthScreen onAuth={()=>{}} /></Shell>;
-  if (appState==="onboarding") return <Shell><Onboarding user={session.user} onComplete={p=>{ setMyProfile(p); setAppState("main"); }} /></Shell>;
+  if (appState==="onboarding") return <Shell><Onboarding user={session.user} onComplete={p=>{ setMyProfile(p); setAppState("main"); registerPushToken(p.id); }} /></Shell>;
 
   return (
     <Shell>
@@ -1060,7 +1001,6 @@ export default function App() {
         </div>
         {!myLocation && <div style={{ color:C.yellow,fontSize:11 }}>📍 GPS szükséges</div>}
       </div>
-
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",minHeight:0 }}>
         {matchOverlay && <MatchOverlay user={matchOverlay} onMessage={() => { const m=matches.find(x=>x.other?.id===matchOverlay.id); setMatchOverlay(null); if(m){setActiveChat(m);setTab("matches");} }} onClose={()=>setMatchOverlay(null)} />}
         {activeChat ? (
