@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
 const STRIPE_PRICE_ID = "price_1TY5hhBtOhui3FKbzxznfDa9";
-const ONESIGNAL_APP_ID = "ac1a4664-cec3-4e0c-9e27-91218932b9f1";
 
 const C = {
   bg: "#080b10", surface: "#0f1520", card: "#141c2b",
@@ -38,7 +37,6 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 
 function getTodayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
-// ── ONESIGNAL HELPERS ──────────────────────────────────
 async function registerOneSignalUser(userId) {
   try {
     if (!window.OneSignalDeferred) return;
@@ -46,9 +44,7 @@ async function registerOneSignalUser(userId) {
       await OneSignal.login(userId);
       await OneSignal.User.addTag("user_id", userId);
     });
-  } catch (err) {
-    console.warn("OneSignal regisztráció hiba:", err);
-  }
+  } catch (err) { console.warn("OneSignal hiba:", err); }
 }
 
 async function sendPushNotification(userId, title, body, data = {}) {
@@ -56,18 +52,12 @@ async function sendPushNotification(userId, title, body, data = {}) {
     const { data: { session } } = await supabase.auth.getSession();
     await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session?.access_token}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
       body: JSON.stringify({ user_id: userId, title, body, data }),
     });
-  } catch (err) {
-    console.warn("Push küldési hiba:", err);
-  }
+  } catch (err) { console.warn("Push hiba:", err); }
 }
 
-// ── SHELL ──────────────────────────────────────────────
 function Shell({ children }) {
   return (
     <div style={{ width:"100%", maxWidth:390, margin:"0 auto", height:"100dvh", minHeight:"-webkit-fill-available", background:C.bg, display:"flex", flexDirection:"column", position:"relative", overflow:"hidden" }}>
@@ -81,7 +71,7 @@ function Spinner() {
   return <div style={{ width:40, height:40, border:`3px solid ${C.border}`, borderTop:`3px solid ${C.accent}`, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto" }} />;
 }
 
-// ── AUTH SCREEN ────────────────────────────────────────
+// ── AUTH ───────────────────────────────────────────────
 function AuthScreen() {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
@@ -97,7 +87,7 @@ function AuthScreen() {
       if (mode === "register") {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setSuccess("Ellenőrizd az emailed a megerősítéshez!");
+        setSuccess("Ellenőrizd az emailed!");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -106,7 +96,7 @@ function AuthScreen() {
   };
 
   return (
-    <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 28px", background:C.bg }}>
+    <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 28px" }}>
       <img src="/icon-512.png" alt="NearMatch" style={{ width:80, height:80, borderRadius:24, marginBottom:20, objectFit:"cover" }} />
       <h1 style={{ fontSize:32, fontWeight:900, color:C.text, fontFamily:"Georgia,serif", margin:"0 0 6px" }}>NearMatch</h1>
       <p style={{ color:C.muted, fontSize:13, margin:"0 0 32px" }}>Közelségen alapuló társkereső</p>
@@ -155,8 +145,7 @@ function Onboarding({ user, onComplete }) {
     }
     const birthYear = data.birthdate ? new Date(data.birthdate).getFullYear() : null;
     const age = birthYear ? new Date().getFullYear() - birthYear : null;
-    const isFounder = true;
-    const profile = { id: user.id, name: data.name, bio: data.bio, age, gender: data.gender, interests: data.interests, looking_for: data.lookingFor, is_pro: isFounder, is_founder: isFounder, lat, lng, last_seen: new Date().toISOString() };
+    const profile = { id: user.id, name: data.name, bio: data.bio, age, gender: data.gender, interests: data.interests, looking_for: data.lookingFor, is_pro: true, is_founder: true, lat, lng, last_seen: new Date().toISOString() };
     const { error } = await supabase.from("profiles").upsert(profile);
     if (!error) onComplete(profile);
     setSaving(false);
@@ -179,7 +168,7 @@ function Onboarding({ user, onComplete }) {
   );
 
   if (step === 0) return (
-    <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"28px 28px 32px", background:C.bg }}>
+    <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"28px 28px 32px" }}>
       <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
         <div style={{ width:86, height:86, borderRadius:26, background:`linear-gradient(135deg,${C.accent},#ff8c42)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>👋</div>
         <h2 style={{ fontSize:28, fontWeight:900, color:C.text, fontFamily:"Georgia,serif", margin:0 }}>Üdvözlünk!</h2>
@@ -195,7 +184,7 @@ function Onboarding({ user, onComplete }) {
     const isUnderage = age !== null && age < 18;
     const canProceed = data.name && data.birthdate && data.gender && !isUnderage;
     return (
-      <div style={{ display:"flex", flexDirection:"column", height:"100%", background:C.bg }}>
+      <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
         <Header />
         <div style={{ flex:1, padding:"16px 24px", overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
           <h2 style={{ fontSize:24, fontWeight:900, color:C.text, margin:"8px 0 0" }}>Rólad</h2>
@@ -223,7 +212,7 @@ function Onboarding({ user, onComplete }) {
   }
 
   if (step === 2) return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:C.bg }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <Header />
       <div style={{ flex:1, padding:"16px 24px", overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
         <h2 style={{ fontSize:24, fontWeight:900, color:C.text, margin:"8px 0 0" }}>Mutatkozz be</h2>
@@ -244,7 +233,7 @@ function Onboarding({ user, onComplete }) {
   );
 
   if (step === 3) return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:C.bg }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <Header />
       <div style={{ flex:1, padding:"16px 24px", overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
         <h2 style={{ fontSize:24, fontWeight:900, color:C.text, margin:"8px 0 0" }}>Preferenciák</h2>
@@ -264,7 +253,7 @@ function Onboarding({ user, onComplete }) {
   );
 
   if (step === 4) return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:C.bg }}>
+    <div style={{ display:"flex", flexDirection:"column", height:"100%" }}>
       <Header />
       <div style={{ flex:1, overflowY:"auto", padding:"16px 24px 32px" }}>
         <div style={{ textAlign:"center", marginBottom:24, paddingTop:8 }}>
@@ -294,10 +283,11 @@ function Onboarding({ user, onComplete }) {
 }
 
 // ── BOTTOM NAV ─────────────────────────────────────────
-function BottomNav({ active, setActive, unreadCount }) {
+function BottomNav({ active, setActive, unreadCount, newLikesCount }) {
   const tabs = [
     { id:"radar", icon:"◎", label:"Radar" },
     { id:"swipe", icon:"♥", label:"Swipe" },
+    { id:"likeok", icon:"🔥", label:"Likeok" },
     { id:"matches", icon:"💬", label:"Matchek" },
     { id:"profile", icon:"👤", label:"Profil" },
   ];
@@ -305,17 +295,129 @@ function BottomNav({ active, setActive, unreadCount }) {
     <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:C.surface, flexShrink:0 }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => setActive(t.id)} style={{ flex:1, padding:"10px 0", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
-          <span style={{ fontSize:20, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
-          <span style={{ fontSize:10, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
-          {t.id==="matches" && unreadCount>0 && (<div style={{ position:"absolute", top:6, right:"22%", width:14, height:14, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{unreadCount}</div>)}
+          <span style={{ fontSize:18, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
+          <span style={{ fontSize:9, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
+          {t.id==="matches" && unreadCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{unreadCount}</div>)}
+          {t.id==="likeok" && newLikesCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.orange, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{newLikesCount}</div>)}
         </button>
       ))}
     </div>
   );
 }
 
+// ── LIKEOK SCREEN ──────────────────────────────────────
+function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
+  const [likers, setLikers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      // Ki likedelt engem (action = like vagy superlike, de még nem matcheltünk)
+      const { data: swipes } = await supabase
+        .from("swipes")
+        .select("swiper_id, action, created_at")
+        .eq("swiped_id", myId)
+        .in("action", ["like", "superlike"])
+        .order("created_at", { ascending: false });
+
+      if (!swipes) { setLoading(false); return; }
+
+      // Szűrjük ki akikkel már matcheltünk
+      const { data: matches } = await supabase
+        .from("matches")
+        .select("user1_id, user2_id")
+        .or(`user1_id.eq.${myId},user2_id.eq.${myId}`);
+
+      const matchedIds = new Set((matches||[]).map(m => m.user1_id===myId ? m.user2_id : m.user1_id));
+      const filtered = swipes.filter(s => !matchedIds.has(s.swiper_id));
+      setCount(filtered.length);
+
+      if (isPro) {
+        // Pro: lekérjük a profilokat
+        const ids = filtered.map(s => s.swiper_id);
+        if (ids.length > 0) {
+          const { data: profiles } = await supabase.from("profiles").select("*").in("id", ids);
+          const withAction = (profiles||[]).map(p => ({
+            ...p,
+            action: filtered.find(s => s.swiper_id === p.id)?.action
+          }));
+          setLikers(withAction);
+        }
+      }
+      setLoading(false);
+    };
+    load();
+  }, [myId, isPro]);
+
+  if (loading) return <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}><Spinner /></div>;
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", padding:"16px 20px" }}>
+      <div style={{ marginBottom:20 }}>
+        <h2 style={{ color:C.text, fontSize:22, fontWeight:900, margin:"0 0 4px" }}>🔥 Likeok</h2>
+        <p style={{ color:C.muted, fontSize:13, margin:0 }}>{count} ember kedvelt téged</p>
+      </div>
+
+      {count === 0 && (
+        <div style={{ textAlign:"center", padding:"40px 20px" }}>
+          <div style={{ fontSize:50, marginBottom:16 }}>🔥</div>
+          <div style={{ color:C.text, fontSize:16, fontWeight:700, marginBottom:8 }}>Még nincs like</div>
+          <div style={{ color:C.muted, fontSize:13 }}>Swipe-olj többet, hogy mások is lássanak!</div>
+        </div>
+      )}
+
+      {!isPro && count > 0 && (
+        <>
+          {/* Homályos preview - free felhasználóknak */}
+          <div style={{ position:"relative", marginBottom:16 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, filter:"blur(12px)", pointerEvents:"none", userSelect:"none" }}>
+              {Array.from({ length: Math.min(count, 6) }).map((_, i) => (
+                <div key={i} style={{ aspectRatio:"1", borderRadius:16, background:`linear-gradient(135deg, #${Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')}, #${Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>
+                  👤
+                </div>
+              ))}
+            </div>
+            <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
+              <div style={{ background:"rgba(8,11,16,0.85)", backdropFilter:"blur(8px)", borderRadius:20, padding:"20px 24px", textAlign:"center", border:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:36, marginBottom:8 }}>🔒</div>
+                <div style={{ color:C.text, fontWeight:800, fontSize:18, marginBottom:4 }}>{count} ember kedvelt téged!</div>
+                <div style={{ color:C.muted, fontSize:13, marginBottom:16 }}>Upgrade Pro-ra, hogy lásd kiről van szó</div>
+                <button onClick={onUpgrade} style={{ background:"linear-gradient(135deg,#ffd43b,#ff8c42)", border:"none", borderRadius:14, color:"#000", padding:"12px 24px", cursor:"pointer", fontSize:14, fontWeight:700 }}>⚡ Upgrade Pro-ra</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {isPro && likers.length > 0 && (
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {likers.map(u => (
+            <div key={u.id} style={{ display:"flex", alignItems:"center", gap:12, background:C.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${C.border}` }}>
+              <div style={{ position:"relative" }}>
+                <img src={u.photo_url||`https://i.pravatar.cc/300?u=${u.id}`} style={{ width:56, height:56, borderRadius:"50%", objectFit:"cover" }} alt={u.name} />
+                {u.action === "superlike" && <div style={{ position:"absolute", bottom:-2, right:-2, fontSize:14 }}>⭐</div>}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ color:C.text, fontWeight:700, fontSize:15 }}>{u.name}, {u.age}</div>
+                <div style={{ color:u.action==="superlike"?"#4dabf7":C.accent, fontSize:12, marginTop:2 }}>
+                  {u.action === "superlike" ? "⭐ Super Like-olt" : "❤️ Kedvelt téged"}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => onSwipe(u.id, "pass")} style={{ width:40, height:40, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                <button onClick={() => onSwipe(u.id, "like")} style={{ width:40, height:40, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>♥</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── RADAR ──────────────────────────────────────────────
-function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) {
+function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, onSwipe }) {
   const canvasRef = useRef(null);
   const [dots, setDots] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -362,7 +464,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
       {showProWall && (
         <div style={{ position:"absolute", inset:0, zIndex:95, background:"rgba(8,11,16,0.92)", backdropFilter:"blur(8px)", display:"flex", alignItems:"flex-end" }}>
           <div style={{ width:"100%", background:C.surface, borderRadius:"28px 28px 0 0", padding:"28px 24px 40px", border:`1px solid ${C.border}` }}>
-            <div style={{ textAlign:"center", marginBottom:20 }}><div style={{ fontSize:48, marginBottom:10 }}>🔒</div><h3 style={{ color:C.text, fontSize:20, fontWeight:900, margin:"0 0 8px" }}>Pro funkció</h3><p style={{ color:C.muted, fontSize:13, margin:0 }}>A Radar profil megtekintése csak Pro tagoknak.</p></div>
+            <div style={{ textAlign:"center", marginBottom:20 }}><div style={{ fontSize:48, marginBottom:10 }}>🔒</div><h3 style={{ color:C.text, fontSize:20, fontWeight:900, margin:"0 0 8px" }}>Pro funkció</h3><p style={{ color:C.muted, fontSize:13, margin:0 }}>A Radar like küldése csak Pro tagoknak érhető el.</p></div>
             <button onClick={() => { onUpgrade(); setShowProWall(false); }} style={{ width:"100%", padding:"16px", background:"linear-gradient(135deg,#ffd43b,#ff8c42)", border:"none", borderRadius:16, color:"#000", fontSize:16, fontWeight:700, cursor:"pointer", marginBottom:10 }}>⚡ Upgrade Pro-ra</button>
             <button onClick={() => setShowProWall(false)} style={{ width:"100%", padding:"14px", background:"none", border:`1px solid ${C.border}`, borderRadius:16, color:C.muted, fontSize:15, cursor:"pointer" }}>Mégse</button>
           </div>
@@ -377,7 +479,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
         {boostActive && (
           <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))", border:"1px solid rgba(255,212,59,0.4)", borderRadius:13, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>⚡</span>
-            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Kiemelés aktív</div><div style={{ color:C.dim, fontSize:11 }}>Távolság szerint rendezve</div></div>
+            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Kiemelés aktív</div></div>
             <div style={{ width:8, height:8, borderRadius:"50%", background:C.green, boxShadow:"0 0 6px #3ecf8e" }} />
           </div>
         )}
@@ -391,19 +493,23 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
             <canvas ref={canvasRef} width={300} height={300} onClick={handleCanvasClick} style={{ borderRadius:"50%", cursor:"crosshair", width:300, height:300, flexShrink:0 }} />
           )}
           {selected && (
-            <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, padding:"10px 14px", display:"flex", alignItems:"center", gap:10, minWidth:220 }}>
+            <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, padding:"10px 14px", display:"flex", alignItems:"center", gap:10, minWidth:230 }}>
               {isPro ? (<img src={selected.photo_url||`https://i.pravatar.cc/300?u=${selected.id}`} style={{ width:42, height:42, borderRadius:"50%", objectFit:"cover" }} alt={selected.name} />) : (<div style={{ width:42, height:42, borderRadius:"50%", background:C.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🔒</div>)}
               <div style={{ flex:1 }}>
                 {isPro ? (<><div style={{ color:C.text, fontWeight:700 }}>{selected.name}, {selected.age}</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>) : (<><div style={{ color:C.text, fontWeight:700 }}>Ismeretlen profil</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>)}
               </div>
-              <button onClick={() => { if (!isPro) setShowProWall(true); }} style={{ background:isPro?`linear-gradient(135deg,${C.accent},#ff8c42)`:"linear-gradient(135deg,#ffd43b,#ff8c42)", border:"none", borderRadius:10, color:isPro?"#fff":"#000", padding:"8px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>{isPro?"Profil":"🔒 Pro"}</button>
+              {/* Like/Pass gombok a Radarban - csak Pro */}
+              <div style={{ display:"flex", gap:6 }}>
+                <button onClick={() => { if(!isPro){setShowProWall(true);return;} onSwipe(selected.id,"pass"); setSelected(null); }} style={{ width:34, height:34, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                <button onClick={() => { if(!isPro){setShowProWall(true);return;} onSwipe(selected.id,"like"); setSelected(null); }} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>♥</button>
+              </div>
             </div>
           )}
         </div>
         {!isPro && (
           <div style={{ background:"rgba(255,212,59,0.08)", border:"1px solid rgba(255,212,59,0.25)", borderRadius:13, padding:"12px 16px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>🔒</span>
-            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Profilok rejtve</div><div style={{ color:C.dim, fontSize:11 }}>Pro-val látod ki van közel</div></div>
+            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Profilok rejtve</div><div style={{ color:C.dim, fontSize:11 }}>Pro-val látod ki van közel és likeolhatsz</div></div>
             <button onClick={onUpgrade} style={{ background:"linear-gradient(135deg,#ffd43b,#ff8c42)", border:"none", borderRadius:10, color:"#000", padding:"8px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>Upgrade</button>
           </div>
         )}
@@ -415,7 +521,14 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
               <div style={{ flex:1 }}>
                 {isPro ? (<><div style={{ color:C.text, fontWeight:600, fontSize:14 }}>{u.name}, {u.age}</div><div style={{ color:C.accent, fontSize:11 }}>● {distLabel(u.distanceKm)}</div></>) : (<><div style={{ color:C.muted, fontWeight:600, fontSize:14 }}>Rejtett profil</div><div style={{ color:C.accent, fontSize:11 }}>● {distLabel(u.distanceKm)}</div></>)}
               </div>
-              {!isPro && <button onClick={onUpgrade} style={{ background:"rgba(255,212,59,0.1)", border:"1px solid rgba(255,212,59,0.3)", color:C.yellow, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:12, fontWeight:600 }}>🔒 Pro</button>}
+              {isPro ? (
+                <div style={{ display:"flex", gap:6 }}>
+                  <button onClick={() => onSwipe(u.id,"pass")} style={{ width:34, height:34, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  <button onClick={() => onSwipe(u.id,"like")} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>♥</button>
+                </div>
+              ) : (
+                <button onClick={onUpgrade} style={{ background:"rgba(255,212,59,0.1)", border:"1px solid rgba(255,212,59,0.3)", color:C.yellow, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:12, fontWeight:600 }}>🔒 Pro</button>
+              )}
             </div>
           ))}
         </div>
@@ -510,6 +623,9 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
         <div onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           onClick={(e) => { if(Math.abs(drag.x)>5) return; const rect=e.currentTarget.getBoundingClientRect(); const x=e.clientX-rect.left; const maxPage=(cur.photos||(cur.photo_url?[cur.photo_url]:[])).length; if(x>rect.width*0.75) setCardPage(p=>Math.min(p+1,maxPage)); else if(x<rect.width*0.25) setCardPage(p=>Math.max(p-1,0)); }}
           style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab",transform,transition }}>
+          <div style={{ position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4,zIndex:10 }}>
+            {Array.from({length: Math.min((cur.photos||[cur.photo_url].filter(Boolean)).length + 1, 7)}).map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
+          </div>
           {cardPage===0 ? (
             <>
               {(() => { const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]); return <img src={photos[0]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />; })()}
@@ -527,11 +643,16 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
             <div style={{ width:"100%",height:"100%",background:C.bg,overflowY:"auto",padding:"20px 16px" }}>
               <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}><img src={cur.photo_url||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={cur.name} /><div><div style={{ fontSize:20,fontWeight:900,color:C.text }}>{cur.name}, {cur.age}</div></div></div>
               {cur.bio&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}`,marginBottom:10 }}><p style={{ color:C.text,fontSize:13,lineHeight:1.6,margin:0 }}>{cur.bio}</p></div>}
+              {(cur.interests||[]).length>0&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}` }}><div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{cur.interests.map(t=><span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"4px 10px",fontSize:12,color:C.accent }}>{t}</span>)}</div></div>}
             </div>
           )}
         </div>
       </div>
       <div style={{ flexShrink:0,paddingTop:10 }}>
+        <div style={{ display:"flex",justifyContent:"center",gap:6,marginBottom:10 }}>
+          {Array.from({length:slLimit}).map((_,i) => (<div key={i} style={{ width:20,height:4,borderRadius:2,background:i<slLeft?"#4dabf7":C.border }} />))}
+          <span style={{ color:C.dim,fontSize:10,marginLeft:4 }}>{slLeft}/{slLimit} Super Like</span>
+        </div>
         <div style={{ display:"flex",justifyContent:"center",alignItems:"center",gap:16 }}>
           <button onClick={handleRewind} style={{ width:52,height:52,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>↩️</button>
           <button onClick={() => {showLabel("PASS");act("pass");}} style={{ width:60,height:60,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:26,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
@@ -718,11 +839,31 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
           <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
             <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
             <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e=>setDraft(d=>({...d,bio:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} /></div>
+            <div>
+              <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1 }}>📏 Magasság</label><span style={{ color:C.accent,fontWeight:700,fontSize:13 }}>{draft.height} cm</span></div>
+              <input type="range" min={135} max={230} step={1} value={draft.height} onChange={e=>setDraft(d=>({...d,height:+e.target.value}))} style={{ width:"100%" }} />
+            </div>
+            <div>
+              <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8 }}>🎓 Végzettség</label>
+              <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{EDU_OPTIONS.map(opt => (<button key={opt} onClick={() => setDraft(d=>({...d,education:opt}))} style={{ padding:"7px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:`1px solid ${draft.education===opt?C.accent:C.border}`,background:draft.education===opt?C.accentSoft:C.card,color:draft.education===opt?C.accent:C.muted }}>{opt}</button>))}</div>
+            </div>
+            <div>
+              <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8 }}>🚬 Dohányzás</label>
+              <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{SMOKING_OPTIONS.map(opt => (<button key={opt} onClick={() => setDraft(d=>({...d,smoking:opt}))} style={{ padding:"7px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:`1px solid ${draft.smoking===opt?C.accent:C.border}`,background:draft.smoking===opt?C.accentSoft:C.card,color:draft.smoking===opt?C.accent:C.muted }}>{opt}</button>))}</div>
+            </div>
           </div>
         ) : (
-          <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
-            <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
-            <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{myProfile?.bio||"Nincs még bio!"}</p>
+          <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+            <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
+              <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
+              <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{myProfile?.bio||"Nincs még bio!"}</p>
+            </div>
+            {!isPro && (
+              <button onClick={onUpgrade} style={{ width:"100%",padding:"14px",background:"linear-gradient(135deg,rgba(255,212,59,0.08),rgba(255,140,66,0.08))",border:"1px solid rgba(255,212,59,0.3)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12 }}>
+                <span style={{ fontSize:24 }}>⚡</span>
+                <div style={{ flex:1, textAlign:"left" }}><div style={{ color:C.yellow,fontWeight:700 }}>Upgrade Pro-ra</div><div style={{ color:C.dim,fontSize:12 }}>Látod ki likedelt • Radar like • 10 match</div></div>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -758,6 +899,7 @@ export default function App() {
   const [myLocation, setMyLocation] = useState(null);
   const [boostActive, setBoostActive] = useState(false);
   const [lastBoostWeek, setLastBoostWeek] = useState(null);
+  const [newLikesCount, setNewLikesCount] = useState(0);
 
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const isPro = myProfile?.is_pro||false;
@@ -802,9 +944,18 @@ export default function App() {
       setMyProfile(data);
       setAppState("main");
       registerOneSignalUser(userId);
+      loadNewLikesCount(userId);
     } else {
       setAppState("onboarding");
     }
+  };
+
+  const loadNewLikesCount = async (userId) => {
+    const { data: swipes } = await supabase.from("swipes").select("swiper_id").eq("swiped_id", userId).in("action", ["like","superlike"]);
+    const { data: matches } = await supabase.from("matches").select("user1_id, user2_id").or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+    const matchedIds = new Set((matches||[]).map(m => m.user1_id===userId ? m.user2_id : m.user1_id));
+    const count = (swipes||[]).filter(s => !matchedIds.has(s.swiper_id)).length;
+    setNewLikesCount(count);
   };
 
   useEffect(() => {
@@ -864,6 +1015,7 @@ export default function App() {
             await sendPushNotification(otherId, "🎉 Új match!", `${myProfile?.name||"Valaki"} kedvelt téged!`, { type:"match" });
           }
           loadMatches();
+          if (session?.user?.id) loadNewLikesCount(session.user.id);
         }
       }).subscribe();
     return () => supabase.removeChannel(sub);
@@ -896,14 +1048,15 @@ export default function App() {
           <ChatView match={activeChat} myId={session.user.id} onBack={()=>setActiveChat(null)} />
         ) : (
           <>
-            {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} />}
+            {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
+            {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} />}
           </>
         )}
       </div>
-      {!activeChat && <BottomNav active={tab} setActive={setTab} unreadCount={unreadCount} />}
+      {!activeChat && <BottomNav active={tab} setActive={setTab} unreadCount={unreadCount} newLikesCount={newLikesCount} />}
     </Shell>
   );
 }
