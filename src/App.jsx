@@ -99,7 +99,7 @@ function AuthScreen() {
     <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 28px" }}>
       <img src="/icon-512.png" alt="NearMatch" style={{ width:80, height:80, borderRadius:24, marginBottom:20, objectFit:"cover" }} />
       <h1 style={{ fontSize:32, fontWeight:900, color:C.text, fontFamily:"Georgia,serif", margin:"0 0 6px" }}>NearMatch</h1>
-      <p style={{ color:C.muted, fontSize:13, margin:"0 0 32px" }}>Közelségen alapuló társkereső</p>
+      <p style={{ color:C.muted, fontSize:13, margin:"0 0 32px" }}>Sosem volt még ilyen közel a következő randid.</p>
       <div style={{ width:"100%", display:"flex", gap:8, marginBottom:24 }}>
         {["login","register"].map(m => (
           <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }}
