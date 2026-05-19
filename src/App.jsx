@@ -405,8 +405,8 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
                 </div>
               </div>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={() => onSwipe(u.id, "pass")} style={{ width:40, height:40, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                <button onClick={() => onSwipe(u.id, "like")} style={{ width:40, height:40, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>♥</button>
+                <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id, "pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+                <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id, "like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>♥</button>
               </div>
             </div>
           ))}
@@ -523,8 +523,8 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
               </div>
               {isPro ? (
                 <div style={{ display:"flex", gap:6 }}>
-                  <button onClick={() => onSwipe(u.id,"pass")} style={{ width:34, height:34, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                  <button onClick={() => onSwipe(u.id,"like")} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>♥</button>
+                  <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id,"pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+                  <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id,"like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}>♥</button>
                 </div>
               ) : (
                 <button onClick={onUpgrade} style={{ background:"rgba(255,212,59,0.1)", border:"1px solid rgba(255,212,59,0.3)", color:C.yellow, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:12, fontWeight:600 }}>🔒 Pro</button>
@@ -1022,7 +1022,10 @@ export default function App() {
   }, [session, loadMatches, myProfile]);
 
   const handleSwipe = async (targetId, action) => {
-    await supabase.from("swipes").upsert({ swiper_id:session.user.id, swiped_id:targetId, action });
+    await supabase.from("swipes").upsert(
+      { swiper_id: session.user.id, swiped_id: targetId, action },
+      { onConflict: "swiper_id,swiped_id" }
+    );
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); };
