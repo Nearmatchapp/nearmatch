@@ -361,7 +361,7 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
     <div style={{ flex:1, overflowY:"auto", padding:"16px 20px" }}>
       <div style={{ marginBottom:20 }}>
         <h2 style={{ color:C.text, fontSize:22, fontWeight:900, margin:"0 0 4px" }}>🔥 Likeok</h2>
-        <p style={{ color:C.muted, fontSize:13, margin:0 }}>{count} ember kedvelt téged</p>
+        <p style={{ color:C.muted, fontSize:13, margin:0 }}>{count} ember lájkolt téged</p>
       </div>
 
       {count === 0 && (
@@ -385,8 +385,8 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
             <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
               <div style={{ background:"rgba(8,11,16,0.85)", backdropFilter:"blur(8px)", borderRadius:20, padding:"20px 24px", textAlign:"center", border:`1px solid ${C.border}` }}>
                 <div style={{ fontSize:36, marginBottom:8 }}>🔒</div>
-                <div style={{ color:C.text, fontWeight:800, fontSize:18, marginBottom:4 }}>{count} ember kedvelt téged!</div>
-                <div style={{ color:C.muted, fontSize:13, marginBottom:16 }}>Upgrade Pro-ra, hogy lásd kiről van szó</div>
+                <div style={{ color:C.text, fontWeight:800, fontSize:18, marginBottom:4 }}>{count} ember lájkolt téged!</div>
+                <div style={{ color:C.muted, fontSize:13, marginBottom:16 }}>Upgrade Pro-ra, hogy lásd ki lájkolt téged</div>
                 <button onClick={onUpgrade} style={{ background:"linear-gradient(135deg,#ffd43b,#ff8c42)", border:"none", borderRadius:14, color:"#000", padding:"12px 24px", cursor:"pointer", fontSize:14, fontWeight:700 }}>⚡ Upgrade Pro-ra</button>
               </div>
             </div>
@@ -405,7 +405,7 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
               <div style={{ flex:1 }}>
                 <div style={{ color:C.text, fontWeight:700, fontSize:15 }}>{u.name}, {u.age}</div>
                 <div style={{ color:u.action==="superlike"?"#4dabf7":C.accent, fontSize:12, marginTop:2 }}>
-                  {u.action === "superlike" ? "⭐ Super Like-olt" : "❤️ Kedvelt téged"}
+                  {u.action === "superlike" ? "⭐ Super lájkolt" : "❤️ Lájkolt téged"}
                 </div>
               </div>
               <div style={{ display:"flex", gap:8 }}>
@@ -864,7 +864,7 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
             {!isPro && (
               <button onClick={onUpgrade} style={{ width:"100%",padding:"14px",background:"linear-gradient(135deg,rgba(255,212,59,0.08),rgba(255,140,66,0.08))",border:"1px solid rgba(255,212,59,0.3)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12 }}>
                 <span style={{ fontSize:24 }}>⚡</span>
-                <div style={{ flex:1, textAlign:"left" }}><div style={{ color:C.yellow,fontWeight:700 }}>Upgrade Pro-ra</div><div style={{ color:C.dim,fontSize:12 }}>Látod ki likedelt • Radar like • 10 match</div></div>
+                <div style={{ flex:1, textAlign:"left" }}><div style={{ color:C.yellow,fontWeight:700 }}>Upgrade Pro-ra</div><div style={{ color:C.dim,fontSize:12 }}>Látod ki lájkolt • Radar like • 10 match</div></div>
               </button>
             )}
           </div>
