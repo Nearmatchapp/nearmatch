@@ -561,30 +561,52 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
             🛰️ {satelliteMode?"Műholdas":"Radar"} nézet
           </button>
           <button onClick={() => setShowFilters(f => !f)} style={{ padding:"10px 14px", borderRadius:12, border:`1px solid ${isFiltered?C.accent:C.border}`, background:isFiltered?C.accentSoft:C.card, color:isFiltered?C.accent:C.muted, cursor:"pointer", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>
-            🎛️{isFiltered?" ●":""}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isFiltered?C.accent:C.muted} strokeWidth="2.2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.5" fill={isFiltered?C.accent:"#0f1520"} stroke={isFiltered?C.accent:C.muted}/><circle cx="15" cy="12" r="2.5" fill={isFiltered?C.accent:"#0f1520"} stroke={isFiltered?C.accent:C.muted}/><circle cx="9" cy="18" r="2.5" fill={isFiltered?C.accent:"#0f1520"} stroke={isFiltered?C.accent:C.muted}/></svg>
+            {isFiltered && <span style={{ width:6,height:6,borderRadius:"50%",background:C.accent }} />}
           </button>
         </div>
         {/* Radar szűrő panel */}
         {showFilters && (
-          <div style={{ background:C.card, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px", display:"flex", flexDirection:"column", gap:14, flexShrink:0 }}>
+          <div style={{ background:C.card, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px", display:"flex", flexDirection:"column", gap:20, flexShrink:0 }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-              <span style={{ color:C.text, fontWeight:700, fontSize:14 }}>🎛️ Szűrők</span>
+              <span style={{ color:C.text, fontWeight:700, fontSize:14 }}>Szűrők</span>
               {isFiltered && <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:20}; setFilters(d); setActiveFilters(d); }} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:12, fontWeight:600 }}>Visszaállít</button>}
             </div>
+            {/* Kor */}
             <div>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                <span style={{ color:C.muted, fontSize:12 }}>Kor</span>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                <span style={{ color:C.muted, fontSize:12, fontWeight:600 }}>Kor</span>
                 <span style={{ color:C.accent, fontWeight:700, fontSize:12 }}>{filters.minAge} – {filters.maxAge} év</span>
               </div>
-              <input type="range" min={18} max={filters.maxAge-1} value={filters.minAge} onChange={e => { const v={...filters,minAge:+e.target.value}; setFilters(v); setActiveFilters(v); }} style={{ width:"100%", marginBottom:6 }} />
-              <input type="range" min={filters.minAge+1} max={80} value={filters.maxAge} onChange={e => { const v={...filters,maxAge:+e.target.value}; setFilters(v); setActiveFilters(v); }} style={{ width:"100%" }} />
+              {[
+                { label:"Min", min:18, max:filters.maxAge-1, val:filters.minAge, key:"minAge" },
+                { label:"Max", min:filters.minAge+1, max:80, val:filters.maxAge, key:"maxAge" },
+              ].map(s => {
+                const pct = Math.round(((s.val - s.min) / (s.max - s.min)) * 100);
+                return (
+                  <div key={s.key} style={{ position:"relative", height:32, display:"flex", alignItems:"center", marginBottom:4 }}>
+                    <div style={{ position:"absolute", left:0, right:0, height:3, borderRadius:2, background:"rgba(255,255,255,0.08)" }} />
+                    <div style={{ position:"absolute", left:0, width:`${pct}%`, height:3, borderRadius:2, background:`linear-gradient(90deg,${C.accent},#ff8c42)` }} />
+                    <input type="range" min={s.min} max={s.max} value={s.val} step={1}
+                      onChange={e => { const v={...filters,[s.key]:+e.target.value}; setFilters(v); setActiveFilters(v); }}
+                      style={{ position:"absolute",left:0,right:0,width:"100%",appearance:"none",WebkitAppearance:"none",background:"transparent",outline:"none",cursor:"pointer",margin:0,padding:0 }} />
+                  </div>
+                );
+              })}
             </div>
+            {/* Távolság */}
             <div>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-                <span style={{ color:C.muted, fontSize:12 }}>Max távolság</span>
-                <span style={{ color:C.accent, fontWeight:700, fontSize:12 }}>{filters.maxDist < 20 ? `${filters.maxDist} km` : "20 km (max)"}</span>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                <span style={{ color:C.muted, fontSize:12, fontWeight:600 }}>Max távolság</span>
+                <span style={{ color:C.accent, fontWeight:700, fontSize:12 }}>{filters.maxDist} km</span>
               </div>
-              <input type="range" min={1} max={20} value={filters.maxDist} onChange={e => { const v={...filters,maxDist:+e.target.value}; setFilters(v); setActiveFilters(v); }} style={{ width:"100%" }} />
+              <div style={{ position:"relative", height:32, display:"flex", alignItems:"center" }}>
+                <div style={{ position:"absolute", left:0, right:0, height:3, borderRadius:2, background:"rgba(255,255,255,0.08)" }} />
+                <div style={{ position:"absolute", left:0, width:`${Math.round(((filters.maxDist-1)/19)*100)}%`, height:3, borderRadius:2, background:`linear-gradient(90deg,${C.accent},#ff8c42)` }} />
+                <input type="range" min={1} max={20} value={filters.maxDist} step={1}
+                  onChange={e => { const v={...filters,maxDist:+e.target.value}; setFilters(v); setActiveFilters(v); }}
+                  style={{ position:"absolute",left:0,right:0,width:"100%",appearance:"none",WebkitAppearance:"none",background:"transparent",outline:"none",cursor:"pointer",margin:0,padding:0 }} />
+              </div>
             </div>
           </div>
         )}
@@ -681,39 +703,118 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
   const isFiltered = activeFilters.minAge !== 18 || activeFilters.maxAge !== 60 || activeFilters.maxDist !== 50 || activeFilters.gender !== "Mindenki";
 
+  const SliderTrack = ({ min, max, value, onChange, label, unit="" }) => {
+    const pct = Math.round(((value - min) / (max - min)) * 100);
+    return (
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
+          <span style={{ color:C.muted, fontSize:13 }}>{label}</span>
+          <span style={{ color:C.accent, fontWeight:700, fontSize:13 }}>{value}{unit}</span>
+        </div>
+        <div style={{ position:"relative", height:36, display:"flex", alignItems:"center" }}>
+          {/* Track háttér */}
+          <div style={{ position:"absolute", left:0, right:0, height:4, borderRadius:2, background:"rgba(255,255,255,0.1)" }} />
+          {/* Aktív sáv */}
+          <div style={{ position:"absolute", left:0, width:`${pct}%`, height:4, borderRadius:2, background:`linear-gradient(90deg,${C.accent},#ff8c42)` }} />
+          <input
+            type="range" min={min} max={max} value={value} step={1}
+            onChange={e => onChange(+e.target.value)}
+            style={{
+              position:"absolute", left:0, right:0, width:"100%",
+              appearance:"none", WebkitAppearance:"none",
+              background:"transparent", outline:"none", cursor:"pointer", margin:0, padding:0,
+            }}
+          />
+        </div>
+        <style>{`
+          input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid ${C.accent};
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(255,92,92,0.4);
+          }
+          input[type=range]::-moz-range-thumb {
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: #fff;
+            border: 3px solid ${C.accent};
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(255,92,92,0.4);
+          }
+          input[type=range]::-webkit-slider-runnable-track { background: transparent; }
+          input[type=range]::-moz-range-track { background: transparent; }
+        `}</style>
+      </div>
+    );
+  };
+
+  const FilterIcon = ({ active }) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? C.accent : C.muted} strokeWidth="2.2" strokeLinecap="round">
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+      <circle cx="9" cy="6" r="2.5" fill={active ? C.accent : C.surface} stroke={active ? C.accent : C.muted} />
+      <circle cx="15" cy="12" r="2.5" fill={active ? C.accent : C.surface} stroke={active ? C.accent : C.muted} />
+      <circle cx="9" cy="18" r="2.5" fill={active ? C.accent : C.surface} stroke={active ? C.accent : C.muted} />
+    </svg>
+  );
+
   const FilterPanel = () => (
-    <div style={{ position:"absolute",inset:0,zIndex:95,background:"rgba(8,11,16,0.97)",backdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end" }}>
-      <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"24px 20px 40px",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:20 }}>
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-          <span style={{ color:C.text,fontWeight:800,fontSize:17 }}>🎛️ Szűrők</span>
-          <button onClick={() => setShowFilters(false)} style={{ background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:22 }}>✕</button>
-        </div>
-        <div>
-          <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}>
-            <span style={{ color:C.muted,fontSize:12 }}>Kor</span>
-            <span style={{ color:C.accent,fontWeight:700,fontSize:12 }}>{filters.minAge} – {filters.maxAge} év</span>
+    <div style={{ position:"absolute",inset:0,zIndex:95,background:"rgba(8,11,16,0.92)",backdropFilter:"blur(12px)",display:"flex",alignItems:"flex-end" }}>
+      <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"8px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column" }}>
+        <div style={{ width:36,height:4,borderRadius:2,background:C.border,margin:"0 auto 20px" }} />
+        <div style={{ padding:"0 20px 40px", display:"flex", flexDirection:"column", gap:24 }}>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+            <span style={{ color:C.text,fontWeight:800,fontSize:18 }}>Szűrők</span>
+            <button onClick={() => setShowFilters(false)} style={{ width:32,height:32,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,color:C.muted,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
           </div>
-          <input type="range" min={18} max={filters.maxAge-1} value={filters.minAge} onChange={e=>setFilters(f=>({...f,minAge:+e.target.value}))} style={{ width:"100%",marginBottom:8 }} />
-          <input type="range" min={filters.minAge+1} max={80} value={filters.maxAge} onChange={e=>setFilters(f=>({...f,maxAge:+e.target.value}))} style={{ width:"100%" }} />
-        </div>
-        <div>
-          <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}>
-            <span style={{ color:C.muted,fontSize:12 }}>Max távolság</span>
-            <span style={{ color:C.accent,fontWeight:700,fontSize:12 }}>{filters.maxDist < 100 ? `${filters.maxDist} km` : "Korlátlan"}</span>
+
+          {/* Kor - két csúszka */}
+          <div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+              <span style={{ color:C.muted, fontSize:13, fontWeight:600 }}>Kor</span>
+              <span style={{ color:C.accent, fontWeight:700, fontSize:13 }}>{filters.minAge} – {filters.maxAge} év</span>
+            </div>
+            <SliderTrack min={18} max={filters.maxAge - 1} value={filters.minAge} label="Min kor" unit=" év"
+              onChange={v => setFilters(f => ({...f, minAge: v}))} />
+            <div style={{ marginTop:4 }}>
+              <SliderTrack min={filters.minAge + 1} max={80} value={filters.maxAge} label="Max kor" unit=" év"
+                onChange={v => setFilters(f => ({...f, maxAge: v}))} />
+            </div>
           </div>
-          <input type="range" min={1} max={100} value={filters.maxDist} onChange={e=>setFilters(f=>({...f,maxDist:+e.target.value}))} style={{ width:"100%" }} />
-        </div>
-        <div>
-          <div style={{ color:C.muted,fontSize:12,marginBottom:8 }}>Nem</div>
-          <div style={{ display:"flex",gap:6 }}>
-            {["Mindenki","Nő","Férfi","Non-binary"].map(g => (
-              <button key={g} onClick={() => setFilters(f=>({...f,gender:g}))} style={{ flex:1,padding:"9px 4px",borderRadius:11,border:`1px solid ${filters.gender===g?C.accent:C.border}`,background:filters.gender===g?C.accentSoft:C.card,color:filters.gender===g?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600 }}>{g}</button>
-            ))}
+
+          {/* Távolság */}
+          <SliderTrack min={1} max={100} value={filters.maxDist} label="Max távolság"
+            unit={filters.maxDist < 100 ? " km" : "+ km"}
+            onChange={v => setFilters(f => ({...f, maxDist: v}))} />
+
+          {/* Nem */}
+          <div>
+            <span style={{ color:C.muted, fontSize:13, fontWeight:600, display:"block", marginBottom:10 }}>Nem</span>
+            <div style={{ display:"flex", gap:8 }}>
+              {["Mindenki","Nő","Férfi","Non-binary"].map(g => (
+                <button key={g} onClick={() => setFilters(f=>({...f,gender:g}))}
+                  style={{ flex:1,padding:"10px 4px",borderRadius:12,border:`1px solid ${filters.gender===g?C.accent:C.border}`,background:filters.gender===g?C.accentSoft:C.card,color:filters.gender===g?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:700,transition:"all 0.15s" }}>
+                  {g}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div style={{ display:"flex",gap:10 }}>
-          <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki"}; setFilters(d); setActiveFilters(d); setShowFilters(false); }} style={{ flex:1,padding:"13px",borderRadius:13,border:`1px solid ${C.border}`,background:"none",color:C.muted,cursor:"pointer",fontSize:14 }}>Visszaállít</button>
-          <button onClick={() => { setActiveFilters(filters); setShowFilters(false); }} style={{ flex:2,padding:"13px",borderRadius:13,border:"none",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700 }}>✓ Alkalmaz</button>
+
+          {/* Gombok */}
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki"}; setFilters(d); setActiveFilters(d); setShowFilters(false); }}
+              style={{ flex:1,padding:"14px",borderRadius:14,border:`1px solid ${C.border}`,background:"none",color:C.muted,cursor:"pointer",fontSize:14,fontWeight:600 }}>
+              Visszaállít
+            </button>
+            <button onClick={() => { setActiveFilters(filters); setShowFilters(false); }}
+              style={{ flex:2,padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,boxShadow:`0 4px 16px ${C.accentGlow}` }}>
+              Mutat →
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -771,8 +872,9 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
       {showFilters && <FilterPanel />}
       {/* Szűrő gomb */}
       <div style={{ display:"flex",justifyContent:"flex-end",marginBottom:6,flexShrink:0 }}>
-        <button onClick={() => setShowFilters(true)} style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:20,border:`1px solid ${isFiltered?C.accent:C.border}`,background:isFiltered?C.accentSoft:C.card,color:isFiltered?C.accent:C.muted,cursor:"pointer",fontSize:12,fontWeight:600 }}>
-          🎛️ Szűrők {isFiltered && "●"}
+        <button onClick={() => setShowFilters(true)} style={{ display:"flex",alignItems:"center",gap:7,padding:"8px 16px",borderRadius:20,border:`1px solid ${isFiltered?C.accent:C.border}`,background:isFiltered?C.accentSoft:C.card,color:isFiltered?C.accent:C.muted,cursor:"pointer",fontSize:13,fontWeight:600 }}>
+          <FilterIcon active={isFiltered} />
+          Szűrők {isFiltered && <span style={{ width:6,height:6,borderRadius:"50%",background:C.accent,display:"inline-block" }} />}
         </button>
       </div>
       {proWallType && (
