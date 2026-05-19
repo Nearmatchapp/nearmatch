@@ -793,13 +793,51 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiCategory, setEmojiCategory] = useState(0);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
   const REPORT_REASONS = ["Spam vagy reklám","Hamis profil","Nem megfelelő tartalom","Zaklatás","Egyéb"];
+
+  const EMOJI_CATEGORIES = [
+    {
+      label:"😀", name:"Arckifejezések",
+      emojis:["😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","🥰","😘","😗","😙","😚","🙂","🤗","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","💀","☠️","👻","👽","🤖","😺","😸","😹","😻","😼","😽","🙀","😿","😾"],
+    },
+    {
+      label:"❤️", name:"Szívek & érzelmek",
+      emojis:["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","💟","☮️","✌️","🤞","🤟","🤘","🤙","👌","🤌","🤏","👈","👉","👆","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","🤲","🤝","🙏","💪","🦾","🖖","✍️","💅","🤳"],
+    },
+    {
+      label:"🔥", name:"Népszerű",
+      emojis:["🔥","💯","✨","⭐","🌟","💫","⚡","🎉","🎊","🎈","🎁","🏆","🥇","🎯","💎","👑","🌈","🦋","🌸","🌺","🌻","🌹","🌷","🍀","🎶","🎵","🎤","🎸","🎹","🎺","🎻","🥁","🎷","💃","🕺","🎭","🎪","🎨","🖼️","🎬","📸","📷","🎥","🎮","🕹️","🎲","🃏","🎰","🎳"],
+    },
+    {
+      label:"🍕", name:"Étel & ital",
+      emojis:["🍕","🍔","🍟","🌭","🍿","🧂","🥓","🥚","🍳","🧇","🥞","🧈","🍞","🥐","🥖","🫓","🥨","🥯","🧀","🥗","🥙","🌮","🌯","🫔","🥪","🥫","🍱","🍘","🍙","🍚","🍛","🍜","🍝","🍠","🍢","🍣","🍤","🍥","🥮","🍡","🥟","🥠","🥡","🦀","🦞","🦐","🦑","🦪","🍦","🍧","🍨","🍩","🍪","🎂","🍰","🧁","🥧","🍫","🍬","🍭","🍮","🍯","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑","🧄","🧅","🥔","🌽","🥕","🧆","🥜","🫘","🌰","🍵","☕","🫖","🍶","🍺","🍻","🥂","🍷","🥃","🍸","🍹","🧋","🍾","🧃","🥤","🧉"],
+    },
+    {
+      label:"🐶", name:"Állatok & természet",
+      emojis:["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦟","🦗","🕷️","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍","🦧","🦣","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🦬","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐩","🦮","🐈","🪶","🌵","🎄","🌲","🌳","🌴","🌱","🌿","☘️","🍀","🎍","🎋","🍃","🍂","🍁","🍄","🌾","💐","🌷","🌹","🥀","🌺","🌸","🌼","🌻","🌞","🌝","🌛","🌜","🌚","🌕","🌙","🌟","⭐","🌠","☁️","⛅","🌤️","🌈","🌂","☔","⚡","❄️","☃️","⛄","🌊","🌀"],
+    },
+    {
+      label:"✈️", name:"Utazás & helyek",
+      emojis:["✈️","🚀","🛸","🚁","🛺","🚂","🚃","🚄","🚅","🚆","🚇","🚈","🚉","🚊","🚝","🚞","🚋","🚌","🚍","🚎","🚐","🚑","🚒","🚓","🚔","🚕","🚖","🚗","🚘","🚙","🛻","🚚","🚛","🚜","🏎️","🏍️","🛵","🚲","🛴","🛹","🛼","⛽","🛞","🚨","🚥","🚦","🛑","🚧","⚓","🛟","⛵","🚤","🛥️","🛳️","⛴️","🚢","🗺️","🧭","🏔️","⛰️","🌋","🗻","🏕️","🏖️","🏜️","🏝️","🏞️","🏟️","🏛️","🏗️","🛖","🏠","🏡","🏢","🏥","🏦","🏨","🏩","🏪","🏫","🏬","🏭","🗼","🗽","⛪","🕌","🛕","🕍","⛩️","🕋","⛲","⛺","🌁","🌃","🏙️","🌄","🌅","🌆","🌇","🌉","🎠","🎡","🎢","🎪"],
+    },
+    {
+      label:"⚽", name:"Sport & aktivitás",
+      emojis:["⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍","🏏","🪃","🥅","⛳","🪁","🎣","🤿","🎽","🎿","🛷","🥌","🎯","🏋️","🤼","🤸","⛹️","🤺","🏇","🧘","🏄","🏊","🤽","🚣","🧗","🚵","🚴","🏆","🥇","🥈","🥉","🏅","🎖️","🎗️","🎫","🎟️","🎪","🤹","🎭","🎨","🎬","🎤","🎧","🎼","🎵","🎶","🥁","🎷","🎺","🎸","🎹","🎻","🪕","🎲","♟️","🎯","🎳","🎮","🕹️"],
+    },
+    {
+      label:"💼", name:"Tárgyak & szimbólumok",
+      emojis:["💌","📩","📨","📧","📥","📤","📦","🏷️","📪","📫","📬","📭","📮","📯","📜","📃","📄","📑","🧾","📊","📈","📉","🗒️","🗓️","📆","📅","🗑️","📁","📂","🗂️","🗃️","🗄️","📋","📌","📍","✂️","🖇️","📎","🖊️","✒️","🖋️","📝","✏️","🔍","🔎","🔏","🔐","🔑","🗝️","🔨","🪓","⚒️","🛠️","🔧","🔩","⚙️","🗜️","⚖️","🦯","🔗","⛓️","🪝","🧲","🪜","💊","💉","🩸","🩹","🩺","🌡️","🔭","🔬","🧬","🧪","🧫","💡","🔦","🕯️","🪔","📱","💻","🖥️","🖨️","⌨️","🖱️","💾","💿","📀","📷","📸","📹","🎥","📽️","📞","☎️","📟","📠","📺","📻","🧭","⏱️","⏲️","⏰","🕰️","⌛","⏳","📡","🔋","🔌","💰","💵","💸","💳","🪙","💹","💎","🔭","🔬"],
+    },
+  ];
 
   useEffect(() => {
     const load = async () => {
@@ -840,6 +878,12 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
       created_at: new Date().toISOString(),
     });
     setReportSent(true);
+  };
+
+  const insertEmoji = (emoji) => {
+    setInput(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    inputRef.current?.focus();
   };
 
   const timeLabel = (ts) => new Date(ts).toLocaleTimeString("hu", { hour:"2-digit", minute:"2-digit" });
@@ -919,7 +963,7 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
       </div>
 
       {/* Üzenetek */}
-      <div style={{ flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8 }}>
+      <div style={{ flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8 }} onClick={() => { setShowMenu(false); setShowEmojiPicker(false); }}>
         {loading && <div style={{ textAlign:"center",paddingTop:20 }}><Spinner /></div>}
         {msgs.map(m => (
           <div key={m.id} style={{ display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start" }}>
@@ -932,10 +976,33 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div style={{ display:"flex",gap:8,padding:"12px 16px",borderTop:`1px solid ${C.border}` }}>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Írj üzenetet..." style={{ flex:1,padding:"12px 16px",borderRadius:24,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none" }} />
-        <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer" }}>→</button>
+      {/* Emoji picker */}
+      {showEmojiPicker && (
+        <div style={{ borderTop:`1px solid ${C.border}`,background:C.surface,flexShrink:0 }}>
+          <div style={{ display:"flex",overflowX:"auto",padding:"8px 12px 0",gap:4,borderBottom:`1px solid ${C.border}` }}>
+            {EMOJI_CATEGORIES.map((cat, i) => (
+              <button key={i} onClick={() => setEmojiCategory(i)} style={{ flexShrink:0,padding:"6px 10px",borderRadius:10,border:"none",background:emojiCategory===i?C.accentSoft:"none",fontSize:18,cursor:"pointer",opacity:emojiCategory===i?1:0.5 }} title={cat.name}>
+                {cat.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:"flex",flexWrap:"wrap",padding:"8px",maxHeight:180,overflowY:"auto" }}>
+            {EMOJI_CATEGORIES[emojiCategory].emojis.map((e, i) => (
+              <button key={i} onClick={() => insertEmoji(e)} style={{ background:"none",border:"none",fontSize:24,cursor:"pointer",padding:"4px 5px",borderRadius:8,lineHeight:1 }}>
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Input sor */}
+      <div style={{ display:"flex",gap:8,padding:"10px 12px",borderTop:`1px solid ${C.border}`,alignItems:"center",background:C.surface }}>
+        <button onClick={() => setShowEmojiPicker(p => !p)} style={{ width:38,height:38,borderRadius:"50%",background:showEmojiPicker?C.accentSoft:C.card,border:`1px solid ${showEmojiPicker?C.accent:C.border}`,fontSize:20,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>
+          {showEmojiPicker ? "✕" : "🙂"}
+        </button>
+        <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} onFocus={() => setShowEmojiPicker(false)} placeholder="Írj üzenetet..." style={{ flex:1,padding:"12px 16px",borderRadius:24,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none" }} />
+        <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>→</button>
       </div>
     </div>
   );
