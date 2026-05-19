@@ -788,11 +788,18 @@ function MatchList({ matches, onOpen, isPro, onUpgrade }) {
 }
 
 // ── CHAT ───────────────────────────────────────────────
-function ChatView({ match, myId, onBack }) {
+function ChatView({ match, myId, onBack, onMatchDeleted }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSent, setReportSent] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const bottomRef = useRef(null);
+
+  const REPORT_REASONS = ["Spam vagy reklám","Hamis profil","Nem megfelelő tartalom","Zaklatás","Egyéb"];
 
   useEffect(() => {
     const load = async () => {
@@ -816,10 +823,77 @@ function ChatView({ match, myId, onBack }) {
     }
   };
 
+  const handleDeleteMatch = async () => {
+    await supabase.from("messages").delete().eq("match_id", match.id);
+    await supabase.from("matches").delete().eq("id", match.id);
+    setShowDeleteConfirm(false);
+    onMatchDeleted();
+  };
+
+  const handleReport = async () => {
+    if (!reportReason) return;
+    await supabase.from("reports").insert({
+      reporter_id: myId,
+      reported_id: match.other?.id,
+      match_id: match.id,
+      reason: reportReason,
+      created_at: new Date().toISOString(),
+    });
+    setReportSent(true);
+  };
+
   const timeLabel = (ts) => new Date(ts).toLocaleTimeString("hu", { hour:"2-digit", minute:"2-digit" });
 
   return (
-    <div style={{ display:"flex",flexDirection:"column",height:"100%" }}>
+    <div style={{ display:"flex",flexDirection:"column",height:"100%",position:"relative" }}>
+
+      {/* Match törlés megerősítés */}
+      {showDeleteConfirm && (
+        <div style={{ position:"absolute",inset:0,zIndex:100,background:"rgba(8,11,16,0.95)",backdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end" }}>
+          <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"28px 24px 40px",border:`1px solid ${C.border}` }}>
+            <div style={{ textAlign:"center",marginBottom:20 }}>
+              <div style={{ fontSize:48,marginBottom:10 }}>💔</div>
+              <h3 style={{ color:C.text,fontSize:20,fontWeight:900,margin:"0 0 8px" }}>Match törlése</h3>
+              <p style={{ color:C.muted,fontSize:13,margin:0 }}>Biztosan törölni szeretnéd a matchet {match.other?.name}-vel? Az összes üzenet elvész.</p>
+            </div>
+            <button onClick={handleDeleteMatch} style={{ width:"100%",padding:"16px",background:C.accent,border:"none",borderRadius:16,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",marginBottom:10 }}>Igen, törlöm</button>
+            <button onClick={() => setShowDeleteConfirm(false)} style={{ width:"100%",padding:"14px",background:"none",border:`1px solid ${C.border}`,borderRadius:16,color:C.muted,fontSize:15,cursor:"pointer" }}>Mégse</button>
+          </div>
+        </div>
+      )}
+
+      {/* Jelentés modal */}
+      {showReportModal && (
+        <div style={{ position:"absolute",inset:0,zIndex:100,background:"rgba(8,11,16,0.95)",backdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end" }}>
+          <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"28px 24px 40px",border:`1px solid ${C.border}` }}>
+            {reportSent ? (
+              <div style={{ textAlign:"center",padding:"20px 0" }}>
+                <div style={{ fontSize:48,marginBottom:16 }}>✅</div>
+                <h3 style={{ color:C.text,fontSize:20,fontWeight:900,margin:"0 0 8px" }}>Köszönjük!</h3>
+                <p style={{ color:C.muted,fontSize:13,margin:"0 0 24px" }}>A jelentést megkaptuk és kivizsgáljuk.</p>
+                <button onClick={() => { setShowReportModal(false); setReportSent(false); setReportReason(""); }} style={{ width:"100%",padding:"14px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,color:C.text,fontSize:15,cursor:"pointer" }}>Bezárás</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ textAlign:"center",marginBottom:20 }}>
+                  <div style={{ fontSize:48,marginBottom:10 }}>🚩</div>
+                  <h3 style={{ color:C.text,fontSize:20,fontWeight:900,margin:"0 0 8px" }}>Felhasználó jelentése</h3>
+                  <p style={{ color:C.muted,fontSize:13,margin:0 }}>{match.other?.name} jelentése</p>
+                </div>
+                <div style={{ display:"flex",flexDirection:"column",gap:8,marginBottom:20 }}>
+                  {REPORT_REASONS.map(r => (
+                    <button key={r} onClick={() => setReportReason(r)} style={{ padding:"13px 16px",borderRadius:13,border:`1px solid ${reportReason===r?C.accent:C.border}`,background:reportReason===r?C.accentSoft:C.card,color:reportReason===r?C.accent:C.text,cursor:"pointer",textAlign:"left",fontSize:14,fontWeight:reportReason===r?700:400 }}>{r}</button>
+                  ))}
+                </div>
+                <button onClick={handleReport} disabled={!reportReason} style={{ width:"100%",padding:"16px",background:reportReason?C.accent:C.card,border:"none",borderRadius:16,color:"#fff",fontSize:16,fontWeight:700,cursor:reportReason?"pointer":"not-allowed",opacity:reportReason?1:0.5,marginBottom:10 }}>Jelentés küldése</button>
+                <button onClick={() => { setShowReportModal(false); setReportReason(""); }} style={{ width:"100%",padding:"14px",background:"none",border:`1px solid ${C.border}`,borderRadius:16,color:C.muted,fontSize:15,cursor:"pointer" }}>Mégse</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Fejléc */}
       <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}`,background:C.surface }}>
         <button onClick={onBack} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
         <img src={match.other?.photo_url||`https://i.pravatar.cc/300?u=${match.other?.id}`} style={{ width:38,height:38,borderRadius:"50%",objectFit:"cover" }} alt={match.other?.name} />
@@ -833,7 +907,18 @@ function ChatView({ match, myId, onBack }) {
             return <div style={{ color: isOnline ? C.green : C.dim, fontSize:11 }}>● {label}</div>;
           })()}
         </div>
+        <div style={{ position:"relative" }}>
+          <button onClick={() => setShowMenu(m=>!m)} style={{ background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:22,padding:"4px 8px",lineHeight:1 }}>⋮</button>
+          {showMenu && (
+            <div style={{ position:"absolute",right:0,top:"110%",background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,overflow:"hidden",zIndex:50,minWidth:180,boxShadow:"0 8px 32px rgba(0,0,0,0.4)" }}>
+              <button onClick={() => { setShowMenu(false); setShowReportModal(true); }} style={{ width:"100%",padding:"14px 16px",background:"none",border:"none",borderBottom:`1px solid ${C.border}`,color:C.yellow,cursor:"pointer",textAlign:"left",fontSize:14,display:"flex",alignItems:"center",gap:10 }}>🚩 Felhasználó jelentése</button>
+              <button onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }} style={{ width:"100%",padding:"14px 16px",background:"none",border:"none",color:C.accent,cursor:"pointer",textAlign:"left",fontSize:14,display:"flex",alignItems:"center",gap:10 }}>💔 Match törlése</button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Üzenetek */}
       <div style={{ flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8 }}>
         {loading && <div style={{ textAlign:"center",paddingTop:20 }}><Spinner /></div>}
         {msgs.map(m => (
@@ -846,6 +931,8 @@ function ChatView({ match, myId, onBack }) {
         ))}
         <div ref={bottomRef} />
       </div>
+
+      {/* Input */}
       <div style={{ display:"flex",gap:8,padding:"12px 16px",borderTop:`1px solid ${C.border}` }}>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Írj üzenetet..." style={{ flex:1,padding:"12px 16px",borderRadius:24,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none" }} />
         <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer" }}>→</button>
@@ -1210,7 +1297,7 @@ export default function App() {
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",minHeight:0 }}>
         {matchOverlay && <MatchOverlay user={matchOverlay} onMessage={() => { const m=matches.find(x=>x.other?.id===matchOverlay.id); setMatchOverlay(null); if(m){setActiveChat(m);setTab("matches");} }} onClose={()=>setMatchOverlay(null)} />}
         {activeChat ? (
-          <ChatView match={activeChat} myId={session.user.id} onBack={()=>setActiveChat(null)} />
+          <ChatView match={activeChat} myId={session.user.id} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} />
         ) : (
           <>
             {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
