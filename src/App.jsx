@@ -1,19 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { initializeApp } from "firebase/app";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { supabase } from "./supabase.js";
 
 const STRIPE_PRICE_ID = "price_1TY5hhBtOhui3FKbzxznfDa9";
-const FIREBASE_VAPID_KEY = "BJU172BnApuFXqZ-IxidHXuGG_fCmz5BXUIXqZlCsNskjqhPTtSr_hgsdUWRNUsExT55olXVylBP0nxmsZ-bqSU";
-
-const firebaseApp = initializeApp({
-  apiKey: "AIzaSyCxyDIoNIt7eneyXGmPRPUcNLhr5vdwRII",
-  authDomain: "nearmatch-85c0a.firebaseapp.com",
-  projectId: "nearmatch-85c0a",
-  storageBucket: "nearmatch-85c0a.firebasestorage.app",
-  messagingSenderId: "388455535348",
-  appId: "1:388455535348:web:b5d80dd949c2619a8d84a1",
-});
+const ONESIGNAL_APP_ID = "ac1a4664-cec3-4e0c-9e27-91218932b9f1";
 
 const C = {
   bg: "#080b10", surface: "#0f1520", card: "#141c2b",
@@ -49,25 +38,16 @@ function distanceKm(lat1, lng1, lat2, lng2) {
 
 function getTodayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
-// ── PUSH HELPERS ───────────────────────────────────────
-async function registerPushToken(userId) {
+// ── ONESIGNAL HELPERS ──────────────────────────────────
+async function registerOneSignalUser(userId) {
   try {
-    if (!("serviceWorker" in navigator) || !("Notification" in window)) return;
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
-    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    const messaging = getMessaging(firebaseApp);
-    const token = await getToken(messaging, { vapidKey: FIREBASE_VAPID_KEY, serviceWorkerRegistration: reg });
-    if (token) {
-      await supabase.from("push_tokens").upsert({ user_id: userId, token }, { onConflict: "user_id,token" });
-    }
-    onMessage(messaging, (payload) => {
-      if (Notification.permission === "granted") {
-        new Notification(payload.notification.title, { body: payload.notification.body, icon: "/icon-192.png" });
-      }
+    if (!window.OneSignalDeferred) return;
+    window.OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.login(userId);
+      await OneSignal.User.addTag("user_id", userId);
     });
   } catch (err) {
-    console.warn("Push regisztráció hiba:", err);
+    console.warn("OneSignal regisztráció hiba:", err);
   }
 }
 
@@ -76,7 +56,10 @@ async function sendPushNotification(userId, title, body, data = {}) {
     const { data: { session } } = await supabase.auth.getSession();
     await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session?.access_token}`,
+      },
       body: JSON.stringify({ user_id: userId, title, body, data }),
     });
   } catch (err) {
@@ -99,7 +82,7 @@ function Spinner() {
 }
 
 // ── AUTH SCREEN ────────────────────────────────────────
-function AuthScreen({ onAuth }) {
+function AuthScreen() {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -119,11 +102,7 @@ function AuthScreen({ onAuth }) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
   return (
@@ -159,7 +138,7 @@ function AuthScreen({ onAuth }) {
 // ── ONBOARDING ─────────────────────────────────────────
 function Onboarding({ user, onComplete }) {
   const [step, setStep] = useState(0);
-  const [data, setData] = useState({ name:"", birthdate:"", gender:"", bio:"", interests:[], showMe:"", lookingFor:"", locationGranted:false });
+  const [data, setData] = useState({ name:"", birthdate:"", gender:"", bio:"", interests:[], showMe:"", lookingFor:"" });
   const [saving, setSaving] = useState(false);
 
   const next = () => setStep(s => s + 1);
@@ -176,11 +155,10 @@ function Onboarding({ user, onComplete }) {
     }
     const birthYear = data.birthdate ? new Date(data.birthdate).getFullYear() : null;
     const age = birthYear ? new Date().getFullYear() - birthYear : null;
-    const totalUsers = Math.floor(Math.random() * 1800) + 1;
-    const isFounder = totalUsers <= 2000;
+    const isFounder = true;
     const profile = { id: user.id, name: data.name, bio: data.bio, age, gender: data.gender, interests: data.interests, looking_for: data.lookingFor, is_pro: isFounder, is_founder: isFounder, lat, lng, last_seen: new Date().toISOString() };
     const { error } = await supabase.from("profiles").upsert(profile);
-    if (!error) onComplete({ ...profile, isFounder });
+    if (!error) onComplete(profile);
     setSaving(false);
   };
 
@@ -363,7 +341,6 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
       dots.forEach(d => {
         const x = cx+Math.cos(d.angle)*d.r*(size/2-20); const y = cy+Math.sin(d.angle)*d.r*(size/2-20);
         ctx.beginPath(); ctx.arc(x,y,selected?.id===d.id?8:5,0,Math.PI*2); ctx.fillStyle=selected?.id===d.id?C.accent:"rgba(255,92,92,0.7)"; ctx.fill();
-        if (selected?.id===d.id) { ctx.beginPath(); ctx.arc(x,y,12,0,Math.PI*2); ctx.strokeStyle="rgba(255,92,92,0.4)"; ctx.lineWidth=2; ctx.stroke(); }
       });
       angleRef.current += 0.015; animRef.current = requestAnimationFrame(draw);
     };
@@ -393,14 +370,14 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
       )}
       <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"10px 16px", gap:10, overflowY:"scroll", WebkitOverflowScrolling:"touch", minHeight:0 }}>
         <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-          <button onClick={() => setSatelliteMode(m => !m)} style={{ flex:1, padding:"10px 14px", borderRadius:12, border:`1px solid ${satelliteMode ? "#4dabf7" : C.border}`, background:satelliteMode ? "rgba(77,171,247,0.12)" : C.card, color:satelliteMode ? "#4dabf7" : C.muted, cursor:"pointer", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-            🛰️ {satelliteMode ? "Műholdas" : "Radar"} nézet
+          <button onClick={() => setSatelliteMode(m => !m)} style={{ flex:1, padding:"10px 14px", borderRadius:12, border:`1px solid ${satelliteMode?"#4dabf7":C.border}`, background:satelliteMode?"rgba(77,171,247,0.12)":C.card, color:satelliteMode?"#4dabf7":C.muted, cursor:"pointer", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            🛰️ {satelliteMode?"Műholdas":"Radar"} nézet
           </button>
         </div>
         {boostActive && (
           <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))", border:"1px solid rgba(255,212,59,0.4)", borderRadius:13, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>⚡</span>
-            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Kiemelés aktív — legközelebb elöl</div><div style={{ color:C.dim, fontSize:11 }}>Távolság szerint rendezve</div></div>
+            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Kiemelés aktív</div><div style={{ color:C.dim, fontSize:11 }}>Távolság szerint rendezve</div></div>
             <div style={{ width:8, height:8, borderRadius:"50%", background:C.green, boxShadow:"0 0 6px #3ecf8e" }} />
           </div>
         )}
@@ -408,14 +385,6 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade }) 
           {satelliteMode ? (
             <div style={{ width:300, height:300, borderRadius:16, overflow:"hidden", position:"relative", flexShrink:0 }}>
               <iframe src={`https://maps.google.com/maps?q=${myProfile?.lat||47.497},${myProfile?.lng||19.040}&z=15&output=embed&t=k`} style={{ width:"100%", height:"100%", border:"none" }} title="Műholdas nézet" loading="lazy" />
-              {nearbyUsers.filter(u=>u.lat&&u.lng).map(u => {
-                const latDiff = (u.lat - (myProfile?.lat||47.497)) * 111320;
-                const lngDiff = (u.lng - (myProfile?.lng||19.040)) * 111320 * Math.cos((myProfile?.lat||47.497) * Math.PI/180);
-                const px = 150 + lngDiff * (300/400) * 0.3;
-                const py = 150 - latDiff * (300/400) * 0.3;
-                if (px < 10 || px > 290 || py < 10 || py > 290) return null;
-                return (<div key={u.id} onClick={() => setSelected(u)} style={{ position:"absolute", left:px-8, top:py-8, width:16, height:16, borderRadius:"50%", background:C.accent, border:"2px solid #fff", cursor:"pointer", zIndex:10, boxShadow:"0 2px 8px rgba(255,92,92,0.6)" }} />);
-              })}
               <div style={{ position:"absolute", top:8, left:8, background:"rgba(8,11,16,0.8)", borderRadius:8, padding:"4px 8px", color:C.text, fontSize:11 }}>🛰️ Műholdas</div>
             </div>
           ) : (
@@ -469,8 +438,8 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const startPos = useRef(null);
 
   const slLimit = isPro ? 5 : 1;
-  const [slUsed, setSlUsed] = useState(myProfile?.super_like_count||0);
-  const [slDay, setSlDay] = useState(myProfile?.super_like_day||getTodayKey());
+  const [slUsed, setSlUsed] = useState(0);
+  const [slDay, setSlDay] = useState(getTodayKey());
   const slLeft = getTodayKey()!==slDay ? slLimit : Math.max(0, slLimit-slUsed);
 
   useEffect(() => setCardPage(0), [idx]);
@@ -518,7 +487,6 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const transition = drag.dragging&&!gone?"none":"transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)";
   const likeOpacity = Math.max(0,drag.x/THRESHOLD);
   const passOpacity = Math.max(0,-drag.x/THRESHOLD);
-  const superOpacity = actionLabel==="SUPER LIKE"?1:0;
   const distLabel = (km) => km!=null ? (km<1?`${Math.round(km*1000)}m`:`${km.toFixed(1)}km`) : "";
 
   return (
@@ -526,17 +494,10 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
       {proWallType && (
         <div style={{ position:"absolute",inset:0,zIndex:95,background:"rgba(8,11,16,0.92)",backdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end" }}>
           <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"28px 24px 40px",border:`1px solid ${C.border}` }}>
-            <div style={{ textAlign:"center",marginBottom:20 }}><div style={{ fontSize:48,marginBottom:10 }}>{proWallType==="rewind"?"↩️":"⭐"}</div><h3 style={{ color:C.text,fontSize:20,fontWeight:900,margin:"0 0 8px" }}>{proWallType==="rewind"?"Visszatekerés — Pro":"Super Like elfogyott"}</h3><p style={{ color:C.muted,fontSize:13,margin:0 }}>{proWallType==="rewind"?"Az előző profil visszahozása csak Pro tagoknak.":"Pro-val napi 5 Super Like jár."}</p></div>
+            <div style={{ textAlign:"center",marginBottom:20 }}><div style={{ fontSize:48,marginBottom:10 }}>{proWallType==="rewind"?"↩️":"⭐"}</div><h3 style={{ color:C.text,fontSize:20,fontWeight:900,margin:"0 0 8px" }}>{proWallType==="rewind"?"Visszatekerés — Pro":"Super Like elfogyott"}</h3></div>
             <button onClick={() => { onUpgrade(); setProWallType(null); }} style={{ width:"100%",padding:"16px",background:"linear-gradient(135deg,#ffd43b,#ff8c42)",border:"none",borderRadius:16,color:"#000",fontSize:16,fontWeight:700,cursor:"pointer",marginBottom:10 }}>⚡ Upgrade Pro-ra</button>
             <button onClick={() => setProWallType(null)} style={{ width:"100%",padding:"14px",background:"none",border:`1px solid ${C.border}`,borderRadius:16,color:C.muted,fontSize:15,cursor:"pointer" }}>Mégse</button>
           </div>
-        </div>
-      )}
-      {boostActive && (
-        <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:12,padding:"9px 14px",display:"flex",alignItems:"center",gap:8,marginBottom:8,flexShrink:0 }}>
-          <span style={{ fontSize:16 }}>⚡</span>
-          <div style={{ flex:1,color:C.yellow,fontSize:12,fontWeight:700 }}>Kiemelés aktív — legközelebbiek kerülnek elő</div>
-          <div style={{ width:7,height:7,borderRadius:"50%",background:C.green,boxShadow:"0 0 5px #3ecf8e",flexShrink:0 }} />
         </div>
       )}
       <div style={{ flex:1,position:"relative",minHeight:0 }}>
@@ -544,23 +505,18 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           <div style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",transform:"scale(0.95)",opacity:0.7 }}>
             <img src={next.photo_url||`https://i.pravatar.cc/300?u=${next.id}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={next.name} />
             <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)" }} />
-            <div style={{ position:"absolute",bottom:18,left:18 }}><span style={{ fontSize:24,fontWeight:900,color:"#fff" }}>{next.name}</span><span style={{ fontSize:18,color:"rgba(255,255,255,0.5)",marginLeft:8 }}>{next.age}</span></div>
           </div>
         )}
         <div onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           onClick={(e) => { if(Math.abs(drag.x)>5) return; const rect=e.currentTarget.getBoundingClientRect(); const x=e.clientX-rect.left; const maxPage=(cur.photos||(cur.photo_url?[cur.photo_url]:[])).length; if(x>rect.width*0.75) setCardPage(p=>Math.min(p+1,maxPage)); else if(x<rect.width*0.25) setCardPage(p=>Math.max(p-1,0)); }}
           style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab",transform,transition }}>
-          <div style={{ position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4,zIndex:10 }}>
-            {Array.from({length: Math.min((cur.photos||[cur.photo_url].filter(Boolean)).length + 1, 7)}).map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
-          </div>
           {cardPage===0 ? (
             <>
-              {(() => { const photos = cur.photos || (cur.photo_url ? [cur.photo_url] : []); const photoUrl = photos[0] || `https://i.pravatar.cc/300?u=${cur.id}`; return <img src={photoUrl} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />; })()}
+              {(() => { const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]); return <img src={photos[0]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />; })()}
               <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,11,16,0.9) 0%,transparent 50%)" }} />
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
               <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
               <div style={{ position:"absolute",top:30,right:20,border:"3px solid #ff5c5c",borderRadius:12,padding:"6px 16px",color:"#ff5c5c",fontSize:22,fontWeight:900,opacity:passOpacity,transform:"rotate(15deg)" }}>PASS</div>
-              <div style={{ position:"absolute",top:30,left:"50%",transform:"translateX(-50%) rotate(-5deg)",border:"3px solid #4dabf7",borderRadius:12,padding:"6px 16px",color:"#4dabf7",fontSize:20,fontWeight:900,opacity:superOpacity,whiteSpace:"nowrap",transition:"opacity 0.2s" }}>⭐ SUPER LIKE</div>
               <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"16px 20px 20px" }}>
                 <div style={{ display:"flex",alignItems:"baseline",gap:8,marginBottom:4 }}><span style={{ fontSize:28,fontWeight:900,color:"#fff" }}>{cur.name}</span><span style={{ fontSize:20,color:"rgba(255,255,255,0.5)" }}>{cur.age}</span></div>
                 <p style={{ color:"rgba(255,255,255,0.7)",fontSize:13,margin:"0 0 10px" }}>{cur.bio}</p>
@@ -569,28 +525,18 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
             </>
           ) : (
             <div style={{ width:"100%",height:"100%",background:C.bg,overflowY:"auto",padding:"20px 16px" }}>
-              <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}><img src={cur.photo_url||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={cur.name} /><div><div style={{ fontSize:20,fontWeight:900,color:C.text }}>{cur.name}, {cur.age}</div>{cur.distanceKm!=null&&<div style={{ color:C.accent,fontSize:12 }}>● {distLabel(cur.distanceKm)}</div>}</div></div>
-              {cur.bio&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}`,marginBottom:10 }}><div style={{ color:C.dim,fontSize:10,letterSpacing:1,textTransform:"uppercase",marginBottom:6 }}>Bio</div><p style={{ color:C.text,fontSize:13,lineHeight:1.6,margin:0 }}>{cur.bio}</p></div>}
-              {(cur.interests||[]).length>0&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}`,marginBottom:10 }}><div style={{ color:C.dim,fontSize:10,letterSpacing:1,textTransform:"uppercase",marginBottom:8 }}>Érdeklődés</div><div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{cur.interests.map(t=><span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"4px 10px",fontSize:12,color:C.accent }}>{t}</span>)}</div></div>}
-              {cur.looking_for&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}` }}><div style={{ color:C.dim,fontSize:10,letterSpacing:1,textTransform:"uppercase",marginBottom:6 }}>Mit keres</div><div style={{ color:C.text,fontWeight:600 }}>{LOOKING_FOR_OPTIONS.find(x=>x.l===cur.looking_for)?.i} {cur.looking_for}</div></div>}
+              <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}><img src={cur.photo_url||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={cur.name} /><div><div style={{ fontSize:20,fontWeight:900,color:C.text }}>{cur.name}, {cur.age}</div></div></div>
+              {cur.bio&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}`,marginBottom:10 }}><p style={{ color:C.text,fontSize:13,lineHeight:1.6,margin:0 }}>{cur.bio}</p></div>}
             </div>
           )}
         </div>
       </div>
       <div style={{ flexShrink:0,paddingTop:10 }}>
-        <div style={{ display:"flex",justifyContent:"center",gap:6,marginBottom:10 }}>
-          {Array.from({length:slLimit}).map((_,i) => (<div key={i} style={{ width:20,height:4,borderRadius:2,background:i<slLeft?"#4dabf7":C.border,transition:"background 0.3s" }} />))}
-          <span style={{ color:C.dim,fontSize:10,marginLeft:4 }}>{slLeft}/{slLimit} Super Like</span>
-        </div>
         <div style={{ display:"flex",justifyContent:"center",alignItems:"center",gap:16 }}>
-          <button onClick={handleRewind} style={{ width:52,height:52,borderRadius:"50%",background:isPro&&history.length>0?"rgba(255,140,66,0.12)":C.card,border:`1px solid ${isPro&&history.length>0?C.orange:C.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",opacity:history.length===0&&isPro?0.4:1,position:"relative" }}>
-            ↩️{!isPro&&<div style={{ position:"absolute",top:-3,right:-3,width:14,height:14,borderRadius:"50%",background:C.yellow,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:900 }}>P</div>}
-          </button>
+          <button onClick={handleRewind} style={{ width:52,height:52,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>↩️</button>
           <button onClick={() => {showLabel("PASS");act("pass");}} style={{ width:60,height:60,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:26,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
           <button onClick={() => {showLabel("LIKE");act("like");}} style={{ width:74,height:74,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",fontSize:32,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accentGlow}` }}>♥</button>
-          <button onClick={() => { if(slLeft<=0){setProWallType("superlike");return;} showLabel("SUPER LIKE"); act("superlike"); }} style={{ width:60,height:60,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.12)":C.card,border:`1px solid ${slLeft>0?"#4dabf7":C.border}`,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative" }}>
-            ⭐{slLeft<=0&&!isPro&&<div style={{ position:"absolute",top:-3,right:-3,width:14,height:14,borderRadius:"50%",background:C.yellow,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#000",fontWeight:900 }}>P</div>}
-          </button>
+          <button onClick={() => { if(slLeft<=0){setProWallType("superlike");return;} showLabel("SUPER LIKE"); act("superlike"); }} style={{ width:60,height:60,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.12)":C.card,border:`1px solid ${slLeft>0?"#4dabf7":C.border}`,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>⭐</button>
         </div>
       </div>
     </div>
@@ -599,10 +545,8 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
 // ── MATCHES ────────────────────────────────────────────
 function MatchList({ matches, onOpen, isPro, onUpgrade }) {
-  const FREE_LIMIT=5, PRO_LIMIT=10;
-  const limit = isPro?PRO_LIMIT:FREE_LIMIT;
+  const limit = isPro ? 10 : 5;
   const active = matches.filter(m=>m.status!=="expired");
-  const expired = matches.filter(m=>m.status==="expired");
   const pct = active.length/limit;
   const barColor = pct>=1?C.accent:pct>=0.7?C.orange:C.green;
   return (
@@ -610,7 +554,7 @@ function MatchList({ matches, onOpen, isPro, onUpgrade }) {
       <div style={{ background:C.card,borderRadius:16,padding:"14px 16px",border:`1px solid ${C.border}`,marginBottom:16 }}>
         <div style={{ display:"flex",justifyContent:"space-between",marginBottom:10 }}><span style={{ color:C.text,fontWeight:700 }}>Aktív matchek</span><span style={{ fontWeight:800,color:pct>=1?C.accent:C.text }}>{active.length}/{limit}</span></div>
         <div style={{ height:6,background:C.dim,borderRadius:3,overflow:"hidden",marginBottom:8 }}><div style={{ height:"100%",borderRadius:3,width:`${Math.min(pct*100,100)}%`,background:barColor,transition:"width 0.3s" }} /></div>
-        {!isPro&&<button onClick={onUpgrade} style={{ width:"100%",marginTop:8,padding:"10px",background:"linear-gradient(135deg,#ffd43b,#ff8c42)",border:"none",borderRadius:12,color:"#000",fontWeight:700,cursor:"pointer",fontSize:13 }}>⚡ Upgrade Pro-ra — 10 match egyszerre</button>}
+        {!isPro&&<button onClick={onUpgrade} style={{ width:"100%",marginTop:8,padding:"10px",background:"linear-gradient(135deg,#ffd43b,#ff8c42)",border:"none",borderRadius:12,color:"#000",fontWeight:700,cursor:"pointer",fontSize:13 }}>⚡ Upgrade Pro-ra</button>}
       </div>
       {active.length===0&&<div style={{ textAlign:"center",padding:"40px 20px",color:C.muted }}>Még nincsenek matcheid 💝</div>}
       {active.map(m => (
@@ -626,7 +570,6 @@ function MatchList({ matches, onOpen, isPro, onUpgrade }) {
           {m.unread&&<div style={{ width:8,height:8,borderRadius:"50%",background:C.accent,flexShrink:0 }} />}
         </div>
       ))}
-      {expired.length>0&&(<><div style={{ color:C.dim,fontSize:11,letterSpacing:1.5,textTransform:"uppercase",margin:"16px 0 8px" }}>Lejárt matchek</div>{expired.map(m => (<div key={m.id} style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${C.border}`,opacity:0.6 }}><img src={m.other?.photo_url||`https://i.pravatar.cc/300?u=${m.other?.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover",filter:"grayscale(80%)" }} alt={m.other?.name} /><div style={{ flex:1 }}><div style={{ color:C.muted,fontWeight:700 }}>{m.other?.name}</div><div style={{ color:C.dim,fontSize:12 }}>Match lejárt</div></div>{isPro?(<button style={{ background:"linear-gradient(135deg,#ffd43b,#ff8c42)",border:"none",borderRadius:10,color:"#000",padding:"8px 12px",cursor:"pointer",fontSize:12,fontWeight:700 }}>Újraéleszt</button>):(<button onClick={onUpgrade} style={{ background:"rgba(255,212,59,0.1)",border:"1px solid rgba(255,212,59,0.3)",borderRadius:10,color:C.yellow,padding:"8px 12px",cursor:"pointer",fontSize:12 }}>Pro</button>)}</div>))}</>)}
     </div>
   );
 }
@@ -655,9 +598,8 @@ function ChatView({ match, myId, onBack }) {
     if (!input.trim()) return;
     const text = input; setInput("");
     await supabase.from("messages").insert({ match_id:match.id, sender_id:myId, text });
-    // Push értesítés a másik félnek
     if (match.other?.id) {
-      await sendPushNotification(match.other.id, `💬 Új üzenet`, text.length > 60 ? text.slice(0,60)+"…" : text, { type:"message", match_id: match.id });
+      await sendPushNotification(match.other.id, "💬 Új üzenet", text.length > 60 ? text.slice(0,60)+"…" : text, { type:"message", match_id: match.id });
     }
   };
 
@@ -709,11 +651,7 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     const currentPhotos = myProfile?.photos || (myProfile?.photo_url ? [myProfile.photo_url] : []);
-    if (currentPhotos.length + files.length > 6) { setUploadError("Max 6 kép tölthető fel!"); return; }
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) { setUploadError("Max 5MB/kép!"); return; }
-      if (!file.type.startsWith("image/")) { setUploadError("Csak képfájl tölthető fel!"); return; }
-    }
+    if (currentPhotos.length + files.length > 6) { setUploadError("Max 6 kép!"); return; }
     setUploadError(""); setUploading(true);
     try {
       const newUrls = [];
@@ -740,15 +678,6 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
     if (data) setMyProfile(p=>({...p, photo_url, photos: updatedPhotos}));
   };
 
-  const SelectRow = ({ label, value, options, onChange }) => (
-    <div style={{ marginBottom:14 }}>
-      <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8 }}>{label}</label>
-      <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-        {options.map(opt => (<button key={opt} onClick={() => onChange(opt)} style={{ padding:"7px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:`1px solid ${value===opt?C.accent:C.border}`,background:value===opt?C.accentSoft:C.card,color:value===opt?C.accent:C.muted,fontWeight:value===opt?700:400 }}>{opt}</button>))}
-      </div>
-    </div>
-  );
-
   return (
     <div style={{ flex:1,overflowY:"auto" }}>
       <div style={{ padding:"16px 20px 0" }}>
@@ -761,78 +690,39 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
             <div key={idx} style={{ position:"relative", aspectRatio:"1", borderRadius:12, overflow:"hidden", background:C.card }}>
               <img src={url} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt={`Fotó ${idx+1}`} />
               {idx === 0 && <div style={{ position:"absolute", top:4, left:4, background:C.accent, borderRadius:6, padding:"2px 6px", fontSize:10, color:"#fff", fontWeight:700 }}>Fő</div>}
-              <button onClick={() => handlePhotoDelete(idx)} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", background:"rgba(8,11,16,0.8)", border:"none", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>×</button>
+              <button onClick={() => handlePhotoDelete(idx)} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", background:"rgba(8,11,16,0.8)", border:"none", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
             </div>
           ))}
           {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).length < 6 && (
             <label style={{ aspectRatio:"1", borderRadius:12, background:C.card, border:`2px dashed ${C.border}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:4 }}>
-              {uploading ? <Spinner /> : <><span style={{ fontSize:24 }}>+</span><span style={{ color:C.dim, fontSize:10 }}>Fotó hozzáadása</span></>}
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploading} />
+              {uploading ? <Spinner /> : <><span style={{ fontSize:24 }}>+</span><span style={{ color:C.dim, fontSize:10 }}>Fotó</span></>}
+              <input type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploading} />
             </label>
           )}
         </div>
-        {uploadError && <div style={{ marginTop:8, background:"rgba(255,92,92,0.1)", border:`1px solid ${C.accent}`, borderRadius:10, padding:"8px 12px", color:C.accent, fontSize:12 }}>{uploadError}</div>}
+        {uploadError && <div style={{ marginTop:8, color:C.accent, fontSize:12 }}>{uploadError}</div>}
       </div>
       <div style={{ padding:"16px 20px" }}>
         <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16 }}>
-          <div><div style={{ color:C.text,fontWeight:800,fontSize:20 }}>{myProfile?.name}</div><div style={{ color:C.muted,fontSize:13 }}>{myProfile?.is_founder?"🚀 Founder":"NearMatch felhasználó"}</div></div>
+          <div><div style={{ color:C.text,fontWeight:800,fontSize:20 }}>{myProfile?.name}</div><div style={{ color:C.muted,fontSize:13 }}>{myProfile?.is_founder?"🚀 Founder":"NearMatch"}</div></div>
           <button onClick={() => { if(editing) save(); else setEditing(true); }} style={{ background:editing?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,border:`1px solid ${editing?C.accent:C.border}`,borderRadius:12,color:editing?"#fff":C.text,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13 }}>
             {saving?<Spinner />:editing?"✓ Mentés":"✏️ Szerkesztés"}
           </button>
         </div>
-        {!editing && (
-          <div style={{ marginBottom:16 }}>
-            {boostActive ? (
-              <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.15),rgba(255,140,66,0.15))",border:"1px solid rgba(255,212,59,0.4)",borderRadius:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:12 }}>
-                <div style={{ fontSize:28 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:800,fontSize:15 }}>Kiemelés aktív!</div><div style={{ color:C.muted,fontSize:12,marginTop:2 }}>30 percig előre kerülsz a közeliek között</div></div>
-                <div style={{ width:10,height:10,borderRadius:"50%",background:C.green,boxShadow:"0 0 8px #3ecf8e" }} />
-              </div>
-            ) : isPro && boostAvailable ? (
-              <button onClick={onBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left" }}>
-                <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Profilod előre kerül — 30 percig • Heti 1 db</div></div>
-                <div style={{ background:"linear-gradient(135deg,#ffd43b,#ff8c42)",borderRadius:10,padding:"6px 12px",color:"#000",fontSize:12,fontWeight:700 }}>Aktiválás</div>
-              </button>
-            ) : isPro && !boostAvailable ? (
-              <div style={{ background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:12,opacity:0.6 }}>
-                <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.text,fontWeight:700,fontSize:14 }}>Kiemelés elhasználva</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Jövő héten újra elérhető</div></div>
-                <div style={{ background:C.surface,borderRadius:10,padding:"6px 12px",color:C.dim,fontSize:12 }}>🔄 +7 nap</div>
-              </div>
-            ) : (
-              <button onClick={onUpgrade} style={{ width:"100%",padding:"14px 16px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left" }}>
-                <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.muted,fontWeight:700,fontSize:14 }}>Kiemelés — Pro funkció</div><div style={{ color:C.dim,fontSize:12,marginTop:2 }}>Kerülj előre • Heti 1 db</div></div>
-                <div style={{ background:"rgba(255,212,59,0.1)",border:"1px solid rgba(255,212,59,0.3)",borderRadius:10,padding:"6px 12px",color:C.yellow,fontSize:12,fontWeight:700 }}>Pro</div>
-              </button>
-            )}
-          </div>
+        {!editing && boostAvailable && (
+          <button onClick={onBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:16 }}>
+            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12 }}>30 percig előre kerülsz • Heti 1 db</div></div>
+          </button>
         )}
         {editing ? (
-          <div style={{ display:"flex",flexDirection:"column",gap:4 }}>
-            <div style={{ marginBottom:12 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
-            <div style={{ marginBottom:12 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e=>setDraft(d=>({...d,bio:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} /></div>
-            <div style={{ marginBottom:14 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1 }}>📏 Magasság</label><span style={{ color:C.accent,fontWeight:700,fontSize:13 }}>{draft.height} cm</span></div>
-              <input type="range" min={135} max={230} step={1} value={draft.height} onChange={e=>setDraft(d=>({...d,height:+e.target.value}))} style={{ width:"100%" }} />
-              <div style={{ display:"flex",justifyContent:"space-between",marginTop:4 }}><span style={{ color:C.dim,fontSize:10 }}>135 cm</span><span style={{ color:C.dim,fontSize:10 }}>230 cm</span></div>
-            </div>
-            <SelectRow label="🎓 Végzettség" value={draft.education} options={EDU_OPTIONS} onChange={v=>setDraft(d=>({...d,education:v}))} />
-            <SelectRow label="🚬 Dohányzás" value={draft.smoking} options={SMOKING_OPTIONS} onChange={v=>setDraft(d=>({...d,smoking:v}))} />
-            <div style={{ marginBottom:12 }}>
-              <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8 }}>💍 Mit keresel?</label>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:8 }}>
-                {LOOKING_FOR_OPTIONS.map(x => (<button key={x.l} onClick={() => setDraft(d=>({...d,looking_for:x.l}))} style={{ padding:"12px 10px",borderRadius:12,border:`1px solid ${draft.looking_for===x.l?C.accent:C.border}`,background:draft.looking_for===x.l?C.accentSoft:C.card,color:draft.looking_for===x.l?C.accent:C.text,cursor:"pointer",textAlign:"center" }}><div style={{ fontSize:18,marginBottom:3 }}>{x.i}</div><div style={{ fontSize:12,fontWeight:600 }}>{x.l}</div></button>))}
-              </div>
-            </div>
+          <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
+            <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
+            <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e=>setDraft(d=>({...d,bio:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} /></div>
           </div>
         ) : (
-          <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
-            <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}><div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div><p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{myProfile?.bio||"Nincs még bio — szerkeszd a profilt!"}</p></div>
-            {(myProfile?.height||myProfile?.education||myProfile?.smoking) && (
-              <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
-                <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>Részletek</div>
-                {[["📏 Magasság",myProfile?.height?`${myProfile.height} cm`:null],["🎓 Végzettség",myProfile?.education],["🚬 Dohányzás",myProfile?.smoking]].map(([k,v]) => v?(<div key={k} style={{ display:"flex",justifyContent:"space-between",color:C.text,fontSize:13,paddingBottom:8 }}><span style={{ color:C.muted }}>{k}</span><span style={{ fontWeight:600 }}>{v}</span></div>):null)}
-              </div>
-            )}
-            {myProfile?.looking_for&&<div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}><div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:6 }}>Mit keres</div><div style={{ color:C.text,fontWeight:600,fontSize:14 }}>{LOOKING_FOR_OPTIONS.find(x=>x.l===myProfile.looking_for)?.i} {myProfile.looking_for}</div></div>}
+          <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
+            <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
+            <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{myProfile?.bio||"Nincs még bio!"}</p>
           </div>
         )}
       </div>
@@ -866,26 +756,25 @@ export default function App() {
   const [activeChat, setActiveChat] = useState(null);
   const [matchOverlay, setMatchOverlay] = useState(null);
   const [myLocation, setMyLocation] = useState(null);
-
   const [boostActive, setBoostActive] = useState(false);
   const [lastBoostWeek, setLastBoostWeek] = useState(null);
+
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
-  const boostAvailable = myProfile?.is_pro && lastBoostWeek!==getWeekNumber() && !boostActive;
-  const handleBoost = () => { if(!boostAvailable) return; setBoostActive(true); setLastBoostWeek(getWeekNumber()); setTimeout(()=>setBoostActive(false), 30*60*1000); };
   const isPro = myProfile?.is_pro||false;
+  const boostAvailable = isPro && lastBoostWeek!==getWeekNumber() && !boostActive;
+  const handleBoost = () => { if(!boostAvailable) return; setBoostActive(true); setLastBoostWeek(getWeekNumber()); setTimeout(()=>setBoostActive(false), 30*60*1000); };
 
   const handleUpgrade = async () => {
     try {
-      const { data: { session: authSession } } = await supabase.auth.getSession();
-      const token = authSession?.access_token;
+      const { data: { session: s } } = await supabase.auth.getSession();
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ price_id: STRIPE_PRICE_ID, success_url: window.location.origin + "?pro=success", cancel_url: window.location.origin + "?pro=cancel" }),
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${s?.access_token}` },
+        body: JSON.stringify({ price_id: STRIPE_PRICE_ID, success_url: window.location.origin+"?pro=success", cancel_url: window.location.origin+"?pro=cancel" }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-    } catch (err) { console.error("Stripe hiba:", err); }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => {
@@ -912,7 +801,7 @@ export default function App() {
     if (data) {
       setMyProfile(data);
       setAppState("main");
-      registerPushToken(userId); // Push token regisztráció
+      registerOneSignalUser(userId);
     } else {
       setAppState("onboarding");
     }
@@ -972,7 +861,7 @@ export default function App() {
           const { data:other } = await supabase.from("profiles").select("*").eq("id",otherId).single();
           if (other) {
             setMatchOverlay(other);
-            await sendPushNotification(otherId, "🎉 Új match!", `${myProfile?.name || "Valaki"} kedvelt téged!`, { type:"match" });
+            await sendPushNotification(otherId, "🎉 Új match!", `${myProfile?.name||"Valaki"} kedvelt téged!`, { type:"match" });
           }
           loadMatches();
         }
@@ -988,8 +877,8 @@ export default function App() {
   const unreadCount = matches.filter(m=>m.unread).length;
 
   if (appState==="loading") return <Shell><div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20 }}><div style={{ fontSize:48 }}>📍</div><Spinner /></div></Shell>;
-  if (appState==="auth") return <Shell><AuthScreen onAuth={()=>{}} /></Shell>;
-  if (appState==="onboarding") return <Shell><Onboarding user={session.user} onComplete={p=>{ setMyProfile(p); setAppState("main"); registerPushToken(p.id); }} /></Shell>;
+  if (appState==="auth") return <Shell><AuthScreen /></Shell>;
+  if (appState==="onboarding") return <Shell><Onboarding user={session.user} onComplete={p=>{ setMyProfile(p); setAppState("main"); registerOneSignalUser(p.id); }} /></Shell>;
 
   return (
     <Shell>
