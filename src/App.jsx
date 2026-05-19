@@ -980,10 +980,10 @@ export default function App() {
     if (!myLocation || !session) return;
     const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
     if (!data) return;
-    const withDist = data.filter(u => u.lat && u.lng).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
-    setNearbyUsers(withDist);
     const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id);
     const swipedIds = new Set((swipedData||[]).map(s=>s.swiped_id));
+    const withDist = data.filter(u => u.lat && u.lng && !swipedIds.has(u.id)).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
+    setNearbyUsers(withDist);
     const forSwipe = data.map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null })).filter(u => !swipedIds.has(u.id));
     setSwipeUsers(boostActive ? [...forSwipe].sort((a,b)=>(a.distanceKm||99)-(b.distanceKm||99)) : forSwipe);
   }, [myLocation, session, boostActive]);
