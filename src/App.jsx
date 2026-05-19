@@ -428,6 +428,8 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
   const [showProWall, setShowProWall] = useState(false);
   const [satelliteMode, setSatelliteMode] = useState(false);
   const [localSwipedIds, setLocalSwipedIds] = useState(new Set());
+  const [profileModal, setProfileModal] = useState(null);
+  const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
   const animRef = useRef(null);
   const angleRef = useRef(0);
 
@@ -436,8 +438,11 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
   const handleRadarSwipe = async (userId, action) => {
     setLocalSwipedIds(prev => new Set([...prev, userId]));
     setSelected(null);
+    setProfileModal(null);
     await onSwipe(userId, action);
   };
+
+  const openProfile = (u) => { setProfileModal(u); setProfilePhotoIdx(0); };
 
   useEffect(() => {
     setDots(visibleUsers.map((u, i) => ({ ...u, angle: (i / Math.max(visibleUsers.length, 1)) * Math.PI * 2, r: Math.min(0.9, 0.2 + (u.distanceKm / 20) * 0.7) })));
@@ -474,6 +479,63 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
 
   return (
     <>
+      {profileModal && (
+        <div style={{ position:"absolute",inset:0,zIndex:96,background:"rgba(8,11,16,0.96)",backdropFilter:"blur(8px)",display:"flex",flexDirection:"column" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}` }}>
+            <button onClick={() => setProfileModal(null)} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
+            <span style={{ color:C.text,fontWeight:700,fontSize:16 }}>{profileModal.name}, {profileModal.age}</span>
+          </div>
+          <div style={{ flex:1,overflowY:"auto" }}>
+            {/* Fotók */}
+            {(() => {
+              const photos = profileModal.photos||(profileModal.photo_url?[profileModal.photo_url]:[]);
+              return photos.length > 0 ? (
+                <div style={{ position:"relative",width:"100%",aspectRatio:"1",background:C.card }}>
+                  <img src={photos[profilePhotoIdx]} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={profileModal.name} />
+                  {photos.length > 1 && (
+                    <>
+                      <div style={{ position:"absolute",top:10,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4 }}>
+                        {photos.map((_,i) => <div key={i} style={{ width:i===profilePhotoIdx?18:5,height:5,borderRadius:3,background:i===profilePhotoIdx?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
+                      </div>
+                      <button onClick={() => setProfilePhotoIdx(i=>Math.max(0,i-1))} style={{ position:"absolute",left:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
+                      <button onClick={() => setProfilePhotoIdx(i=>Math.min(photos.length-1,i+1))} style={{ position:"absolute",right:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div style={{ width:"100%",aspectRatio:"1",background:C.card,display:"flex",alignItems:"center",justifyContent:"center",fontSize:60 }}>👤</div>
+              );
+            })()}
+            <div style={{ padding:"16px 20px",display:"flex",flexDirection:"column",gap:12 }}>
+              {profileModal.bio && (
+                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
+                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
+                  <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{profileModal.bio}</p>
+                </div>
+              )}
+              {(profileModal.interests||[]).length > 0 && (
+                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
+                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>Érdeklődés</div>
+                  <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
+                    {profileModal.interests.map(t => <span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"5px 11px",fontSize:12,color:C.accent }}>{t}</span>)}
+                  </div>
+                </div>
+              )}
+              {(profileModal.looking_for||profileModal.height||profileModal.education) && (
+                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8 }}>
+                  {profileModal.looking_for && <div style={{ color:C.muted,fontSize:13 }}>💍 {profileModal.looking_for}</div>}
+                  {profileModal.height && <div style={{ color:C.muted,fontSize:13 }}>📏 {profileModal.height} cm</div>}
+                  {profileModal.education && <div style={{ color:C.muted,fontSize:13 }}>🎓 {profileModal.education}</div>}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display:"flex",gap:10,padding:"16px",borderTop:`1px solid ${C.border}` }}>
+            <button onClick={() => handleRadarSwipe(profileModal.id,"pass")} style={{ flex:1,padding:"16px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,color:C.text,fontSize:22,cursor:"pointer" }}>✕</button>
+            <button onClick={() => handleRadarSwipe(profileModal.id,"like")} style={{ flex:2,padding:"16px",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",borderRadius:16,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer" }}>♥ Lájkolom</button>
+          </div>
+        </div>
+      )}
       {showProWall && (
         <div style={{ position:"absolute", inset:0, zIndex:95, background:"rgba(8,11,16,0.92)", backdropFilter:"blur(8px)", display:"flex", alignItems:"flex-end" }}>
           <div style={{ width:"100%", background:C.surface, borderRadius:"28px 28px 0 0", padding:"28px 24px 40px", border:`1px solid ${C.border}` }}>
@@ -528,7 +590,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {visibleUsers.length === 0 && <div style={{ textAlign:"center", padding:"20px", color:C.muted, fontSize:13 }}>Nincs senki a közelben 😕</div>}
           {visibleUsers.map(u => (
-            <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, background:C.card, borderRadius:13, padding:"10px 14px", border:`1px solid ${C.border}` }}>
+            <div key={u.id} onClick={() => isPro && openProfile(u)} style={{ display:"flex", alignItems:"center", gap:10, background:C.card, borderRadius:13, padding:"10px 14px", border:`1px solid ${C.border}`, cursor:isPro?"pointer":"default" }}>
               {isPro ? (<img src={u.photo_url||`https://i.pravatar.cc/300?u=${u.id}`} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover" }} alt={u.name} />) : (<div style={{ width:40, height:40, borderRadius:"50%", background:C.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${C.border}`, flexShrink:0 }}>🔒</div>)}
               <div style={{ flex:1 }}>
                 {isPro ? (<><div style={{ color:C.text, fontWeight:600, fontSize:14 }}>{u.name}, {u.age}</div><div style={{ color:C.accent, fontSize:11 }}>● {distLabel(u.distanceKm)}</div></>) : (<><div style={{ color:C.muted, fontWeight:600, fontSize:14 }}>Rejtett profil</div><div style={{ color:C.accent, fontSize:11 }}>● {distLabel(u.distanceKm)}</div></>)}
@@ -633,14 +695,32 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           </div>
         )}
         <div onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-          onClick={(e) => { if(Math.abs(drag.x)>5) return; const rect=e.currentTarget.getBoundingClientRect(); const x=e.clientX-rect.left; const maxPage=(cur.photos||(cur.photo_url?[cur.photo_url]:[])).length; if(x>rect.width*0.75) setCardPage(p=>Math.min(p+1,maxPage)); else if(x<rect.width*0.25) setCardPage(p=>Math.max(p-1,0)); }}
+          onClick={(e) => {
+            if(Math.abs(drag.x)>5) return;
+            const rect=e.currentTarget.getBoundingClientRect();
+            const x=e.clientX-rect.left;
+            const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]);
+            const totalPages = photos.length;
+            if(totalPages <= 1) return;
+            if(x > rect.width*0.5) setCardPage(p=>Math.min(p+1, totalPages-1));
+            else setCardPage(p=>Math.max(p-1,0));
+          }}
           style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab",transform,transition }}>
-          <div style={{ position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4,zIndex:10 }}>
-            {Array.from({length: Math.min((cur.photos||[cur.photo_url].filter(Boolean)).length + 1, 7)}).map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
-          </div>
+          {(() => {
+            const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]);
+            const totalPages = photos.length;
+            return (
+              <>
+                <div style={{ position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4,zIndex:10 }}>
+                  {photos.map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
+                </div>
+                <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0 }} alt={cur.name} />
+              </>
+            );
+          })()}
           {cardPage===0 ? (
             <>
-              {(() => { const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]); return <img src={photos[0]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={cur.name} />; })()}
+              {(() => { const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]); return null; })()}
               <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,11,16,0.9) 0%,transparent 50%)" }} />
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
               <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
