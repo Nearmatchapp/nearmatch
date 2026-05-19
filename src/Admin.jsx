@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
-const ADMIN_EMAILS = ["admin@nearmatch.app"];
+const ADMIN_EMAILS = ["peterbecsky@gmail.com"];
 
 const C = {
   bg: "#080b10",
