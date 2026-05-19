@@ -313,7 +313,6 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
 
   useEffect(() => {
     const load = async () => {
-      // Ki likedelt engem (action = like vagy superlike, de még nem matcheltünk)
       const { data: swipes } = await supabase
         .from("swipes")
         .select("swiper_id, action, created_at")
@@ -323,7 +322,6 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
 
       if (!swipes) { setLoading(false); return; }
 
-      // Szűrjük ki akikkel már matcheltünk
       const { data: matches } = await supabase
         .from("matches")
         .select("user1_id, user2_id")
@@ -334,7 +332,6 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
       setCount(filtered.length);
 
       if (isPro) {
-        // Pro: lekérjük a profilokat
         const ids = filtered.map(s => s.swiper_id);
         if (ids.length > 0) {
           const { data: profiles } = await supabase.from("profiles").select("*").in("id", ids);
@@ -369,7 +366,6 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
 
       {!isPro && count > 0 && (
         <>
-          {/* Homályos preview - free felhasználóknak */}
           <div style={{ position:"relative", marginBottom:16 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, filter:"blur(12px)", pointerEvents:"none", userSelect:"none" }}>
               {Array.from({ length: Math.min(count, 6) }).map((_, i) => (
@@ -498,7 +494,6 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
               <div style={{ flex:1 }}>
                 {isPro ? (<><div style={{ color:C.text, fontWeight:700 }}>{selected.name}, {selected.age}</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>) : (<><div style={{ color:C.text, fontWeight:700 }}>Ismeretlen profil</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>)}
               </div>
-              {/* Like/Pass gombok a Radarban - csak Pro */}
               <div style={{ display:"flex", gap:6 }}>
                 <button onClick={() => { if(!isPro){setShowProWall(true);return;} onSwipe(selected.id,"pass"); setSelected(null); }} style={{ width:34, height:34, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                 <button onClick={() => { if(!isPro){setShowProWall(true);return;} onSwipe(selected.id,"like"); setSelected(null); }} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>♥</button>
@@ -1021,11 +1016,72 @@ export default function App() {
     return () => supabase.removeChannel(sub);
   }, [session, loadMatches, myProfile]);
 
+  // ── JAVÍTOTT HANDLESWIPE ────────────────────────────
   const handleSwipe = async (targetId, action) => {
-    await supabase.from("swipes").upsert(
+    if (!session?.user?.id) return;
+
+    // 1. Swipe mentése
+    const { error } = await supabase.from("swipes").upsert(
       { swiper_id: session.user.id, swiped_id: targetId, action },
       { onConflict: "swiper_id,swiped_id" }
     );
+
+    if (error) {
+      console.error("Swipe hiba:", error);
+      return;
+    }
+
+    // 2. Ha like vagy superlike: nézzük meg, ő is likedelt-e minket?
+    if (action === "like" || action === "superlike") {
+      const { data: theirSwipe } = await supabase
+        .from("swipes")
+        .select("action")
+        .eq("swiper_id", targetId)
+        .eq("swiped_id", session.user.id)
+        .in("action", ["like", "superlike"])
+        .maybeSingle();
+
+      if (theirSwipe) {
+        // 3. Kölcsönös like → match létrehozása (ha még nincs)
+        const { data: existingMatch } = await supabase
+          .from("matches")
+          .select("id")
+          .or(
+            `and(user1_id.eq.${session.user.id},user2_id.eq.${targetId}),` +
+            `and(user1_id.eq.${targetId},user2_id.eq.${session.user.id})`
+          )
+          .maybeSingle();
+
+        if (!existingMatch) {
+          await supabase.from("matches").insert({
+            user1_id: session.user.id,
+            user2_id: targetId,
+          });
+
+          // 4. Match overlay megjelenítése
+          const { data: otherProfile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", targetId)
+            .single();
+
+          if (otherProfile) {
+            setMatchOverlay(otherProfile);
+            await sendPushNotification(
+              targetId,
+              "🎉 Új match!",
+              `${myProfile?.name || "Valaki"} kedvelt téged!`,
+              { type: "match" }
+            );
+          }
+        }
+      }
+    }
+
+    // 5. UI frissítése
+    await loadNearby();
+    await loadMatches();
+    if (session?.user?.id) loadNewLikesCount(session.user.id);
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); };
