@@ -430,10 +430,20 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
   const [localSwipedIds, setLocalSwipedIds] = useState(new Set());
   const [profileModal, setProfileModal] = useState(null);
   const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ minAge:18, maxAge:60, maxDist:20 });
+  const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:20 });
   const animRef = useRef(null);
   const angleRef = useRef(0);
 
-  const visibleUsers = nearbyUsers.filter(u => !localSwipedIds.has(u.id));
+  const filteredNearby = nearbyUsers.filter(u => {
+    if (u.age && (u.age < activeFilters.minAge || u.age > activeFilters.maxAge)) return false;
+    if (u.distanceKm != null && u.distanceKm > activeFilters.maxDist) return false;
+    return true;
+  });
+
+  const visibleUsers = filteredNearby.filter(u => !localSwipedIds.has(u.id));
+  const isFiltered = activeFilters.minAge !== 18 || activeFilters.maxAge !== 60 || activeFilters.maxDist !== 20;
 
   const handleRadarSwipe = async (userId, action) => {
     setLocalSwipedIds(prev => new Set([...prev, userId]));
@@ -550,7 +560,34 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
           <button onClick={() => setSatelliteMode(m => !m)} style={{ flex:1, padding:"10px 14px", borderRadius:12, border:`1px solid ${satelliteMode?"#4dabf7":C.border}`, background:satelliteMode?"rgba(77,171,247,0.12)":C.card, color:satelliteMode?"#4dabf7":C.muted, cursor:"pointer", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
             🛰️ {satelliteMode?"Műholdas":"Radar"} nézet
           </button>
+          <button onClick={() => setShowFilters(f => !f)} style={{ padding:"10px 14px", borderRadius:12, border:`1px solid ${isFiltered?C.accent:C.border}`, background:isFiltered?C.accentSoft:C.card, color:isFiltered?C.accent:C.muted, cursor:"pointer", fontSize:13, fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>
+            🎛️{isFiltered?" ●":""}
+          </button>
         </div>
+        {/* Radar szűrő panel */}
+        {showFilters && (
+          <div style={{ background:C.card, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px", display:"flex", flexDirection:"column", gap:14, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span style={{ color:C.text, fontWeight:700, fontSize:14 }}>🎛️ Szűrők</span>
+              {isFiltered && <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:20}; setFilters(d); setActiveFilters(d); }} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:12, fontWeight:600 }}>Visszaállít</button>}
+            </div>
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ color:C.muted, fontSize:12 }}>Kor</span>
+                <span style={{ color:C.accent, fontWeight:700, fontSize:12 }}>{filters.minAge} – {filters.maxAge} év</span>
+              </div>
+              <input type="range" min={18} max={filters.maxAge-1} value={filters.minAge} onChange={e => { const v={...filters,minAge:+e.target.value}; setFilters(v); setActiveFilters(v); }} style={{ width:"100%", marginBottom:6 }} />
+              <input type="range" min={filters.minAge+1} max={80} value={filters.maxAge} onChange={e => { const v={...filters,maxAge:+e.target.value}; setFilters(v); setActiveFilters(v); }} style={{ width:"100%" }} />
+            </div>
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ color:C.muted, fontSize:12 }}>Max távolság</span>
+                <span style={{ color:C.accent, fontWeight:700, fontSize:12 }}>{filters.maxDist < 20 ? `${filters.maxDist} km` : "20 km (max)"}</span>
+              </div>
+              <input type="range" min={1} max={20} value={filters.maxDist} onChange={e => { const v={...filters,maxDist:+e.target.value}; setFilters(v); setActiveFilters(v); }} style={{ width:"100%" }} />
+            </div>
+          </div>
+        )}
         {boostActive && (
           <div style={{ background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))", border:"1px solid rgba(255,212,59,0.4)", borderRadius:13, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>⚡</span>
@@ -622,6 +659,9 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const [gone, setGone] = useState(false);
   const [actionLabel, setActionLabel] = useState(null);
   const [proWallType, setProWallType] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki" });
+  const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki" });
   const startPos = useRef(null);
 
   const slLimit = isPro ? 5 : 1;
@@ -630,17 +670,67 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const slLeft = getTodayKey()!==slDay ? slLimit : Math.max(0, slLimit-slUsed);
 
   useEffect(() => setCardPage(0), [idx]);
+  useEffect(() => setIdx(0), [activeFilters]);
 
-  if (!swipeUsers.length) return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flex:1, flexDirection:"column", gap:16 }}>
-      <div style={{ fontSize:50 }}>😕</div>
-      <div style={{ fontSize:16, color:C.text }}>Nincs több profil</div>
-      <div style={{ fontSize:13, color:C.muted }}>Próbálj később!</div>
+  const filteredUsers = swipeUsers.filter(u => {
+    if (u.age && (u.age < activeFilters.minAge || u.age > activeFilters.maxAge)) return false;
+    if (u.distanceKm != null && u.distanceKm > activeFilters.maxDist) return false;
+    if (activeFilters.gender !== "Mindenki" && u.gender && u.gender !== activeFilters.gender) return false;
+    return true;
+  });
+
+  const isFiltered = activeFilters.minAge !== 18 || activeFilters.maxAge !== 60 || activeFilters.maxDist !== 50 || activeFilters.gender !== "Mindenki";
+
+  const FilterPanel = () => (
+    <div style={{ position:"absolute",inset:0,zIndex:95,background:"rgba(8,11,16,0.97)",backdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end" }}>
+      <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"24px 20px 40px",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:20 }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+          <span style={{ color:C.text,fontWeight:800,fontSize:17 }}>🎛️ Szűrők</span>
+          <button onClick={() => setShowFilters(false)} style={{ background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:22 }}>✕</button>
+        </div>
+        <div>
+          <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}>
+            <span style={{ color:C.muted,fontSize:12 }}>Kor</span>
+            <span style={{ color:C.accent,fontWeight:700,fontSize:12 }}>{filters.minAge} – {filters.maxAge} év</span>
+          </div>
+          <input type="range" min={18} max={filters.maxAge-1} value={filters.minAge} onChange={e=>setFilters(f=>({...f,minAge:+e.target.value}))} style={{ width:"100%",marginBottom:8 }} />
+          <input type="range" min={filters.minAge+1} max={80} value={filters.maxAge} onChange={e=>setFilters(f=>({...f,maxAge:+e.target.value}))} style={{ width:"100%" }} />
+        </div>
+        <div>
+          <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}>
+            <span style={{ color:C.muted,fontSize:12 }}>Max távolság</span>
+            <span style={{ color:C.accent,fontWeight:700,fontSize:12 }}>{filters.maxDist < 100 ? `${filters.maxDist} km` : "Korlátlan"}</span>
+          </div>
+          <input type="range" min={1} max={100} value={filters.maxDist} onChange={e=>setFilters(f=>({...f,maxDist:+e.target.value}))} style={{ width:"100%" }} />
+        </div>
+        <div>
+          <div style={{ color:C.muted,fontSize:12,marginBottom:8 }}>Nem</div>
+          <div style={{ display:"flex",gap:6 }}>
+            {["Mindenki","Nő","Férfi","Non-binary"].map(g => (
+              <button key={g} onClick={() => setFilters(f=>({...f,gender:g}))} style={{ flex:1,padding:"9px 4px",borderRadius:11,border:`1px solid ${filters.gender===g?C.accent:C.border}`,background:filters.gender===g?C.accentSoft:C.card,color:filters.gender===g?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:600 }}>{g}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display:"flex",gap:10 }}>
+          <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki"}; setFilters(d); setActiveFilters(d); setShowFilters(false); }} style={{ flex:1,padding:"13px",borderRadius:13,border:`1px solid ${C.border}`,background:"none",color:C.muted,cursor:"pointer",fontSize:14 }}>Visszaállít</button>
+          <button onClick={() => { setActiveFilters(filters); setShowFilters(false); }} style={{ flex:2,padding:"13px",borderRadius:13,border:"none",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700 }}>✓ Alkalmaz</button>
+        </div>
+      </div>
     </div>
   );
 
-  const cur = swipeUsers[idx % swipeUsers.length];
-  const next = swipeUsers[(idx+1) % swipeUsers.length];
+  if (!filteredUsers.length) return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flex:1, flexDirection:"column", gap:16, padding:"0 24px", position:"relative" }}>
+      {showFilters && <FilterPanel />}
+      <div style={{ fontSize:50 }}>😕</div>
+      <div style={{ fontSize:16, color:C.text }}>Nincs találat</div>
+      <div style={{ fontSize:13, color:C.muted, textAlign:"center" }}>{isFiltered ? "Próbálj tágabb szűrőkkel!" : "Próbálj később!"}</div>
+      {isFiltered && <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki"}; setFilters(d); setActiveFilters(d); }} style={{ padding:"12px 24px",borderRadius:14,border:"none",background:C.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14 }}>Szűrők törlése</button>}
+    </div>
+  );
+
+  const cur = filteredUsers[idx % filteredUsers.length];
+  const next = filteredUsers[(idx+1) % filteredUsers.length];
   const showLabel = (label) => { setActionLabel(label); setTimeout(() => setActionLabel(null), 900); };
 
   const act = async (dir) => {
@@ -677,7 +767,14 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const distLabel = (km) => km!=null ? (km<1?`${Math.round(km*1000)}m`:`${km.toFixed(1)}km`) : "";
 
   return (
-    <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"6px 16px 10px",userSelect:"none" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+    <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"6px 16px 10px",userSelect:"none",position:"relative" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+      {showFilters && <FilterPanel />}
+      {/* Szűrő gomb */}
+      <div style={{ display:"flex",justifyContent:"flex-end",marginBottom:6,flexShrink:0 }}>
+        <button onClick={() => setShowFilters(true)} style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:20,border:`1px solid ${isFiltered?C.accent:C.border}`,background:isFiltered?C.accentSoft:C.card,color:isFiltered?C.accent:C.muted,cursor:"pointer",fontSize:12,fontWeight:600 }}>
+          🎛️ Szűrők {isFiltered && "●"}
+        </button>
+      </div>
       {proWallType && (
         <div style={{ position:"absolute",inset:0,zIndex:95,background:"rgba(8,11,16,0.92)",backdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end" }}>
           <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"28px 24px 40px",border:`1px solid ${C.border}` }}>
