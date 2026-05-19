@@ -311,6 +311,14 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
 
+  const handleAction = async (userId, action) => {
+    // Azonnal eltávolítjuk a listából
+    setLikers(prev => prev.filter(u => u.id !== userId));
+    setCount(prev => Math.max(0, prev - 1));
+    // Aztán ténylegesen elküldjük a swipe-ot
+    await onSwipe(userId, action);
+  };
+
   useEffect(() => {
     const load = async () => {
       const { data: swipes } = await supabase
@@ -401,8 +409,8 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
                 </div>
               </div>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id, "pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
-                <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id, "like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>♥</button>
+                <button onClick={(e) => { e.stopPropagation(); handleAction(u.id, "pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+                <button onClick={(e) => { e.stopPropagation(); handleAction(u.id, "like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>♥</button>
               </div>
             </div>
           ))}
