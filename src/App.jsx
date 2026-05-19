@@ -4,7 +4,7 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { supabase } from "./supabase.js";
 
 const STRIPE_PRICE_ID = "price_1TY5hhBtOhui3FKbzxznfDa9";
-const FIREBASE_VAPID_KEY = "BGS3Q-Qb57P-C7tZOvGoByZAhok8PhJPkUoo0gXWHB995U2jDYfXjjqtGrrbNI-k8t9QQu1LiMrNauOcRKdKOmc";
+const FIREBASE_VAPID_KEY = "BJU172BnApuFXqZ-IxidHXuGG_fCmz5BXUIXqZlCsNskjqhPTtSr_hgsdUWRNUsExT55olXVylBP0nxmsZ-bqSU";
 
 const firebaseApp = initializeApp({
   apiKey: "AIzaSyCxyDIoNIt7eneyXGmPRPUcNLhr5vdwRII",
