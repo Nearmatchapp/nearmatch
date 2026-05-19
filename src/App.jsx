@@ -427,12 +427,21 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
   const [selected, setSelected] = useState(null);
   const [showProWall, setShowProWall] = useState(false);
   const [satelliteMode, setSatelliteMode] = useState(false);
+  const [localSwipedIds, setLocalSwipedIds] = useState(new Set());
   const animRef = useRef(null);
   const angleRef = useRef(0);
 
+  const visibleUsers = nearbyUsers.filter(u => !localSwipedIds.has(u.id));
+
+  const handleRadarSwipe = async (userId, action) => {
+    setLocalSwipedIds(prev => new Set([...prev, userId]));
+    setSelected(null);
+    await onSwipe(userId, action);
+  };
+
   useEffect(() => {
-    setDots(nearbyUsers.map((u, i) => ({ ...u, angle: (i / Math.max(nearbyUsers.length, 1)) * Math.PI * 2, r: Math.min(0.9, 0.2 + (u.distanceKm / 20) * 0.7) })));
-  }, [nearbyUsers]);
+    setDots(visibleUsers.map((u, i) => ({ ...u, angle: (i / Math.max(visibleUsers.length, 1)) * Math.PI * 2, r: Math.min(0.9, 0.2 + (u.distanceKm / 20) * 0.7) })));
+  }, [visibleUsers.length]);
 
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return;
@@ -503,8 +512,8 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
                 {isPro ? (<><div style={{ color:C.text, fontWeight:700 }}>{selected.name}, {selected.age}</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>) : (<><div style={{ color:C.text, fontWeight:700 }}>Ismeretlen profil</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>)}
               </div>
               <div style={{ display:"flex", gap:6 }}>
-                <button onClick={() => { if(!isPro){setShowProWall(true);return;} onSwipe(selected.id,"pass"); setSelected(null); }} style={{ width:34, height:34, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                <button onClick={() => { if(!isPro){setShowProWall(true);return;} onSwipe(selected.id,"like"); setSelected(null); }} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>♥</button>
+                <button onClick={() => { if(!isPro){setShowProWall(true);return;} handleRadarSwipe(selected.id,"pass"); }} style={{ width:34, height:34, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                <button onClick={() => { if(!isPro){setShowProWall(true);return;} handleRadarSwipe(selected.id,"like"); }} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>♥</button>
               </div>
             </div>
           )}
@@ -517,8 +526,8 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
           </div>
         )}
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {nearbyUsers.length === 0 && <div style={{ textAlign:"center", padding:"20px", color:C.muted, fontSize:13 }}>Nincs senki a közelben 😕</div>}
-          {nearbyUsers.map(u => (
+          {visibleUsers.length === 0 && <div style={{ textAlign:"center", padding:"20px", color:C.muted, fontSize:13 }}>Nincs senki a közelben 😕</div>}
+          {visibleUsers.map(u => (
             <div key={u.id} style={{ display:"flex", alignItems:"center", gap:10, background:C.card, borderRadius:13, padding:"10px 14px", border:`1px solid ${C.border}` }}>
               {isPro ? (<img src={u.photo_url||`https://i.pravatar.cc/300?u=${u.id}`} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover" }} alt={u.name} />) : (<div style={{ width:40, height:40, borderRadius:"50%", background:C.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${C.border}`, flexShrink:0 }}>🔒</div>)}
               <div style={{ flex:1 }}>
@@ -526,8 +535,8 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
               </div>
               {isPro ? (
                 <div style={{ display:"flex", gap:6 }}>
-                  <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id,"pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
-                  <button onClick={(e) => { e.stopPropagation(); onSwipe(u.id,"like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}>♥</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleRadarSwipe(u.id,"pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleRadarSwipe(u.id,"like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}>♥</button>
                 </div>
               ) : (
                 <button onClick={onUpgrade} style={{ background:"rgba(255,212,59,0.1)", border:"1px solid rgba(255,212,59,0.3)", color:C.yellow, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:12, fontWeight:600 }}>🔒 Pro</button>
@@ -685,7 +694,7 @@ function MatchList({ matches, onOpen, isPro, onUpgrade }) {
         <div key={m.id} onClick={() => onOpen(m)} style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer" }}>
           <div style={{ position:"relative" }}>
             <img src={m.other?.photo_url||`https://i.pravatar.cc/300?u=${m.other?.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={m.other?.name} />
-            <div style={{ position:"absolute",bottom:1,right:1,width:11,height:11,borderRadius:"50%",background:C.green,border:`2px solid ${C.bg}` }} />
+            {(() => { const diffMin = m.other?.last_seen ? Math.floor((Date.now()-new Date(m.other.last_seen).getTime())/60000) : 999; return diffMin < 5 ? <div style={{ position:"absolute",bottom:1,right:1,width:11,height:11,borderRadius:"50%",background:C.green,border:`2px solid ${C.bg}` }} /> : null; })()}
           </div>
           <div style={{ flex:1 }}>
             <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.text,fontWeight:700 }}>{m.other?.name}</span><span style={{ color:C.dim,fontSize:11 }}>{m.timeLabel}</span></div>
@@ -734,7 +743,16 @@ function ChatView({ match, myId, onBack }) {
       <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}`,background:C.surface }}>
         <button onClick={onBack} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
         <img src={match.other?.photo_url||`https://i.pravatar.cc/300?u=${match.other?.id}`} style={{ width:38,height:38,borderRadius:"50%",objectFit:"cover" }} alt={match.other?.name} />
-        <div style={{ flex:1 }}><div style={{ color:C.text,fontWeight:700 }}>{match.other?.name}</div><div style={{ color:C.green,fontSize:11 }}>● Online</div></div>
+        <div style={{ flex:1 }}>
+          <div style={{ color:C.text,fontWeight:700 }}>{match.other?.name}</div>
+          {(() => {
+            const lastSeen = match.other?.last_seen;
+            const diffMin = lastSeen ? Math.floor((Date.now()-new Date(lastSeen).getTime())/60000) : null;
+            const isOnline = diffMin !== null && diffMin < 5;
+            const label = diffMin === null ? "Inaktív" : isOnline ? "Online" : diffMin < 60 ? `Aktív ${diffMin} perce` : diffMin < 1440 ? `Aktív ${Math.floor(diffMin/60)} órája` : "Régen aktív";
+            return <div style={{ color: isOnline ? C.green : C.dim, fontSize:11 }}>● {label}</div>;
+          })()}
+        </div>
       </div>
       <div style={{ flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8 }}>
         {loading && <div style={{ textAlign:"center",paddingTop:20 }}><Spinner /></div>}
@@ -982,7 +1000,7 @@ export default function App() {
     if (!data) return;
     const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id);
     const swipedIds = new Set((swipedData||[]).map(s=>s.swiped_id));
-    const withDist = data.filter(u => u.lat && u.lng && !swipedIds.has(u.id)).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
+    const withDist = data.filter(u => u.lat && u.lng && !swipedIds.has(u.id) && u.last_seen && (Date.now()-new Date(u.last_seen).getTime()) < 15*60*1000).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
     setNearbyUsers(withDist);
     const forSwipe = data.map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null })).filter(u => !swipedIds.has(u.id));
     setSwipeUsers(boostActive ? [...forSwipe].sort((a,b)=>(a.distanceKm||99)-(b.distanceKm||99)) : forSwipe);
