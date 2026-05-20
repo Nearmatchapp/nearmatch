@@ -112,7 +112,9 @@ function AuthScreen() {
 
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 28px" }}>
-      <img src="/icon-512.png" alt="NearMatch" style={{ width:80, height:80, borderRadius:24, marginBottom:20, objectFit:"cover" }} />
+      <div style={{ width:80, height:80, borderRadius:24, marginBottom:20, overflow:"hidden", flexShrink:0, alignSelf:"center" }}>
+        <img src="/icon-512.png" alt="NearMatch" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+      </div>
       <h1 style={{ fontSize:32, fontWeight:900, color:C.text, fontFamily:"Georgia,serif", margin:"0 0 6px" }}>NearMatch</h1>
       <p style={{ color:C.muted, fontSize:13, margin:"0 0 28px" }}>Sosem volt még ilyen közel a következő randid.</p>
 
