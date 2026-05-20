@@ -1272,13 +1272,35 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
     setUploadError(""); setUploading(true);
     try {
       const newUrls = [];
+      const { data: { session } } = await supabase.auth.getSession();
       for (let i = 0; i < files.length; i++) {
         const file = files[i]; const ext = file.name.split(".").pop();
         const path = `${myProfile.id}/photo_${Date.now()}_${i}.${ext}`;
         const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: false, contentType: file.type });
         if (upErr) throw upErr;
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-        newUrls.push(urlData.publicUrl + "?t=" + Date.now());
+        const url = urlData.publicUrl + "?t=" + Date.now();
+
+        // KEPMODERACIO (Sightengine)
+        try {
+          const modRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/moderate-image`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+            body: JSON.stringify({ photo_url: url, user_id: myProfile.id, path }),
+          });
+          const modData = await modRes.json();
+          if (!modData.approved) {
+            await supabase.storage.from("avatars").remove([path]);
+            setUploadError("A kep nem megfelelő tartalom miatt elutasitva. Kerlek, tolts fel megfelelő kepet!");
+            setUploading(false);
+            return;
+          }
+        } catch (modErr) {
+          console.warn("Moderacio hiba:", modErr);
+        }
+        // KEPMODERACIO VEGE
+
+        newUrls.push(url);
       }
       const updatedPhotos = [...currentPhotos, ...newUrls].slice(0, 6);
       const photo_url = updatedPhotos[0];
