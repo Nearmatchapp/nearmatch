@@ -1283,15 +1283,18 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
 
         // KEPMODERACIO (Sightengine)
         try {
+          // Varunk 1.5 masodpercet hogy a Storage URL elerhetove valjon
+          await new Promise(r => setTimeout(r, 1500));
           const modRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/moderate-image`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
-            body: JSON.stringify({ photo_url: url, user_id: myProfile.id, path }),
+            body: JSON.stringify({ photo_url: urlData.publicUrl, user_id: myProfile.id, path }),
           });
           const modData = await modRes.json();
+          console.log("Moderacio eredmeny:", modData);
           if (!modData.approved) {
             await supabase.storage.from("avatars").remove([path]);
-            setUploadError("A kep nem megfelelő tartalom miatt elutasitva. Kerlek, tolts fel megfelelő kepet!");
+            setUploadError("❌ A kép nem megfelelő tartalom miatt elutasítva!");
             setUploading(false);
             return;
           }
