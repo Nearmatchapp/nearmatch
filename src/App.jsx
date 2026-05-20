@@ -1473,7 +1473,8 @@ export default function App() {
     if (!myLocation || !session) return;
     const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
     if (!data) return;
-    const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id);
+    const swipeExpiry = new Date(); swipeExpiry.setDate(swipeExpiry.getDate() - 20);
+    const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id).gte("created_at", swipeExpiry.toISOString());
     const swipedIds = new Set((swipedData||[]).map(s=>s.swiped_id));
     const withDist = data.filter(u => u.lat && u.lng && !swipedIds.has(u.id) && u.last_seen && (Date.now()-new Date(u.last_seen).getTime()) < 15*60*1000).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
     setNearbyUsers(withDist);
