@@ -1,0 +1,67 @@
+import { serve } from "https://deno.land/x/sift@0.6.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+serve(async (req) => {
+  try {
+    const { photo_url, user_id, path } = await req.json();
+
+    if (!photo_url || !user_id) {
+      return new Response(JSON.stringify({ error: "Missing params" }), { status: 400 });
+    }
+
+    // Sightengine API hívás
+    const params = new URLSearchParams({
+      url: photo_url,
+      models: "nudity-2.1,offensive,gore-2.0",
+      api_user: Deno.env.get("SIGHTENGINE_USER")!,
+      api_secret: Deno.env.get("SIGHTENGINE_SECRET")!,
+    });
+
+    const res = await fetch(`https://api.sightengine.com/1.0/check.json?${params}`);
+    const result = await res.json();
+
+    console.log("Sightengine result:", JSON.stringify(result));
+
+    // Döntési logika
+    const nudity = (result.nudity?.sexual_activity > 0.5) ||
+                   (result.nudity?.sexual_display > 0.5) ||
+                   (result.nudity?.erotica > 0.6);
+    const offensive = result.offensive?.prob > 0.7;
+    const gore = result.gore?.prob > 0.7;
+
+    const approved = !nudity && !offensive && !gore;
+
+    if (!approved) {
+      // Töröljük a képet a Storage-ból
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      if (path) {
+        await supabase.storage.from("avatars").remove([path]);
+      }
+
+      const reason = nudity ? "nudity" : offensive ? "offensive" : "gore";
+      console.log(`Image rejected: ${reason} for user ${user_id}`);
+
+      return new Response(
+        JSON.stringify({ approved: false, reason }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ approved: true }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+  } catch (err) {
+    console.error("moderate-image error:", err);
+    // Hiba esetén engedjük át (ne blokkoljuk a feltöltést)
+    return new Response(
+      JSON.stringify({ approved: true, warning: err.message }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
