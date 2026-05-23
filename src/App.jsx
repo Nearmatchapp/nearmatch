@@ -464,31 +464,31 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
 
 // ── RADAR ──────────────────────────────────────────────
 
-// Ghost Score – valós idejű lekérdezés
-function useGhostScore(userId) {
-  const [score, setScore] = React.useState(null);
-  React.useEffect(() => {
-    if (!userId) return;
-    (async () => {
-      // Lekérjük az összes matchet ahol ez a user részt vesz
-      const { data: matches } = await supabase.from("matches").select("id")
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
-      if (!matches || matches.length === 0) { setScore(null); return; }
-      const total = matches.length;
-      // Megnézzük melyikben írt legalább 1 üzenetet
-      let replied = 0;
-      for (const m of matches) {
-        const { data: msgs } = await supabase.from("messages").select("id").eq("match_id", m.id).eq("sender_id", userId).limit(1);
-        if (msgs && msgs.length > 0) replied++;
-      }
-      setScore(Math.round((replied / total) * 100));
-    })();
-  }, [userId]);
-  return score;
+// Ghost Score – kiszámítása kliens oldalon a saját matches/messages alapján,
+// majd eltárolva a profiles táblában. Más userek score-ját a profiles-ból olvassuk.
+
+async function calcAndSaveGhostScore(userId) {
+  try {
+    const { data: matches } = await supabase.from("matches").select("id")
+      .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+    if (!matches || matches.length === 0) {
+      await supabase.from("profiles").update({ ghost_score: null }).eq("id", userId);
+      return null;
+    }
+    const total = matches.length;
+    let replied = 0;
+    for (const m of matches) {
+      const { data: msgs } = await supabase.from("messages").select("id").eq("match_id", m.id).eq("sender_id", userId).limit(1);
+      if (msgs && msgs.length > 0) replied++;
+    }
+    const score = Math.round((replied / total) * 100);
+    await supabase.from("profiles").update({ ghost_score: score }).eq("id", userId);
+    return score;
+  } catch { return null; }
 }
 
 function getGhostLabel(score) {
-  if (score === null) return null;
+  if (score === null || score === undefined) return null;
   if (score >= 81) return { label: "Kiváló válaszoló", desc: "Szinte mindig ír vissza", emoji: "🌟", color: "#3ecf8e" };
   if (score >= 61) return { label: "Megbízható", desc: "Általában válaszol", emoji: "😊", color: "#69db7c" };
   if (score >= 41) return { label: "Közepes", desc: "Néha nem ír vissza", emoji: "😐", color: "#ffd43b" };
@@ -496,9 +496,9 @@ function getGhostLabel(score) {
   return { label: "Szellem", desc: "Szinte soha nem válaszol", emoji: "👻", color: "#ff5c5c" };
 }
 
-function GhostScoreBadge({ userId }) {
-  const score = useGhostScore(userId);
-  if (score === null) return (
+// score prop-ot kap közvetlenül a profile objektumból
+function GhostScoreBadge({ score }) {
+  if (score === null || score === undefined) return (
     <div style={{ background:"rgba(20,28,43,0.95)", borderRadius:14, padding:"12px 14px", border:"1px solid rgba(240,244,255,0.08)", display:"flex", alignItems:"center", gap:12 }}>
       <div style={{ textAlign:"center", minWidth:52 }}>
         <div style={{ fontSize:26 }}>🆕</div>
@@ -630,7 +630,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
                   <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{profileModal.bio}</p>
                 </div>
               )}
-              <GhostScoreBadge userId={profileModal.id} />
+              <GhostScoreBadge score={profileModal.ghost_score} />
               {(profileModal.interests||[]).length > 0 && (
                 <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
                   <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>Érdeklődés</div>
@@ -1041,7 +1041,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           ) : (
             <div style={{ width:"100%",height:"100%",background:C.bg,overflowY:"auto",padding:"20px 16px" }}>
               <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}><img src={cur.photo_url||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={cur.name} /><div><div style={{ fontSize:20,fontWeight:900,color:C.text }}>{cur.name}, {cur.age}</div></div></div>
-              <div style={{ marginBottom:10 }}><GhostScoreBadge userId={cur.id} /></div>
+              <div style={{ marginBottom:10 }}><GhostScoreBadge score={cur.ghost_score} /></div>
               {cur.bio&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}`,marginBottom:10 }}><p style={{ color:C.text,fontSize:13,lineHeight:1.6,margin:0 }}>{cur.bio}</p></div>}
               {(cur.interests||[]).length>0&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}` }}><div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{cur.interests.map(t=><span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"4px 10px",fontSize:12,color:C.accent }}>{t}</span>)}</div></div>}
             </div>
@@ -1164,6 +1164,8 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
     if (!input.trim()) return;
     const text = input; setInput("");
     await supabase.from("messages").insert({ match_id:match.id, sender_id:myId, text });
+    // Ghost Score frissítése üzenetküldés után (saját score)
+    calcAndSaveGhostScore(myId).catch(() => {});
     if (match.other?.id) {
       await sendPushNotification(match.other.id, "💬 Új üzenet", text.length > 60 ? text.slice(0,60)+"…" : text, { type:"message", match_id: match.id });
     }
