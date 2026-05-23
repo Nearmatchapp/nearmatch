@@ -1107,6 +1107,8 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showOtherProfile, setShowOtherProfile] = useState(false);
+  const [otherProfilePhotoIdx, setOtherProfilePhotoIdx] = useState(0);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -1247,19 +1249,77 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
         </div>
       )}
 
+      {/* Másik fél profil modalja */}
+      {showOtherProfile && match.other && (
+        <div style={{ position:"absolute",inset:0,zIndex:101,background:"rgba(8,11,16,0.97)",backdropFilter:"blur(8px)",display:"flex",flexDirection:"column" }}>
+          <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}` }}>
+            <button onClick={() => { setShowOtherProfile(false); setOtherProfilePhotoIdx(0); }} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
+            <span style={{ color:C.text,fontWeight:700,fontSize:16 }}>{match.other.name}, {match.other.age}</span>
+          </div>
+          <div style={{ flex:1,overflowY:"auto" }}>
+            {/* Fotók */}
+            {(() => {
+              const photos = match.other.photos||(match.other.photo_url?[match.other.photo_url]:[]);
+              return photos.length > 0 ? (
+                <div style={{ position:"relative",width:"100%",aspectRatio:"1",background:C.card }}>
+                  <img src={photos[otherProfilePhotoIdx]} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={match.other.name} />
+                  {photos.length > 1 && (
+                    <>
+                      <div style={{ position:"absolute",top:10,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4 }}>
+                        {photos.map((_,i) => <div key={i} style={{ width:i===otherProfilePhotoIdx?18:5,height:5,borderRadius:3,background:i===otherProfilePhotoIdx?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
+                      </div>
+                      <button onClick={() => setOtherProfilePhotoIdx(i=>Math.max(0,i-1))} style={{ position:"absolute",left:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
+                      <button onClick={() => setOtherProfilePhotoIdx(i=>Math.min(photos.length-1,i+1))} style={{ position:"absolute",right:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div style={{ width:"100%",aspectRatio:"1",background:C.card,display:"flex",alignItems:"center",justifyContent:"center",fontSize:60 }}>👤</div>
+              );
+            })()}
+            <div style={{ padding:"16px 20px",display:"flex",flexDirection:"column",gap:12 }}>
+              {match.other.bio && (
+                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
+                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
+                  <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{match.other.bio}</p>
+                </div>
+              )}
+              <GhostScoreBadge score={match.other.ghost_score} />
+              {(match.other.interests||[]).length > 0 && (
+                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
+                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>Érdeklődés</div>
+                  <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
+                    {match.other.interests.map(t => <span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"5px 11px",fontSize:12,color:C.accent }}>{t}</span>)}
+                  </div>
+                </div>
+              )}
+              {(match.other.looking_for||match.other.height||match.other.education) && (
+                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8 }}>
+                  {match.other.looking_for && <div style={{ color:C.muted,fontSize:13 }}>💍 {match.other.looking_for}</div>}
+                  {match.other.height && <div style={{ color:C.muted,fontSize:13 }}>📏 {match.other.height} cm</div>}
+                  {match.other.education && <div style={{ color:C.muted,fontSize:13 }}>🎓 {match.other.education}</div>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fejléc */}
       <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}`,background:C.surface }}>
         <button onClick={onBack} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
-        <img src={match.other?.photo_url||`https://i.pravatar.cc/300?u=${match.other?.id}`} style={{ width:38,height:38,borderRadius:"50%",objectFit:"cover" }} alt={match.other?.name} />
-        <div style={{ flex:1 }}>
-          <div style={{ color:C.text,fontWeight:700 }}>{match.other?.name}</div>
-          {(() => {
-            const lastSeen = match.other?.last_seen;
-            const diffMin = lastSeen ? Math.floor((Date.now()-new Date(lastSeen).getTime())/60000) : null;
-            const isOnline = diffMin !== null && diffMin < 5;
-            const label = diffMin === null ? "Inaktív" : isOnline ? "Online" : diffMin < 60 ? `Aktív ${diffMin} perce` : diffMin < 1440 ? `Aktív ${Math.floor(diffMin/60)} órája` : "Régen aktív";
-            return <div style={{ color: isOnline ? C.green : C.dim, fontSize:11 }}>● {label}</div>;
-          })()}
+        <div onClick={() => { setShowOtherProfile(true); setOtherProfilePhotoIdx(0); }} style={{ display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer" }}>
+          <img src={match.other?.photo_url||`https://i.pravatar.cc/300?u=${match.other?.id}`} style={{ width:38,height:38,borderRadius:"50%",objectFit:"cover" }} alt={match.other?.name} />
+          <div style={{ flex:1 }}>
+            <div style={{ color:C.text,fontWeight:700 }}>{match.other?.name}</div>
+            {(() => {
+              const lastSeen = match.other?.last_seen;
+              const diffMin = lastSeen ? Math.floor((Date.now()-new Date(lastSeen).getTime())/60000) : null;
+              const isOnline = diffMin !== null && diffMin < 5;
+              const label = diffMin === null ? "Inaktív" : isOnline ? "Online" : diffMin < 60 ? `Aktív ${diffMin} perce` : diffMin < 1440 ? `Aktív ${Math.floor(diffMin/60)} órája` : "Régen aktív";
+              return <div style={{ color: isOnline ? C.green : C.dim, fontSize:11 }}>● {label} · Profil megtekintése</div>;
+            })()}
+          </div>
         </div>
         <div style={{ position:"relative" }}>
           <button onClick={() => setShowMenu(m=>!m)} style={{ background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:22,padding:"4px 8px",lineHeight:1 }}>⋮</button>
