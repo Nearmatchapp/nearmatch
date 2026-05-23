@@ -352,12 +352,13 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
   const [likers, setLikers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
+  const [profileModal, setProfileModal] = useState(null);
+  const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
 
   const handleAction = async (userId, action) => {
-    // Azonnal eltávolítjuk a listából
     setLikers(prev => prev.filter(u => u.id !== userId));
     setCount(prev => Math.max(0, prev - 1));
-    // Aztán ténylegesen elküldjük a swipe-ot
+    setProfileModal(null);
     await onSwipe(userId, action);
   };
 
@@ -400,7 +401,66 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
   if (loading) return <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}><Spinner /></div>;
 
   return (
-    <div style={{ flex:1, overflowY:"auto", padding:"16px 20px" }}>
+    <div style={{ flex:1, overflowY:"auto", padding:"16px 20px", position:"relative" }}>
+
+      {/* Profil modal */}
+      {profileModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(8,11,16,0.97)", backdropFilter:"blur(8px)", display:"flex", flexDirection:"column" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", borderBottom:`1px solid ${C.border}` }}>
+            <button onClick={() => { setProfileModal(null); setProfilePhotoIdx(0); }} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:20 }}>←</button>
+            <span style={{ color:C.text, fontWeight:700, fontSize:16 }}>{profileModal.name}, {profileModal.age}</span>
+          </div>
+          <div style={{ flex:1, overflowY:"auto" }}>
+            {(() => {
+              const photos = profileModal.photos||(profileModal.photo_url?[profileModal.photo_url]:[]);
+              return photos.length > 0 ? (
+                <div style={{ position:"relative", width:"100%", aspectRatio:"1", background:C.card }}>
+                  <img src={photos[profilePhotoIdx]} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt={profileModal.name} />
+                  {photos.length > 1 && (
+                    <>
+                      <div style={{ position:"absolute", top:10, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4 }}>
+                        {photos.map((_,i) => <div key={i} style={{ width:i===profilePhotoIdx?18:5, height:5, borderRadius:3, background:i===profilePhotoIdx?"#fff":"rgba(255,255,255,0.4)", transition:"width 0.2s" }} />)}
+                      </div>
+                      <button onClick={() => setProfilePhotoIdx(i=>Math.max(0,i-1))} style={{ position:"absolute", left:0, top:0, bottom:0, width:"40%", background:"none", border:"none", cursor:"pointer" }} />
+                      <button onClick={() => setProfilePhotoIdx(i=>Math.min(photos.length-1,i+1))} style={{ position:"absolute", right:0, top:0, bottom:0, width:"40%", background:"none", border:"none", cursor:"pointer" }} />
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div style={{ width:"100%", aspectRatio:"1", background:C.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:60 }}>👤</div>
+              );
+            })()}
+            <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:12 }}>
+              {profileModal.bio && (
+                <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}` }}>
+                  <div style={{ color:C.dim, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Bio</div>
+                  <p style={{ color:C.text, fontSize:14, lineHeight:1.6, margin:0 }}>{profileModal.bio}</p>
+                </div>
+              )}
+              <GhostScoreBadge score={profileModal.ghost_score} />
+              {(profileModal.interests||[]).length > 0 && (
+                <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}` }}>
+                  <div style={{ color:C.dim, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>Érdeklődés</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {profileModal.interests.map(t => <span key={t} style={{ background:C.accentSoft, border:`1px solid ${C.accent}`, borderRadius:20, padding:"5px 11px", fontSize:12, color:C.accent }}>{t}</span>)}
+                  </div>
+                </div>
+              )}
+              {(profileModal.looking_for||profileModal.height||profileModal.education) && (
+                <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:8 }}>
+                  {profileModal.looking_for && <div style={{ color:C.muted, fontSize:13 }}>💍 {profileModal.looking_for}</div>}
+                  {profileModal.height && <div style={{ color:C.muted, fontSize:13 }}>📏 {profileModal.height} cm</div>}
+                  {profileModal.education && <div style={{ color:C.muted, fontSize:13 }}>🎓 {profileModal.education}</div>}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:10, padding:"16px", borderTop:`1px solid ${C.border}` }}>
+            <button onClick={() => handleAction(profileModal.id, "pass")} style={{ flex:1, padding:"16px", background:C.card, border:`1px solid ${C.border}`, borderRadius:16, color:C.text, fontSize:22, cursor:"pointer" }}>✕</button>
+            <button onClick={() => handleAction(profileModal.id, "like")} style={{ flex:2, padding:"16px", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer" }}>♥ Lájkolom</button>
+          </div>
+        </div>
+      )}
       <div style={{ marginBottom:20 }}>
         <h2 style={{ color:C.text, fontSize:22, fontWeight:900, margin:"0 0 4px" }}>🔥 Likeok</h2>
         <p style={{ color:C.muted, fontSize:13, margin:0 }}>{count} ember lájkolt téged</p>
@@ -439,7 +499,7 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
       {isPro && likers.length > 0 && (
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           {likers.map(u => (
-            <div key={u.id} style={{ display:"flex", alignItems:"center", gap:12, background:C.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${C.border}` }}>
+            <div key={u.id} onClick={() => { setProfileModal(u); setProfilePhotoIdx(0); }} style={{ display:"flex", alignItems:"center", gap:12, background:C.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${C.border}`, cursor:"pointer" }}>
               <div style={{ position:"relative" }}>
                 <img src={u.photo_url||`https://i.pravatar.cc/300?u=${u.id}`} style={{ width:56, height:56, borderRadius:"50%", objectFit:"cover" }} alt={u.name} />
                 {u.action === "superlike" && <div style={{ position:"absolute", bottom:-2, right:-2, fontSize:14 }}>⭐</div>}
