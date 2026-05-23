@@ -463,6 +463,61 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
 }
 
 // ── RADAR ──────────────────────────────────────────────
+
+// Ghost Score – valós idejű lekérdezés
+function useGhostScore(userId) {
+  const [score, setScore] = React.useState(null);
+  React.useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      // Lekérjük az összes matchet ahol ez a user részt vesz
+      const { data: matches } = await supabase.from("matches").select("id")
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+      if (!matches || matches.length === 0) { setScore(null); return; }
+      const total = matches.length;
+      // Megnézzük melyikben írt legalább 1 üzenetet
+      let replied = 0;
+      for (const m of matches) {
+        const { data: msgs } = await supabase.from("messages").select("id").eq("match_id", m.id).eq("sender_id", userId).limit(1);
+        if (msgs && msgs.length > 0) replied++;
+      }
+      setScore(Math.round((replied / total) * 100));
+    })();
+  }, [userId]);
+  return score;
+}
+
+function getGhostLabel(score) {
+  if (score === null) return null;
+  if (score >= 81) return { label: "Kiváló válaszoló", desc: "Szinte mindig ír vissza", emoji: "🌟", color: "#3ecf8e" };
+  if (score >= 61) return { label: "Megbízható", desc: "Általában válaszol", emoji: "😊", color: "#69db7c" };
+  if (score >= 41) return { label: "Közepes", desc: "Néha nem ír vissza", emoji: "😐", color: "#ffd43b" };
+  if (score >= 21) return { label: "Gyenge válaszoló", desc: "Ritkán ír vissza", emoji: "😶", color: "#ff8c42" };
+  return { label: "Szellem", desc: "Szinte soha nem válaszol", emoji: "👻", color: "#ff5c5c" };
+}
+
+function GhostScoreBadge({ userId }) {
+  const score = useGhostScore(userId);
+  if (score === null) return null;
+  const g = getGhostLabel(score);
+  return (
+    <div style={{ background:"rgba(20,28,43,0.95)", borderRadius:14, padding:"12px 14px", border:`1px solid ${g.color}44`, display:"flex", alignItems:"center", gap:12 }}>
+      <div style={{ textAlign:"center", minWidth:52 }}>
+        <div style={{ fontSize:26 }}>{g.emoji}</div>
+        <div style={{ fontSize:22, fontWeight:900, color:g.color, lineHeight:1 }}>{score}%</div>
+      </div>
+      <div style={{ flex:1 }}>
+        <div style={{ color:"#f0f4ff", fontWeight:700, fontSize:13, marginBottom:2 }}>Ghost Score</div>
+        <div style={{ color:g.color, fontSize:12, fontWeight:600, marginBottom:6 }}>{g.label}</div>
+        <div style={{ background:"rgba(240,244,255,0.08)", borderRadius:8, height:6 }}>
+          <div style={{ background:g.color, borderRadius:8, height:6, width:`${score}%`, transition:"width 0.6s" }} />
+        </div>
+        <div style={{ color:"rgba(240,244,255,0.4)", fontSize:11, marginTop:4 }}>{g.desc}</div>
+      </div>
+    </div>
+  );
+}
+
 function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, onSwipe }) {
   const canvasRef = useRef(null);
   const [dots, setDots] = useState([]);
@@ -565,6 +620,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
                   <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{profileModal.bio}</p>
                 </div>
               )}
+              <GhostScoreBadge userId={profileModal.id} />
               {(profileModal.interests||[]).length > 0 && (
                 <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
                   <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>Érdeklődés</div>
@@ -975,6 +1031,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           ) : (
             <div style={{ width:"100%",height:"100%",background:C.bg,overflowY:"auto",padding:"20px 16px" }}>
               <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}><img src={cur.photo_url||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={cur.name} /><div><div style={{ fontSize:20,fontWeight:900,color:C.text }}>{cur.name}, {cur.age}</div></div></div>
+              <div style={{ marginBottom:10 }}><GhostScoreBadge userId={cur.id} /></div>
               {cur.bio&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}`,marginBottom:10 }}><p style={{ color:C.text,fontSize:13,lineHeight:1.6,margin:0 }}>{cur.bio}</p></div>}
               {(cur.interests||[]).length>0&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}` }}><div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{cur.interests.map(t=><span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"4px 10px",fontSize:12,color:C.accent }}>{t}</span>)}</div></div>}
             </div>
