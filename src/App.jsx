@@ -588,6 +588,70 @@ function GhostScoreBadge({ score }) {
   );
 }
 
+function SatelliteMapView({ myProfile, visibleUsers, isPro, onSelect }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+
+  const addMarkers = (L, map) => {
+    markersRef.current.forEach(m => m.remove());
+    markersRef.current = [];
+    visibleUsers.forEach(u => {
+      if (!u.lat || !u.lng) return;
+      const name = isPro ? (u.name || "?") : "???";
+      const color = isPro ? "#3ecf8e" : "#ffd43b";
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer"><div style="background:rgba(8,11,16,0.85);border:1px solid ${color};border-radius:8px;padding:2px 7px;font-size:11px;font-weight:700;color:${color};white-space:nowrap;margin-bottom:3px">${name}</div><div style="width:10px;height:10px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 5px ${color}"></div></div>`,
+        iconSize: [60,32], iconAnchor: [30,32]
+      });
+      const marker = L.marker([u.lat, u.lng], { icon }).addTo(map);
+      marker.on("click", () => onSelect(u));
+      markersRef.current.push(marker);
+    });
+  };
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const lat = myProfile?.lat || 47.497;
+    const lng = myProfile?.lng || 19.040;
+
+    const initMap = (L) => {
+      if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
+      const map = L.map(mapRef.current, { zoomControl:false, attributionControl:false }).setView([lat, lng], 15);
+      mapInstanceRef.current = map;
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom:19 }).addTo(map);
+      const myIcon = L.divIcon({ className:"", html:`<div style="width:14px;height:14px;border-radius:50%;background:#ff5c5c;border:2px solid #fff;box-shadow:0 0 6px rgba(255,92,92,0.8)"></div>`, iconSize:[14,14], iconAnchor:[7,7] });
+      L.marker([lat, lng], { icon: myIcon }).addTo(map);
+      addMarkers(L, map);
+    };
+
+    if (window.L) { initMap(window.L); }
+    else {
+      if (!document.querySelector("link[href*=leaflet]")) {
+        const link = document.createElement("link"); link.rel="stylesheet"; link.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(link);
+      }
+      if (!document.querySelector("script[src*=leaflet]")) {
+        const script = document.createElement("script"); script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; script.onload=()=>initMap(window.L); document.head.appendChild(script);
+      } else {
+        const wait = setInterval(() => { if(window.L){ clearInterval(wait); initMap(window.L); } }, 100);
+      }
+    }
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+  }, [myProfile?.lat, myProfile?.lng]);
+
+  useEffect(() => {
+    if (window.L && mapInstanceRef.current) addMarkers(window.L, mapInstanceRef.current);
+  }, [visibleUsers, isPro]);
+
+  return (
+    <div style={{ width:300, height:300, borderRadius:16, overflow:"hidden", position:"relative", flexShrink:0 }}>
+      <div ref={mapRef} style={{ width:"100%", height:"100%", borderRadius:16 }} />
+      <div style={{ position:"absolute", top:8, left:8, zIndex:1000, background:"rgba(8,11,16,0.8)", borderRadius:8, padding:"4px 8px", color:"#f0f4ff", fontSize:11, pointerEvents:"none" }}>🛰️ Műholdas</div>
+    </div>
+  );
+}
+
 function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, onSwipe }) {
   const canvasRef = useRef(null);
   const [dots, setDots] = useState([]);
@@ -787,10 +851,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
         )}
         <div style={{ position:"relative", display:"flex", justifyContent:"center" }}>
           {satelliteMode ? (
-            <div style={{ width:300, height:300, borderRadius:16, overflow:"hidden", position:"relative", flexShrink:0 }}>
-              <iframe src={`https://maps.google.com/maps?q=${myProfile?.lat||47.497},${myProfile?.lng||19.040}&z=15&output=embed&t=k`} style={{ width:"100%", height:"100%", border:"none" }} title="Műholdas nézet" loading="lazy" />
-              <div style={{ position:"absolute", top:8, left:8, background:"rgba(8,11,16,0.8)", borderRadius:8, padding:"4px 8px", color:C.text, fontSize:11 }}>🛰️ Műholdas</div>
-            </div>
+            <SatelliteMapView myProfile={myProfile} visibleUsers={visibleUsers} isPro={isPro} onSelect={setSelected} />
           ) : (
             <canvas ref={canvasRef} width={300} height={300} onClick={handleCanvasClick} style={{ borderRadius:"50%", cursor:"crosshair", width:300, height:300, flexShrink:0 }} />
           )}
