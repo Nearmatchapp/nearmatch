@@ -1803,7 +1803,7 @@ export default function App() {
   const handleSignOut = async () => { await supabase.auth.signOut(); };
   const unreadCount = matches.filter(m=>m.unread).length;
 
-  if (appState==="loading") return <Shell><div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20 }}><img src="/icon-512.png" alt="NearMatch" style={{ width:110,height:110,borderRadius:26,objectFit:"cover",transform:"scale(1.12)",animation:"pulse 1.8s ease-in-out infinite" }} /><Spinner /></div></Shell>;
+  if (appState==="loading") return <Shell><div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20 }}><div style={{ width:110,height:110,borderRadius:26,overflow:"hidden",flexShrink:0,animation:"pulse 1.8s ease-in-out infinite" }}><img src="/icon-512.png" alt="NearMatch" style={{ width:"115%",height:"115%",objectFit:"cover",display:"block",marginLeft:"-7.5%",marginTop:"-7.5%" }} /></div><Spinner /></div></Shell>;
   if (appState==="auth") return <Shell><AuthScreen /></Shell>;
   if (appState==="onboarding") return <Shell><Onboarding user={session.user} onComplete={p=>{ setMyProfile(p); setAppState("main"); registerOneSignalUser(p.id); }} /></Shell>;
 
