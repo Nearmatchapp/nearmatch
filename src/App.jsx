@@ -1610,10 +1610,37 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
           </button>
         </div>
         {!editing && boostAvailable && (
-          <button onClick={onBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:16 }}>
+          <button onClick={onBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:8 }}>
             <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12 }}>30 percig előre kerülsz • Heti 1 db</div></div>
           </button>
         )}
+
+        {/* Inkognito mód */}
+        {!editing && (isPro ? (
+          <div onClick={async () => {
+            const newVal = !myProfile?.is_incognito;
+            await supabase.from("profiles").update({ is_incognito: newVal }).eq("id", myProfile.id);
+            setMyProfile(p => ({ ...p, is_incognito: newVal }));
+          }} style={{ display:"flex", alignItems:"center", gap:12, background: myProfile?.is_incognito ? "rgba(77,171,247,0.1)" : C.card, border: `1px solid ${myProfile?.is_incognito ? "rgba(77,171,247,0.4)" : C.border}`, borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:16 }}>
+            <div style={{ fontSize:26 }}>🕵️</div>
+            <div style={{ flex:1 }}>
+              <div style={{ color: myProfile?.is_incognito ? "#4dabf7" : C.text, fontWeight:700, fontSize:14 }}>Inkognito mód {myProfile?.is_incognito ? "BE" : "KI"}</div>
+              <div style={{ color:C.dim, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
+            </div>
+            <div style={{ width:44, height:24, borderRadius:12, background: myProfile?.is_incognito ? "#4dabf7" : "rgba(240,244,255,0.15)", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+              <div style={{ position:"absolute", top:2, left: myProfile?.is_incognito ? 22 : 2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+            </div>
+          </div>
+        ) : (
+          <div onClick={onUpgrade} style={{ display:"flex", alignItems:"center", gap:12, background:"rgba(255,212,59,0.05)", border:"1px solid rgba(255,212,59,0.2)", borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:16 }}>
+            <div style={{ fontSize:26 }}>🕵️</div>
+            <div style={{ flex:1 }}>
+              <div style={{ color:C.yellow, fontWeight:700, fontSize:14 }}>Inkognito mód <span style={{ fontSize:11, background:"rgba(255,212,59,0.15)", borderRadius:6, padding:"2px 6px" }}>PRO</span></div>
+              <div style={{ color:C.dim, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
+            </div>
+            <div style={{ color:C.yellow, fontSize:12, fontWeight:600 }}>Upgrade →</div>
+          </div>
+        ))}
         {editing ? (
           <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
             <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
@@ -1733,7 +1760,10 @@ export default function App() {
     const { data: swipes } = await supabase.from("swipes").select("swiper_id").eq("swiped_id", userId).in("action", ["like","superlike"]);
     const { data: matches } = await supabase.from("matches").select("user1_id, user2_id").or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
     const matchedIds = new Set((matches||[]).map(m => m.user1_id===userId ? m.user2_id : m.user1_id));
-    const count = (swipes||[]).filter(s => !matchedIds.has(s.swiper_id)).length;
+    // Azokat is kiszűrjük akiket már mi swipe-oltunk
+    const { data: mySwipes } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", userId);
+    const mySwipedIds = new Set((mySwipes||[]).map(s => s.swiped_id));
+    const count = (swipes||[]).filter(s => !matchedIds.has(s.swiper_id) && !mySwipedIds.has(s.swiper_id)).length;
     setNewLikesCount(count);
   };
 
@@ -1754,14 +1784,29 @@ export default function App() {
 
   const loadNearby = useCallback(async () => {
     if (!myLocation || !session) return;
+    // Inkognito usereket nem töltjük be (hacsak nem likeoltak minket)
+    const { data: likedUsSwipes } = await supabase.from("swipes").select("swiper_id").eq("swiped_id", session.user.id).in("action",["like","superlike"]);
+    const likedUsIds = new Set((likedUsSwipes||[]).map(s => s.swiper_id));
     const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
     if (!data) return;
     const swipeExpiry = new Date(); swipeExpiry.setDate(swipeExpiry.getDate() - 20);
     const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id).gte("created_at", swipeExpiry.toISOString());
     const swipedIds = new Set((swipedData||[]).map(s=>s.swiped_id));
-    const withDist = data.filter(u => u.lat && u.lng && !swipedIds.has(u.id) && u.last_seen && (Date.now()-new Date(u.last_seen).getTime()) < 15*60*1000).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
+    const withDist = data.filter(u => {
+      if (!u.lat || !u.lng) return false;
+      if (swipedIds.has(u.id)) return false;
+      if (!u.last_seen || (Date.now()-new Date(u.last_seen).getTime()) >= 15*60*1000) return false;
+      // Inkognito: csak azoknak látszik aki likeolta őket
+      if (u.is_incognito && !likedUsIds.has(u.id)) return false;
+      return true;
+    }).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
     setNearbyUsers(withDist);
-    const forSwipe = data.map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null })).filter(u => !swipedIds.has(u.id));
+    const forSwipe = data.filter(u => {
+      if (swipedIds.has(u.id)) return false;
+      // Inkognito: swipe-nál sem látszik hacsak nem likeolta a usert
+      if (u.is_incognito && !likedUsIds.has(u.id)) return false;
+      return true;
+    }).map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null }));
     setSwipeUsers(boostActive ? [...forSwipe].sort((a,b)=>(a.distanceKm||99)-(b.distanceKm||99)) : forSwipe);
   }, [myLocation, session, boostActive]);
 
