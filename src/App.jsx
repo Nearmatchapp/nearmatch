@@ -1579,8 +1579,22 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
     if (data) setMyProfile(p=>({...p, photo_url, photos: updatedPhotos}));
   };
 
-  return (
-    <div style={{ flex:1,overflowY:"auto" }}>
+    return (
+    <div style={{ flex:1,overflowY:"auto", position:"relative" }}>
+
+      {showDeleteConfirm && (
+        <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(8,11,16,0.92)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div style={{ background:C.card, borderRadius:20, padding:28, border:"1px solid rgba(255,92,92,0.3)", maxWidth:340, width:"100%" }}>
+            <div style={{ fontSize:32, textAlign:"center", marginBottom:16 }}>⚠️</div>
+            <div style={{ color:C.text, fontWeight:700, fontSize:18, textAlign:"center", marginBottom:10 }}>Fiók törlése</div>
+            <div style={{ color:C.muted, fontSize:13, textAlign:"center", lineHeight:1.6, marginBottom:24 }}>Ez véglegesen törli a profilodat, matchjeidet, üzeneteidet és minden adatodat. Ez nem vonható vissza.</div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setShowDeleteConfirm(false)} style={{ flex:1, padding:"14px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, color:C.text, fontSize:14, cursor:"pointer", fontWeight:600 }}>Mégsem</button>
+              <button onClick={onDeleteAccount} style={{ flex:1, padding:"14px", background:"rgba(255,92,92,0.15)", border:"1px solid rgba(255,92,92,0.4)", borderRadius:14, color:"#ff5c5c", fontSize:14, cursor:"pointer", fontWeight:700 }}>Törlés</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ padding:"16px 20px 0" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <span style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Fotók ({(myProfile?.photos||[myProfile?.photo_url].filter(Boolean)).length}/6)</span>
@@ -1588,20 +1602,6 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
             <button onClick={onSignOut} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:12 }}>Kilépés</button>
             <button onClick={() => setShowDeleteConfirm(true)} style={{ background:"none", border:"none", color:"rgba(255,92,92,0.5)", cursor:"pointer", fontSize:12 }}>Fiók törlése</button>
           </div>
-
-          {showDeleteConfirm && (
-            <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(8,11,16,0.92)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-              <div style={{ background:C.card, borderRadius:20, padding:28, border:`1px solid rgba(255,92,92,0.3)`, maxWidth:340, width:"100%" }}>
-                <div style={{ fontSize:32, textAlign:"center", marginBottom:16 }}>⚠️</div>
-                <div style={{ color:C.text, fontWeight:700, fontSize:18, textAlign:"center", marginBottom:10 }}>Fiók törlése</div>
-                <div style={{ color:C.muted, fontSize:13, textAlign:"center", lineHeight:1.6, marginBottom:24 }}>Ez véglegesen törli a profilodat, matchjeidet, üzeneteidet és minden adatodat. Ez nem vonható vissza.</div>
-                <div style={{ display:"flex", gap:10 }}>
-                  <button onClick={() => setShowDeleteConfirm(false)} style={{ flex:1, padding:"14px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, color:C.text, fontSize:14, cursor:"pointer", fontWeight:600 }}>Mégsem</button>
-                  <button onClick={onDeleteAccount} style={{ flex:1, padding:"14px", background:"rgba(255,92,92,0.15)", border:"1px solid rgba(255,92,92,0.4)", borderRadius:14, color:"#ff5c5c", fontSize:14, cursor:"pointer", fontWeight:700 }}>Törlés</button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:6 }}>
           {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).map((url, idx) => (
