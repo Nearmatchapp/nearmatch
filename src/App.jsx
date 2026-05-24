@@ -1509,7 +1509,7 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
 
 // ── PROFIL ─────────────────────────────────────────────
 function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onUpgrade, onSignOut, onDeleteAccount }) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
