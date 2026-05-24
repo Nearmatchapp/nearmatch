@@ -1508,7 +1508,8 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
 }
 
 // ── PROFIL ─────────────────────────────────────────────
-function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onUpgrade, onSignOut }) {
+function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onUpgrade, onSignOut, onDeleteAccount }) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -1583,7 +1584,24 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
       <div style={{ padding:"16px 20px 0" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <span style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Fotók ({(myProfile?.photos||[myProfile?.photo_url].filter(Boolean)).length}/6)</span>
-          <button onClick={onSignOut} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:12 }}>Kilépés</button>
+          <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+            <button onClick={onSignOut} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:12 }}>Kilépés</button>
+            <button onClick={() => setShowDeleteConfirm(true)} style={{ background:"none", border:"none", color:"rgba(255,92,92,0.5)", cursor:"pointer", fontSize:12 }}>Fiók törlése</button>
+          </div>
+
+          {showDeleteConfirm && (
+            <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(8,11,16,0.92)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+              <div style={{ background:C.card, borderRadius:20, padding:28, border:`1px solid rgba(255,92,92,0.3)`, maxWidth:340, width:"100%" }}>
+                <div style={{ fontSize:32, textAlign:"center", marginBottom:16 }}>⚠️</div>
+                <div style={{ color:C.text, fontWeight:700, fontSize:18, textAlign:"center", marginBottom:10 }}>Fiók törlése</div>
+                <div style={{ color:C.muted, fontSize:13, textAlign:"center", lineHeight:1.6, marginBottom:24 }}>Ez véglegesen törli a profilodat, matchjeidet, üzeneteidet és minden adatodat. Ez nem vonható vissza.</div>
+                <div style={{ display:"flex", gap:10 }}>
+                  <button onClick={() => setShowDeleteConfirm(false)} style={{ flex:1, padding:"14px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, color:C.text, fontSize:14, cursor:"pointer", fontWeight:600 }}>Mégsem</button>
+                  <button onClick={onDeleteAccount} style={{ flex:1, padding:"14px", background:"rgba(255,92,92,0.15)", border:"1px solid rgba(255,92,92,0.4)", borderRadius:14, color:"#ff5c5c", fontSize:14, cursor:"pointer", fontWeight:700 }}>Törlés</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:6 }}>
           {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).map((url, idx) => (
@@ -1915,6 +1933,19 @@ export default function App() {
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); };
+
+  const handleDeleteAccount = async () => {
+    if (!session?.user?.id) return;
+    const uid = session.user.id;
+    const { data: myMatches } = await supabase.from("matches").select("id").or(`user1_id.eq.${uid},user2_id.eq.${uid}`);
+    const matchIds = (myMatches||[]).map(m => m.id);
+    if (matchIds.length > 0) await supabase.from("messages").delete().in("match_id", matchIds);
+    await supabase.from("matches").delete().or(`user1_id.eq.${uid},user2_id.eq.${uid}`);
+    await supabase.from("swipes").delete().eq("swiper_id", uid);
+    await supabase.from("reports").delete().eq("reporter_id", uid);
+    await supabase.from("profiles").delete().eq("id", uid);
+    await supabase.auth.signOut();
+  };
   const unreadCount = matches.filter(m=>m.unread).length;
 
   if (appState==="loading") return <Shell><div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20 }}><div style={{ width:110,height:110,borderRadius:26,overflow:"hidden",flexShrink:0,animation:"pulse 1.8s ease-in-out infinite" }}><img src="/icon-512.png" alt="NearMatch" style={{ width:"115%",height:"115%",objectFit:"cover",display:"block",marginLeft:"-7.5%",marginTop:"-7.5%" }} /></div><Spinner /></div></Shell>;
@@ -1941,7 +1972,7 @@ export default function App() {
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
-            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} />}
+            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
           </>
         )}
       </div>
