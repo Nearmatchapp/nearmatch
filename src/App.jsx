@@ -1579,7 +1579,7 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
     if (data) setMyProfile(p=>({...p, photo_url, photos: updatedPhotos}));
   };
 
-    return (
+  return (
     <div style={{ flex:1,overflowY:"auto", position:"relative" }}>
 
       {showDeleteConfirm && (
