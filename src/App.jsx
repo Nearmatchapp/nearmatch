@@ -1249,16 +1249,23 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
     if (isRecording) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      // Válasszuk a legjobb támogatott formátumot
+      const mimeType = MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4"
+        : MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+        : "audio/ogg";
+      const ext = mimeType.startsWith("audio/mp4") ? "mp4"
+        : mimeType.startsWith("audio/webm") ? "webm" : "ogg";
+      const mr = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
       mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const fileName = `voice_${Date.now()}.webm`;
-        const { data, error } = await supabase.storage.from("voices").upload(`${myId}/${fileName}`, blob, { contentType:"audio/webm" });
-        if (error) { console.error("Voice upload error:", error); return; }
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const fileName = `voice_${Date.now()}.${ext}`;
+        const { data, error } = await supabase.storage.from("voices").upload(`${myId}/${fileName}`, blob, { contentType: mimeType, upsert: false });
+        if (error) { console.error("Voice upload error:", error); alert("Feltöltési hiba: " + error.message); return; }
         const { data: urlData } = supabase.storage.from("voices").getPublicUrl(`${myId}/${fileName}`);
         const voiceUrl = urlData.publicUrl;
         await supabase.from("messages").insert({ match_id:match.id, sender_id:myId, text:"🎙️ Hangüzenet", voice_url:voiceUrl });
@@ -1267,11 +1274,11 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
           await sendPushNotification(match.other.id, "🎙️ Hangüzenet", "Hangüzenetet kaptál", { type:"message", match_id:match.id });
         }
       };
-      mr.start();
+      mr.start(100); // 100ms-onként gyűjt adatot
       setIsRecording(true);
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
-    } catch (e) { alert("Mikrofon hozzáférés szükséges!"); }
+    } catch (e) { alert("Mikrofon hozzáférés szükséges! (" + e.message + ")"); }
   };
 
   const stopRecording = () => {
@@ -1512,9 +1519,13 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
           <div key={m.id} style={{ display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start" }}>
             <div style={{ maxWidth:"72%",padding:"10px 14px",borderRadius:m.sender_id===myId?"18px 18px 4px 18px":"18px 18px 18px 4px",background:m.sender_id===myId?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,color:"#fff",fontSize:14 }}>
               {m.voice_url ? (
-                <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:160 }}>
-                  <span style={{ fontSize:18 }}>🎙️</span>
-                  <audio controls src={m.voice_url} style={{ height:32, maxWidth:160, filter:"invert(1)" }} />
+                <div style={{ display:"flex", flexDirection:"column", gap:6, minWidth:180 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:16 }}>🎙️</span>
+                    <span style={{ fontSize:12, opacity:0.8 }}>Hangüzenet</span>
+                  </div>
+                  <audio controls src={m.voice_url} style={{ width:"100%", height:36 }}
+                    onError={(e) => console.error("Audio error:", e.target.error)} />
                 </div>
               ) : m.text}
               <div style={{ fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4,textAlign:"right" }}>{timeLabel(m.created_at)}</div>
