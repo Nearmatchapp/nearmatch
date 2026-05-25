@@ -1625,12 +1625,10 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
               )}
             </div>
             <button
-              onMouseDown={e=>{e.preventDefault();e.stopPropagation();startRecording();}}
-              onMouseUp={e=>{e.preventDefault();e.stopPropagation();stopRecording();}}
-              onMouseLeave={e=>{if(isRecording){e.preventDefault();stopRecording();}}}
-              onTouchStart={e=>{e.preventDefault();e.stopPropagation();startRecording();}}
-              onTouchEnd={e=>{e.preventDefault();e.stopPropagation();stopRecording();}}
-              onTouchCancel={e=>{e.preventDefault();stopRecording();}}
+              onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);startRecording();}}
+              onPointerUp={e=>{e.preventDefault();stopRecording();}}
+              onPointerCancel={e=>{e.preventDefault();stopRecording();}}
+              onPointerLeave={e=>{if(isRecording){e.preventDefault();stopRecording();}}}
               onClick={e=>{e.preventDefault();e.stopPropagation();}}
               style={{ width:48,height:48,borderRadius:"50%",background:isRecording?`linear-gradient(135deg,${C.accent},#ff8c42)`:"rgba(255,92,92,0.15)",border:`2px solid ${isRecording?C.accent:"rgba(255,92,92,0.3)"}`,fontSize:22,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",userSelect:"none",WebkitUserSelect:"none",touchAction:"none" }}>
               🎙️
@@ -1647,12 +1645,10 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
               <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>→</button>
             ) : (
               <button
-                onMouseDown={e=>{e.preventDefault();e.stopPropagation();startRecording();}}
-                onMouseUp={e=>{e.preventDefault();e.stopPropagation();stopRecording();}}
-                onMouseLeave={e=>{if(isRecording){e.preventDefault();stopRecording();}}}
-                onTouchStart={e=>{e.preventDefault();e.stopPropagation();startRecording();}}
-                onTouchEnd={e=>{e.preventDefault();e.stopPropagation();stopRecording();}}
-                onTouchCancel={e=>{e.preventDefault();stopRecording();}}
+                onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);startRecording();}}
+                onPointerUp={e=>{e.preventDefault();stopRecording();}}
+                onPointerCancel={e=>{e.preventDefault();stopRecording();}}
+                onPointerLeave={e=>{if(isRecording){e.preventDefault();stopRecording();}}}
                 onClick={e=>{e.preventDefault();e.stopPropagation();}}
                 style={{ width:42,height:42,borderRadius:"50%",background:isRecording?`linear-gradient(135deg,${C.accent},#ff8c42)`:"rgba(255,92,92,0.12)",border:`1px solid ${isRecording?C.accent:"rgba(255,92,92,0.3)"}`,fontSize:20,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",userSelect:"none",WebkitUserSelect:"none",touchAction:"none" }}>
                 {isRecording ? "⏹️" : "🎙️"}
