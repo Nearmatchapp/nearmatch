@@ -1300,8 +1300,11 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
 
+  const recordingReadyRef = useRef(false);
+
   const startRecording = async () => {
     if (isRecording) return;
+    recordingReadyRef.current = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Válasszuk a legjobb támogatott formátumot
@@ -1329,15 +1332,29 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
           await sendPushNotification(match.other.id, "🎙️ Hangüzenet", "Hangüzenetet kaptál", { type:"message", match_id:match.id });
         }
       };
-      mr.start(100); // 100ms-onként gyűjt adatot
+      mr.start(100);
       setIsRecording(true);
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+      // Legalább 500ms felvétel kell
+      setTimeout(() => { recordingReadyRef.current = true; }, 500);
     } catch (e) { alert("Mikrofon hozzáférés szükséges! (" + e.message + ")"); }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      if (!recordingReadyRef.current) {
+        // Túl rövid volt – várunk amíg kész
+        setTimeout(() => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+            mediaRecorderRef.current.stop();
+          }
+          setIsRecording(false);
+          clearInterval(recordingTimerRef.current);
+          setRecordingTime(0);
+        }, 500);
+        return;
+      }
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(recordingTimerRef.current);
