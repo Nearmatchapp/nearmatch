@@ -1225,7 +1225,7 @@ function MatchList({ matches, onOpen, isPro, onUpgrade }) {
 }
 
 // ── CHAT ───────────────────────────────────────────────
-function ChatView({ match, myId, onBack, onMatchDeleted }) {
+function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -1544,7 +1544,7 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
 
       {/* Input sor */}
       <div style={{ display:"flex",gap:8,padding:"10px 12px",borderTop:`1px solid ${C.border}`,alignItems:"center",background:C.surface }}>
-        {match.other?.voice_only ? (
+        {(match.other?.voice_only || myVoiceOnly) ? (
           // HANG ÜZENET MÓD
           <>
             <div style={{ flex:1, display:"flex", alignItems:"center", gap:10, background:C.card, borderRadius:24, padding:"10px 16px", border:`1px solid ${isRecording?"rgba(255,92,92,0.5)":C.border}` }}>
@@ -2077,7 +2077,7 @@ export default function App() {
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",minHeight:0 }}>
         {matchOverlay && <MatchOverlay user={matchOverlay} onMessage={() => { const m=matches.find(x=>x.other?.id===matchOverlay.id); setMatchOverlay(null); if(m){setActiveChat(m);setTab("matches");} }} onClose={()=>setMatchOverlay(null)} />}
         {activeChat ? (
-          <ChatView match={activeChat} myId={session.user.id} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} />
+          <ChatView match={activeChat} myId={session.user.id} myVoiceOnly={myProfile?.voice_only} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} />
         ) : (
           <>
             {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
