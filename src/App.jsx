@@ -1246,6 +1246,7 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
   const recordingTimerRef = useRef(null);
 
   const startRecording = async () => {
+    if (isRecording) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
@@ -1274,7 +1275,7 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(recordingTimerRef.current);
@@ -1563,8 +1564,8 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
               )}
             </div>
             <button
-              onMouseDown={startRecording} onMouseUp={stopRecording}
-              onTouchStart={startRecording} onTouchEnd={stopRecording}
+              onMouseDown={e=>{e.preventDefault();e.stopPropagation();startRecording();}} onMouseUp={e=>{e.stopPropagation();stopRecording();}}
+              onTouchStart={e=>{e.preventDefault();e.stopPropagation();startRecording();}} onTouchEnd={e=>{e.stopPropagation();stopRecording();}}
               style={{ width:48,height:48,borderRadius:"50%",background:isRecording?`linear-gradient(135deg,${C.accent},#ff8c42)`:"rgba(255,92,92,0.15)",border:`2px solid ${isRecording?C.accent:"rgba(255,92,92,0.3)"}`,fontSize:22,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s" }}>
               🎙️
             </button>
@@ -1580,8 +1581,8 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
               <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>→</button>
             ) : (
               <button
-                onMouseDown={startRecording} onMouseUp={stopRecording}
-                onTouchStart={e=>{e.preventDefault();startRecording();}} onTouchEnd={stopRecording}
+                onMouseDown={e=>{e.preventDefault();e.stopPropagation();startRecording();}} onMouseUp={e=>{e.stopPropagation();stopRecording();}}
+                onTouchStart={e=>{e.preventDefault();e.stopPropagation();startRecording();}} onTouchEnd={e=>{e.stopPropagation();stopRecording();}}
                 style={{ width:42,height:42,borderRadius:"50%",background:isRecording?`linear-gradient(135deg,${C.accent},#ff8c42)`:"rgba(255,92,92,0.12)",border:`1px solid ${isRecording?C.accent:"rgba(255,92,92,0.3)"}`,fontSize:20,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s" }}>
                 {isRecording ? "⏹️" : "🎙️"}
               </button>
