@@ -1238,6 +1238,48 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showOtherProfile, setShowOtherProfile] = useState(false);
   const [otherProfilePhotoIdx, setOtherProfilePhotoIdx] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      audioChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const fileName = `voice_${Date.now()}.webm`;
+        const { data, error } = await supabase.storage.from("voices").upload(`${myId}/${fileName}`, blob, { contentType:"audio/webm" });
+        if (error) { console.error("Voice upload error:", error); return; }
+        const { data: urlData } = supabase.storage.from("voices").getPublicUrl(`${myId}/${fileName}`);
+        const voiceUrl = urlData.publicUrl;
+        await supabase.from("messages").insert({ match_id:match.id, sender_id:myId, text:"🎙️ Hangüzenet", voice_url:voiceUrl });
+        calcAndSaveGhostScore(myId).catch(() => {});
+        if (match.other?.id) {
+          await sendPushNotification(match.other.id, "🎙️ Hangüzenet", "Hangüzenetet kaptál", { type:"message", match_id:match.id });
+        }
+      };
+      mr.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch (e) { alert("Mikrofon hozzáférés szükséges!"); }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(recordingTimerRef.current);
+      setRecordingTime(0);
+    }
+  };
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -1467,7 +1509,12 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
         {msgs.map(m => (
           <div key={m.id} style={{ display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start" }}>
             <div style={{ maxWidth:"72%",padding:"10px 14px",borderRadius:m.sender_id===myId?"18px 18px 4px 18px":"18px 18px 18px 4px",background:m.sender_id===myId?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,color:"#fff",fontSize:14 }}>
-              {m.text}
+              {m.voice_url ? (
+                <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:160 }}>
+                  <span style={{ fontSize:18 }}>🎙️</span>
+                  <audio controls src={m.voice_url} style={{ height:32, maxWidth:160, filter:"invert(1)" }} />
+                </div>
+              ) : m.text}
               <div style={{ fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4,textAlign:"right" }}>{timeLabel(m.created_at)}</div>
             </div>
           </div>
@@ -1497,11 +1544,40 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
 
       {/* Input sor */}
       <div style={{ display:"flex",gap:8,padding:"10px 12px",borderTop:`1px solid ${C.border}`,alignItems:"center",background:C.surface }}>
-        <button onClick={() => setShowEmojiPicker(p => !p)} style={{ width:38,height:38,borderRadius:"50%",background:showEmojiPicker?C.accentSoft:C.card,border:`1px solid ${showEmojiPicker?C.accent:C.border}`,fontSize:20,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>
-          {showEmojiPicker ? "✕" : "🙂"}
-        </button>
-        <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} onFocus={() => setShowEmojiPicker(false)} placeholder="Írj üzenetet..." style={{ flex:1,padding:"12px 16px",borderRadius:24,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none" }} />
-        <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>→</button>
+        {match.other?.voice_only ? (
+          // HANG ÜZENET MÓD
+          <>
+            <div style={{ flex:1, display:"flex", alignItems:"center", gap:10, background:C.card, borderRadius:24, padding:"10px 16px", border:`1px solid ${isRecording?"rgba(255,92,92,0.5)":C.border}` }}>
+              <div style={{ fontSize:18 }}>🎙️</div>
+              {isRecording ? (
+                <div style={{ flex:1, display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ width:8, height:8, borderRadius:"50%", background:C.accent, animation:"pulse 1s infinite" }} />
+                  <span style={{ color:C.accent, fontSize:13, fontWeight:600 }}>
+                    {Math.floor(recordingTime/60).toString().padStart(2,"0")}:{(recordingTime%60).toString().padStart(2,"0")}
+                  </span>
+                  <span style={{ color:C.muted, fontSize:12 }}>Felvétel...</span>
+                </div>
+              ) : (
+                <span style={{ color:C.dim, fontSize:13 }}>Ez a személy csak hangüzenetet fogad</span>
+              )}
+            </div>
+            <button
+              onMouseDown={startRecording} onMouseUp={stopRecording}
+              onTouchStart={startRecording} onTouchEnd={stopRecording}
+              style={{ width:48,height:48,borderRadius:"50%",background:isRecording?`linear-gradient(135deg,${C.accent},#ff8c42)`:"rgba(255,92,92,0.15)",border:`2px solid ${isRecording?C.accent:"rgba(255,92,92,0.3)"}`,fontSize:22,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s" }}>
+              🎙️
+            </button>
+          </>
+        ) : (
+          // NORMÁL MÓD
+          <>
+            <button onClick={() => setShowEmojiPicker(p => !p)} style={{ width:38,height:38,borderRadius:"50%",background:showEmojiPicker?C.accentSoft:C.card,border:`1px solid ${showEmojiPicker?C.accent:C.border}`,fontSize:20,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>
+              {showEmojiPicker ? "✕" : "🙂"}
+            </button>
+            <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} onFocus={() => setShowEmojiPicker(false)} placeholder="Írj üzenetet..." style={{ flex:1,padding:"12px 16px",borderRadius:24,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none" }} />
+            <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>→</button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1632,6 +1708,33 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
             <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12 }}>30 percig előre kerülsz • Heti 1 db</div></div>
           </button>
         )}
+
+        {/* Hang üzenet mód */}
+        {!editing && (isPro ? (
+          <div onClick={async () => {
+            const newVal = !myProfile?.voice_only;
+            await supabase.from("profiles").update({ voice_only: newVal }).eq("id", myProfile.id);
+            setMyProfile(p => ({ ...p, voice_only: newVal }));
+          }} style={{ display:"flex", alignItems:"center", gap:12, background: myProfile?.voice_only ? "rgba(255,140,66,0.1)" : C.card, border: `1px solid ${myProfile?.voice_only ? "rgba(255,140,66,0.4)" : C.border}`, borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:8 }}>
+            <div style={{ fontSize:26 }}>🎙️</div>
+            <div style={{ flex:1 }}>
+              <div style={{ color: myProfile?.voice_only ? "#ff8c42" : C.text, fontWeight:700, fontSize:14 }}>Hang üzenet mód {myProfile?.voice_only ? "BE" : "KI"}</div>
+              <div style={{ color:C.dim, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
+            </div>
+            <div style={{ width:44, height:24, borderRadius:12, background: myProfile?.voice_only ? "#ff8c42" : "rgba(240,244,255,0.15)", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+              <div style={{ position:"absolute", top:2, left: myProfile?.voice_only ? 22 : 2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+            </div>
+          </div>
+        ) : (
+          <div onClick={onUpgrade} style={{ display:"flex", alignItems:"center", gap:12, background:"rgba(255,212,59,0.05)", border:"1px solid rgba(255,212,59,0.2)", borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:8 }}>
+            <div style={{ fontSize:26 }}>🎙️</div>
+            <div style={{ flex:1 }}>
+              <div style={{ color:C.yellow, fontWeight:700, fontSize:14 }}>Hang üzenet mód <span style={{ fontSize:11, background:"rgba(255,212,59,0.15)", borderRadius:6, padding:"2px 6px" }}>PRO</span></div>
+              <div style={{ color:C.dim, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
+            </div>
+            <div style={{ color:C.yellow, fontSize:12, fontWeight:600 }}>Upgrade →</div>
+          </div>
+        ))}
 
         {/* Inkognito mód */}
         {!editing && (isPro ? (
