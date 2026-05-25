@@ -299,7 +299,7 @@ function Onboarding({ user, onComplete }) {
       <Header />
       <div style={{ flex:1, overflowY:"auto", padding:"16px 24px 32px" }}>
         <div style={{ textAlign:"center", marginBottom:24, paddingTop:8 }}>
-          <div style={{ width:80, height:80, borderRadius:24, margin:"0 auto 16px", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:38 }}>📍</div>
+          <div style={{ width:80, height:80, borderRadius:24, margin:"0 auto 16px", overflow:"hidden", flexShrink:0 }}><img src="/icon-512.png" alt="NearMatch" style={{ width:"115%", height:"115%", objectFit:"cover", display:"block", marginLeft:"-7.5%", marginTop:"-7.5%" }} /></div>
           <h2 style={{ fontSize:22, fontWeight:900, margin:"0 0 8px", color:C.text }}>Helyszín hozzáférés</h2>
           <p style={{ color:C.muted, fontSize:13, margin:0 }}>A NearMatch a közelségedre épül.</p>
         </div>
