@@ -1575,7 +1575,16 @@ function ChatView({ match, myId, onBack, onMatchDeleted }) {
               {showEmojiPicker ? "✕" : "🙂"}
             </button>
             <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} onFocus={() => setShowEmojiPicker(false)} placeholder="Írj üzenetet..." style={{ flex:1,padding:"12px 16px",borderRadius:24,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none" }} />
-            <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>→</button>
+            {input.trim() ? (
+              <button onClick={send} style={{ width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",color:"#fff",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>→</button>
+            ) : (
+              <button
+                onMouseDown={startRecording} onMouseUp={stopRecording}
+                onTouchStart={e=>{e.preventDefault();startRecording();}} onTouchEnd={stopRecording}
+                style={{ width:42,height:42,borderRadius:"50%",background:isRecording?`linear-gradient(135deg,${C.accent},#ff8c42)`:"rgba(255,92,92,0.12)",border:`1px solid ${isRecording?C.accent:"rgba(255,92,92,0.3)"}`,fontSize:20,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s" }}>
+                {isRecording ? "⏹️" : "🎙️"}
+              </button>
+            )}
           </>
         )}
       </div>
