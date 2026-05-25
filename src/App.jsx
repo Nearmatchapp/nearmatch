@@ -1136,8 +1136,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
             const rect=e.currentTarget.getBoundingClientRect();
             const x=e.clientX-rect.left;
             const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]);
-            const totalPages = photos.length;
-            if(totalPages <= 1) return;
+            const totalPages = photos.length + 1; // +1 az adatlap
             if(x > rect.width*0.5) setCardPage(p=>Math.min(p+1, totalPages-1));
             else setCardPage(p=>Math.max(p-1,0));
           }}
@@ -1148,13 +1147,15 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
             return (
               <>
                 <div style={{ position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4,zIndex:10 }}>
-                  {photos.map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
+                  {[...photos, "info"].map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
                 </div>
-                <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0 }} alt={cur.name} />
+                {cardPage < photos.length ? (
+                  <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0 }} alt={cur.name} />
+                ) : null}
               </>
             );
           })()}
-          {cardPage===0 ? (
+          {cardPage < (cur.photos||(cur.photo_url?[cur.photo_url]:[])).length ? (
             <>
               {(() => { const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]); return null; })()}
               <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,11,16,0.9) 0%,transparent 50%)" }} />
