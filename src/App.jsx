@@ -1105,7 +1105,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const distLabel = (km) => km!=null ? (km<1?`${Math.round(km*1000)}m`:`${km.toFixed(1)}km`) : "";
 
   return (
-    <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"6px 16px 10px",userSelect:"none",position:"relative" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
+    <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"4px 8px 8px",userSelect:"none",position:"relative" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
       {showFilters && <FilterPanel />}
       {/* Szűrő gomb */}
       <div style={{ display:"flex",justifyContent:"flex-end",marginBottom:6,flexShrink:0 }}>
