@@ -2017,17 +2017,26 @@ export default function App() {
     if (!data) return;
     const withOther = await Promise.all(data.map(async m => {
       const other = m.user1_id===session.user.id ? m.user2 : m.user1;
-      const { data:lastMsg } = await supabase.from("messages").select("text,created_at").eq("match_id",m.id).order("created_at",{ascending:false}).limit(1).single();
+      const { data:lastMsg } = await supabase.from("messages").select("text,created_at,voice_url").eq("match_id",m.id).order("created_at",{ascending:false}).limit(1).single();
       const timeLabel = lastMsg ? new Date(lastMsg.created_at).toLocaleTimeString("hu",{hour:"2-digit",minute:"2-digit"}) : "";
-      return { ...m, other, lastMsg:lastMsg?.text, timeLabel };
+      const lastMsgAt = lastMsg?.created_at || m.created_at;
+      return { ...m, other, lastMsg:lastMsg?.voice_url ? "🎙️ Hangüzenet" : lastMsg?.text, timeLabel, lastMsgAt };
     }));
-    setMatches(withOther);
+    // Legújabb üzenet szerint rendezés
+    const sorted = [...withOther].sort((a,b) => new Date(b.lastMsgAt) - new Date(a.lastMsgAt));
+    setMatches(sorted);
   }, [session]);
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
   useEffect(() => {
     if (!session) return;
+    // Üzenetek realtime – sorrend frissítése
+    const msgSub = supabase.channel("messages_order")
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, () => {
+        loadMatches();
+      }).subscribe();
+
     const sub = supabase.channel("matches_realtime")
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"matches" }, async payload => {
         const m = payload.new;
@@ -2042,7 +2051,7 @@ export default function App() {
           if (session?.user?.id) loadNewLikesCount(session.user.id);
         }
       }).subscribe();
-    return () => supabase.removeChannel(sub);
+    return () => { supabase.removeChannel(sub); supabase.removeChannel(msgSub); };
   }, [session, loadMatches, myProfile]);
 
   // ── JAVÍTOTT HANDLESWIPE ────────────────────────────
