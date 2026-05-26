@@ -12,9 +12,20 @@ const C = {
 };
 
 const INTERESTS_ALL = [
-  "📸 Fotózás","☕ Kávé","🎵 Zene","✈️ Utazás","🧘 Yoga","📚 Olvasás",
-  "🎮 Gaming","🍕 Gasztronómia","🏃 Futás","🎨 Művészet","🐶 Állatok","🌿 Természet",
-  "💃 Tánc","🎬 Film","🏋️ Sport","🌍 Kultúra",
+  // Sport & Mozgás
+  "🏃 Futás","🏋️ Edzés","🧘 Yoga","🚴 Kerékpározás","⚽ Foci","🏊 Úszás","🎾 Tenisz","🏄 Szörfözés","🧗 Mászás","🏔️ Túrázás","⛷️ Síelés","🥊 Harcművészet","🏀 Kosár","🎿 Snowboard","🤸 Gimnasztika",
+  // Zene & Szórakozás
+  "🎵 Zene","🎸 Gitár","🥁 Dob","🎹 Zongora","🎤 Énekelés","🎧 DJ","🎶 Koncertek","🎷 Jazz","🎺 Fúvós","🪗 Akusztikus",
+  // Gasztronómia
+  "🍕 Pizza","🍣 Sushi","☕ Kávé","🍷 Bor","🍺 Sör","🍰 Sütés","👨‍🍳 Főzés","🌮 Street food","🫖 Tea","🧃 Smoothie",
+  // Kultúra & Művészet
+  "🎨 Festés","📸 Fotózás","🎬 Film","📚 Olvasás","🎭 Színház","💃 Tánc","🖼️ Kiállítás","✍️ Írás","🎙️ Podcast","📖 Könyvklub",
+  // Természet & Utazás
+  "🌿 Természet","✈️ Utazás","🏕️ Kempingezés","🌊 Tengerpart","🌄 Napkelte","🌍 Backpacking","🐾 Állatvédelem","🌱 Kertészkedés","♻️ Fenntarthatóság","🦋 Madármegfigyelés",
+  // Tech & Játék
+  "🎮 Gaming","💻 Kódolás","📱 Tech","🤖 AI","🎲 Társasjáték","♟️ Sakk","🎯 Darts","🎳 Bowling","🃏 Kártyajáték","🕹️ Retro gaming",
+  // Életmód
+  "🐶 Kutyás","🐱 Macskás","🧳 Minimalizmus","🛋️ Otthon","🧶 Kézművesség","🌸 Wellness","💆 Meditáció","🎁 DIY","🛁 Self-care","🌙 Éjjeli bagoly",
 ];
 
 const LOOKING_FOR_OPTIONS = [
@@ -260,7 +271,12 @@ function Onboarding({ user, onComplete }) {
         <h2 style={{ fontSize:24, fontWeight:900, color:C.text, margin:"8px 0 0" }}>Mutatkozz be</h2>
         <div>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><label style={{ color:C.muted, fontSize:11, letterSpacing:1, textTransform:"uppercase" }}>Bio</label><span style={{ color:C.dim, fontSize:11 }}>{(data.bio||"").length}/300</span></div>
-          <textarea value={data.bio||""} onChange={e => setData(d=>({...d,bio:e.target.value.slice(0,300)}))} placeholder="Mesélj magadról..."
+          <textarea value={data.bio||""} onChange={e => {
+              const val = e.target.value.slice(0,300);
+              // Szűrjük ki az Instagram/social linkeket
+              const filtered = val.replace(/(@[\w.]+|instagram\.com\/[\w.]+|ig:\s*[\w.]+|insta:\s*[\w.]+|fb\.com\/[\w.]+|tiktok\.com\/[\w.]+|snapchat:\s*[\w.]+)/gi, "");
+              setData(d=>({...d,bio:filtered}));
+            }} placeholder="Mesélj magadról..."
             style={{ width:"100%", padding:"14px", borderRadius:13, background:C.card, border:`1px solid ${C.border}`, color:C.text, fontSize:14, outline:"none", resize:"none", minHeight:100, lineHeight:1.6 }} />
         </div>
         <div>
@@ -1843,7 +1859,11 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
         {editing ? (
           <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
             <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
-            <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e=>setDraft(d=>({...d,bio:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} /></div>
+            <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e => {
+                  const val = e.target.value;
+                  const filtered = val.replace(/(@[\w.]+|instagram\.com\/[\w.]+|ig:\s*[\w.]+|insta:\s*[\w.]+|fb\.com\/[\w.]+|tiktok\.com\/[\w.]+|snapchat:\s*[\w.]+)/gi, "");
+                  setDraft(d=>({...d,bio:filtered}));
+                }} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} /></div>
             <div>
               <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1 }}>📏 Magasság</label><span style={{ color:C.accent,fontWeight:700,fontSize:13 }}>{draft.height} cm</span></div>
               <input type="range" min={135} max={230} step={1} value={draft.height} onChange={e=>setDraft(d=>({...d,height:+e.target.value}))} style={{ width:"100%" }} />
