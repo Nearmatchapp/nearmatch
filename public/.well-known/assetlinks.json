@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "hu.nearmatch.app",
+        "sha256_cert_fingerprints": ["76:F1:A2:F8:40:E4:2C:B4:69:1D:B5:25:90:7A:2D:A5:02:8B:89:AC:23:95:FF:07:F3:10:3C:99:77:7F:29:9E"]
+      }
+    }]
