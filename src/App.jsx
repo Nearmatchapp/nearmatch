@@ -73,7 +73,7 @@ function Shell({ children }) {
   return (
     <div style={{ width:"100%", maxWidth:390, margin:"0 auto", height:"100dvh", minHeight:"-webkit-fill-available", background:C.bg, display:"flex", flexDirection:"column", position:"relative", overflow:"hidden" }}>
       {children}
-      <style>{`* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; } ::-webkit-scrollbar{display:none;} input[type=range]{-webkit-appearance:none;height:3px;background:rgba(240,244,255,0.15);border-radius:2px;outline:none;width:100%;} input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#ff5c5c;cursor:pointer;} @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}} @keyframes spin{to{transform:rotate(360deg);}} div,button,input,textarea,span,a{touch-action:pan-x pan-y;} img{touch-action:pinch-zoom;}`}</style>
+      <style>{`* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; } ::-webkit-scrollbar{display:none;} input[type=range]{-webkit-appearance:none;height:3px;background:rgba(240,244,255,0.15);border-radius:2px;outline:none;width:100%;} input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#ff5c5c;cursor:pointer;} @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}} @keyframes spin{to{transform:rotate(360deg);}}@keyframes slideDown{from{transform:translateY(-80px);opacity:0;}to{transform:translateY(0);opacity:1;}} div,button,input,textarea,span,a{touch-action:pan-x pan-y;} img{touch-action:pinch-zoom;}`}</style>
     </div>
   );
 }
@@ -935,8 +935,8 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const [actionLabel, setActionLabel] = useState(null);
   const [proWallType, setProWallType] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki" });
-  const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki" });
+  const [filters, setFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" });
+  const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" });
   const startPos = useRef(null);
 
   const slLimit = isPro ? 5 : 1;
@@ -951,10 +951,11 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
     if (u.age && (u.age < activeFilters.minAge || u.age > activeFilters.maxAge)) return false;
     if (u.distanceKm != null && u.distanceKm > activeFilters.maxDist) return false;
     if (activeFilters.gender !== "Mindenki" && u.gender && u.gender !== activeFilters.gender) return false;
+    if (activeFilters.lookingFor && activeFilters.lookingFor !== "Bármilyen" && u.looking_for && u.looking_for !== activeFilters.lookingFor) return false;
     return true;
   });
 
-  const isFiltered = activeFilters.minAge !== 18 || activeFilters.maxAge !== 60 || activeFilters.maxDist !== 50 || activeFilters.gender !== "Mindenki";
+  const isFiltered = activeFilters.minAge !== 18 || activeFilters.maxAge !== 60 || activeFilters.maxDist !== 50 || activeFilters.gender !== "Mindenki" || !!activeFilters.lookingFor;
 
   const SliderTrack = ({ min, max, value, onChange, label, unit="" }) => {
     const pct = Math.round(((value - min) / (max - min)) * 100);
@@ -1046,7 +1047,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
           {/* Nem */}
           <div>
-            <span style={{ color:C.muted, fontSize:13, fontWeight:600, display:"block", marginBottom:10 }}>Nem</span>
+            <span style={{ color:C.muted, fontSize:13, fontWeight:600, display:"block", marginBottom:10 }}>Keresett nem</span>
             <div style={{ display:"flex", gap:8 }}>
               {["Mindenki","Nő","Férfi","Non-binary"].map(g => (
                 <button key={g} onClick={() => setFilters(f=>({...f,gender:g}))}
@@ -1057,9 +1058,22 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
             </div>
           </div>
 
+          {/* Keresett kapcsolat */}
+          <div>
+            <span style={{ color:C.muted, fontSize:13, fontWeight:600, display:"block", marginBottom:10 }}>Keresett kapcsolat</span>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {[{l:"Bármilyen",i:"✨"},{l:"Komoly kapcsolat",i:"💍"},{l:"Laza ismerkedés",i:"🌊"},{l:"Új barátok",i:"👋"},{l:"Meglátjuk",i:"🤷"}].map(x => (
+                <button key={x.l} onClick={() => setFilters(f=>({...f,lookingFor:f.lookingFor===x.l?"":x.l}))}
+                  style={{ padding:"8px 12px",borderRadius:20,border:`1px solid ${filters.lookingFor===x.l?C.accent:C.border}`,background:filters.lookingFor===x.l?C.accentSoft:C.card,color:filters.lookingFor===x.l?C.accent:C.muted,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:5 }}>
+                  {x.i} {x.l}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Gombok */}
           <div style={{ display:"flex", gap:10 }}>
-            <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki"}; setFilters(d); setActiveFilters(d); setShowFilters(false); }}
+            <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki",lookingFor:""}; setFilters(d); setActiveFilters(d); setShowFilters(false); }}
               style={{ flex:1,padding:"14px",borderRadius:14,border:`1px solid ${C.border}`,background:"none",color:C.muted,cursor:"pointer",fontSize:14,fontWeight:600 }}>
               Visszaállít
             </button>
@@ -1921,6 +1935,14 @@ export default function App() {
   const [matches, setMatches] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [matchOverlay, setMatchOverlay] = useState(null);
+  const [inAppToast, setInAppToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const showInAppToast = (match, text) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setInAppToast({ match, text });
+    toastTimerRef.current = setTimeout(() => setInAppToast(null), 4000);
+  };
   const [myLocation, setMyLocation] = useState(null);
   const [boostActive, setBoostActive] = useState(false);
   const [lastBoostWeek, setLastBoostWeek] = useState(null);
@@ -2051,10 +2073,20 @@ export default function App() {
 
   useEffect(() => {
     if (!session) return;
-    // Üzenetek realtime – sorrend frissítése
+    // Üzenetek realtime – sorrend frissítése + in-app értesítés
     const msgSub = supabase.channel("messages_order")
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, () => {
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, async (payload) => {
         loadMatches();
+        const msg = payload.new;
+        // Csak ha nem mi küldtük és nem a chat van nyitva ezzel a matchel
+        if (msg.sender_id !== session?.user?.id) {
+          // Megkeressük a match partner adatait
+          const { data: matchData } = await supabase.from("matches").select("*, user1:profiles!matches_user1_id_fkey(*), user2:profiles!matches_user2_id_fkey(*)").eq("id", msg.match_id).single();
+          if (matchData) {
+            const other = matchData.user1_id === session?.user?.id ? matchData.user2 : matchData.user1;
+            if (other) showInAppToast({ id: msg.match_id, other }, msg.voice_url ? "🎙️ Hangüzenet" : msg.text);
+          }
+        }
       }).subscribe();
 
     const sub = supabase.channel("matches_realtime")
@@ -2178,7 +2210,20 @@ export default function App() {
           <ChatView match={activeChat} myId={session.user.id} myVoiceOnly={myProfile?.voice_only} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} />
         ) : (
           <>
-            {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
+            {/* In-app üzenet értesítés */}
+          {inAppToast && (
+            <div onClick={() => { setActiveChat(inAppToast.match); setTab("chat"); setInAppToast(null); }}
+              style={{ position:"absolute", top:12, left:12, right:12, zIndex:300, background:C.card, borderRadius:18, padding:"12px 14px", border:`1px solid ${C.border}`, boxShadow:"0 8px 32px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:12, cursor:"pointer", animation:"slideDown 0.3s ease" }}>
+              <img src={inAppToast.match.other?.photo_url||`https://i.pravatar.cc/300?u=${inAppToast.match.other?.id}`} style={{ width:42, height:42, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} alt="" />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ color:C.text, fontWeight:700, fontSize:13 }}>{inAppToast.match.other?.name}</div>
+                <div style={{ color:C.muted, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{inAppToast.text}</div>
+              </div>
+              <button onClick={e=>{e.stopPropagation();setInAppToast(null);}} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:18, flexShrink:0 }}>✕</button>
+            </div>
+          )}
+
+          {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
