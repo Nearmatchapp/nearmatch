@@ -1937,6 +1937,9 @@ export default function App() {
   const [matchOverlay, setMatchOverlay] = useState(null);
   const [inAppToast, setInAppToast] = useState(null);
   const toastTimerRef = useRef(null);
+  const [nearbyAlert, setNearbyAlert] = useState(null);
+  const nearbyAlertTimerRef = useRef(null);
+  const lastNearbyCheckRef = useRef({});
 
   const showInAppToast = (match, text) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -2016,6 +2019,39 @@ export default function App() {
         const { latitude:lat, longitude:lng } = pos.coords;
         setMyLocation({ lat, lng });
         await supabase.from("profiles").update({ lat, lng, last_seen:new Date().toISOString() }).eq("id", session.user.id);
+
+        // "Közel voltunk" ellenőrzés – 1km-en belüli aktív userek
+        try {
+          const { data: nearby } = await supabase.from("profiles")
+            .select("id, name, photo_url, lat, lng, last_seen")
+            .neq("id", session.user.id);
+
+          if (nearby) {
+            // Már swipe-olt vagy matchelt userek kizárása
+            const { data: mySwipes } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id);
+            const { data: myMatches } = await supabase.from("matches").select("user1_id,user2_id").or(`user1_id.eq.${session.user.id},user2_id.eq.${session.user.id}`);
+            const swipedIds = new Set((mySwipes||[]).map(s => s.swiped_id));
+            const matchedIds = new Set((myMatches||[]).flatMap(m => [m.user1_id, m.user2_id]));
+
+            for (const u of nearby) {
+              if (!u.lat || !u.lng) continue;
+              if (swipedIds.has(u.id) || matchedIds.has(u.id)) continue;
+              // Csak ha aktív az elmúlt 15 percben
+              if (!u.last_seen || (Date.now() - new Date(u.last_seen).getTime()) > 15*60*1000) continue;
+              const dist = distanceKm(lat, lng, u.lat, u.lng);
+              if (dist <= 1) {
+                // Csak ha még nem mutattuk meg ezt a usert az elmúlt 30 percben
+                const lastShown = lastNearbyCheckRef.current[u.id] || 0;
+                if (Date.now() - lastShown < 30*60*1000) continue;
+                lastNearbyCheckRef.current[u.id] = Date.now();
+                if (nearbyAlertTimerRef.current) clearTimeout(nearbyAlertTimerRef.current);
+                setNearbyAlert({ user: u, dist: Math.round(dist * 1000) });
+                nearbyAlertTimerRef.current = setTimeout(() => setNearbyAlert(null), 6000);
+                break; // Egyszerre csak 1 értesítés
+              }
+            }
+          }
+        } catch {}
       } catch {}
     };
     updateLocation();
@@ -2210,7 +2246,23 @@ export default function App() {
           <ChatView match={activeChat} myId={session.user.id} myVoiceOnly={myProfile?.voice_only} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} />
         ) : (
           <>
-            {/* In-app üzenet értesítés */}
+            {/* Közel voltunk értesítő */}
+          {nearbyAlert && (
+            <div style={{ position:"absolute", top:12, left:12, right:12, zIndex:301, background:"linear-gradient(135deg,rgba(15,21,32,0.98),rgba(20,28,43,0.98))", borderRadius:18, padding:"14px 16px", border:"1px solid rgba(255,92,92,0.3)", boxShadow:"0 8px 32px rgba(255,92,92,0.15)", display:"flex", alignItems:"center", gap:12, animation:"slideDown 0.3s ease" }}>
+              <div style={{ position:"relative", flexShrink:0 }}>
+                <img src={nearbyAlert.user.photo_url||`https://i.pravatar.cc/300?u=${nearbyAlert.user.id}`} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,92,92,0.5)" }} alt="" />
+                <div style={{ position:"absolute", bottom:-2, right:-2, width:16, height:16, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9 }}>📍</div>
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ color:C.text, fontWeight:700, fontSize:13 }}>Közel vagytok egymáshoz!</div>
+                <div style={{ color:C.accent, fontSize:12, fontWeight:600 }}>{nearbyAlert.user.name} • {nearbyAlert.dist < 100 ? "<100 m" : `~${nearbyAlert.dist} m`} távolságra</div>
+                <div style={{ color:C.dim, fontSize:11, marginTop:2 }}>Nézd meg a profilját a Radar nézetben</div>
+              </div>
+              <button onClick={() => setNearbyAlert(null)} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:18, flexShrink:0 }}>✕</button>
+            </div>
+          )}
+
+          {/* In-app üzenet értesítés */}
           {inAppToast && (
             <div onClick={() => { setActiveChat(inAppToast.match); setTab("chat"); setInAppToast(null); }}
               style={{ position:"absolute", top:12, left:12, right:12, zIndex:300, background:C.card, borderRadius:18, padding:"12px 14px", border:`1px solid ${C.border}`, boxShadow:"0 8px 32px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:12, cursor:"pointer", animation:"slideDown 0.3s ease" }}>
