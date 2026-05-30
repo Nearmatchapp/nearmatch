@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
-const STRIPE_PRICE_ID = "price_1TY5hhBtOhui3FKbzxznfDa9";
+const STRIPE_PRICE_ID = "price_1TcXG4B9BUbmA0wIpIjDmRuf";
 
 const C = {
   bg: "#080b10", surface: "#0f1520", card: "#141c2b",
