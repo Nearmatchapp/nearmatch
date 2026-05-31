@@ -39,6 +39,46 @@ const LOOKING_FOR_OPTIONS = [
 const EDU_OPTIONS = ["Középiskola","Szakképzés","Főiskola / BA","Egyetem / MA","PhD"];
 const SMOKING_OPTIONS = ["Nem dohányzik","Alkalmanként","Rendszeresen","Leszokott"];
 
+const COMPLIMENT_CARDS = {
+  "💫 Megjelenés": [
+    "Te vagy ma a legszebb lány, akit láttam",
+    "Te vagy ma a legszebb fiú, akit láttam",
+    "A mosolyod feldobta a napom",
+    "A szemed teljesen lenyűgözött",
+    "Olyan kisugárzásod van, amit nem lehet figyelmen kívül hagyni",
+    "Te vagy a legsármosabb ember ma a közelemben",
+    "A fotóid között nem tudtam melyiket nézzem tovább",
+    "Olyan természetes szépséged van, ami ritkaság",
+  ],
+  "👗 Stílus": [
+    "Ma a te outfited a legjobb, amit láttam",
+    "A stílusod teljesen egyedi és imádom",
+    "Pontosan tudod hogyan kell öltözni",
+    "Az összeállításod chef's kiss 🤌",
+    "A stílusod annyira magabiztos – imponáló",
+    "Olyan ízlésed van, ami azonnali figyelmet kelt",
+    "A vibes-od már a fotókból átjön",
+  ],
+  "✨ Személyiség": [
+    "A bio-d alapján azonnal szimpatikus vagy",
+    "Olyan embernek tűnsz akivel soha nem unatkozna az ember",
+    "Az érdeklődési köreid alapján teljesen összeillünk",
+    "Valami azt súgja nekem, hogy nagyon jó a humorod",
+    "Az a fajta energia árad belőled, ami magával ragad",
+    "Szerintem te vagy a legjobb hallgatóság a közelemben",
+    "Úgy érzem, veled mindig lehetne miről beszélni",
+  ],
+  "❤️ Romantikus": [
+    "Rád gondoltam mielőtt erre az appra nyitottam",
+    "Szerintem egy randi veled élmény lenne",
+    "Ha közelebb lennénk, mindenképp megszólítanálak",
+    "Valami azt mondja, hogy te lehetnél ma a legszebb ismeretségem",
+    "Azt kívánom, bárcsak hamarabb találkoztunk volna",
+    "Egy kávé veled – ez ma az én álmom",
+    "Ha a sors összehozott volna, nem engedtelek volna el",
+  ],
+};
+
 function distanceKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -342,11 +382,11 @@ function Onboarding({ user, onComplete }) {
 }
 
 // ── BOTTOM NAV ─────────────────────────────────────────
-function BottomNav({ active, setActive, unreadCount, newLikesCount }) {
+function BottomNav({ active, setActive, unreadCount, newLikesCount, newCardsCount }) {
   const tabs = [
     { id:"radar", icon:"◎", label:"Radar" },
     { id:"swipe", icon:"♥", label:"Swipe" },
-    { id:"likeok", icon:"🔥", label:"Likeok" },
+    { id:"cards", icon:"🃏", label:"Kártyák" },
     { id:"matches", icon:"💬", label:"Matchek" },
     { id:"profile", icon:"👤", label:"Profil" },
   ];
@@ -357,9 +397,225 @@ function BottomNav({ active, setActive, unreadCount, newLikesCount }) {
           <span style={{ fontSize:18, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
           <span style={{ fontSize:9, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
           {t.id==="matches" && unreadCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{unreadCount}</div>)}
-          {t.id==="likeok" && newLikesCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.orange, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{newLikesCount}</div>)}
+          {t.id==="cards" && newCardsCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.yellow, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#000", fontWeight:700 }}>{newCardsCount}</div>)}
         </button>
       ))}
+    </div>
+  );
+}
+
+// ── CARDS SCREEN ──────────────────────────────────────
+function CardsScreen({ myId, isPro, onUpgrade, session }) {
+  const [receivedCards, setReceivedCards] = useState([]);
+  const [sentToday, setSentToday] = useState([]);
+  const [nearbyUsers, setNearbyUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [flipping, setFlipping] = useState(null);
+  const [sendModal, setSendModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [buyModal, setBuyModal] = useState(false);
+
+  const today = new Date().toDateString();
+  const lastRevealKey = `lastReveal_${myId}`;
+  const lastRevealDate = localStorage.getItem(lastRevealKey);
+  const revealedToday = localStorage.getItem(`revealedToday_${myId}`) === today;
+
+  // PRO: napi 1 felfedés, Free: 2 naponta 1
+  const canReveal = () => {
+    const last = localStorage.getItem(lastRevealKey);
+    if (!last) return true;
+    const diff = (Date.now() - parseInt(last)) / (1000 * 60 * 60 * 24);
+    return isPro ? diff >= 1 : diff >= 2;
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    // Kapott kártyák
+    const { data: recv } = await supabase.from("compliment_cards").select("*, sender:profiles!sender_id(id,name,photo_url)").eq("receiver_id", myId).order("created_at", { ascending: false });
+    setReceivedCards(recv || []);
+
+    // Ma küldött kártyák (receiver_id-k)
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const { data: sent } = await supabase.from("compliment_cards").select("receiver_id").eq("sender_id", myId).gte("created_at", todayStart.toISOString());
+    setSentToday((sent || []).map(s => s.receiver_id));
+
+    // Közeli userek akiknek még nem küldtünk ma
+    const { data: nearby } = await supabase.from("profiles").select("id,name,photo_url,age").neq("id", myId).eq("is_banned", false).limit(30);
+    setNearbyUsers((nearby || []).filter(u => !(sent||[]).map(s=>s.receiver_id).includes(u.id)));
+    setLoading(false);
+  };
+
+  const handleReveal = async (card) => {
+    if (card.revealed) return;
+    if (!canReveal()) { setBuyModal(true); return; }
+    setFlipping(card.id);
+    await supabase.from("compliment_cards").update({ revealed: true, revealed_at: new Date().toISOString() }).eq("id", card.id);
+    localStorage.setItem(lastRevealKey, Date.now().toString());
+    setReceivedCards(prev => prev.map(c => c.id === card.id ? { ...c, revealed: true } : c));
+    setTimeout(() => setFlipping(null), 600);
+  };
+
+  const handleSend = async () => {
+    if (!selectedUser || !selectedCard) return;
+    setSending(true);
+    await supabase.from("compliment_cards").insert({ sender_id: myId, receiver_id: selectedUser.id, card_text: selectedCard, category: selectedCategory });
+    setSentToday(prev => [...prev, selectedUser.id]);
+    setNearbyUsers(prev => prev.filter(u => u.id !== selectedUser.id));
+    setSendModal(false); setSelectedUser(null); setSelectedCategory(null); setSelectedCard(null);
+    setSending(false);
+    loadData();
+  };
+
+  const cardsLeft = 3 - sentToday.length;
+  const unrevealed = receivedCards.filter(c => !c.revealed).length;
+
+  if (loading) return <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}><div style={{ width:32, height:32, border:`3px solid ${C.accent}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} /></div>;
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", padding:"16px" }}>
+      {/* Fejléc */}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:22, fontWeight:800, color:C.text }}>🃏 Kártyák</div>
+        <div style={{ color:C.muted, fontSize:13, marginTop:4 }}>Küldj névtelen bókokat a közeledben lévőknek</div>
+      </div>
+
+      {/* Kiosztás gomb */}
+      <button onClick={() => cardsLeft > 0 ? setSendModal(true) : null}
+        style={{ width:"100%", padding:"16px", borderRadius:18, border:`1px solid ${cardsLeft>0?C.accent:C.border}`, background:cardsLeft>0?C.accentSoft:C.card, cursor:cardsLeft>0?"pointer":"default", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
+        <div style={{ width:48, height:48, borderRadius:14, background:cardsLeft>0?"linear-gradient(135deg,#ff5c5c,#ff8c42)":"rgba(255,255,255,0.05)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>🃏</div>
+        <div style={{ textAlign:"left" }}>
+          <div style={{ color:cardsLeft>0?C.accent:C.muted, fontWeight:700, fontSize:15 }}>{cardsLeft > 0 ? `${cardsLeft} kártya kiosztható ma` : "Ma már elküldted mind a 3 kártyát"}</div>
+          <div style={{ color:C.dim, fontSize:12, marginTop:2 }}>Napi 3 kártya • névtelen küldés</div>
+        </div>
+      </button>
+
+      {/* Kapott kártyák */}
+      <div style={{ marginBottom:12 }}>
+        <div style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>Kapott kártyák {unrevealed > 0 && <span style={{ background:C.accent, color:"#fff", borderRadius:10, padding:"1px 7px", fontSize:10, marginLeft:6 }}>{unrevealed} új</span>}</div>
+        {receivedCards.length === 0 && (
+          <div style={{ textAlign:"center", padding:"40px 20px", color:C.dim }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>🃏</div>
+            <div style={{ fontWeight:700, color:C.muted }}>Még nincs kártyád</div>
+            <div style={{ fontSize:13, marginTop:6 }}>Amikor valaki küld egyet, itt jelenik meg</div>
+          </div>
+        )}
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {receivedCards.map(card => (
+            <div key={card.id} onClick={() => !card.revealed && handleReveal(card)}
+              style={{ borderRadius:18, overflow:"hidden", border:`1px solid ${card.revealed ? "rgba(255,212,59,0.3)" : C.border}`, background:card.revealed ? "linear-gradient(135deg,rgba(255,212,59,0.08),rgba(255,140,66,0.08))" : C.card, cursor:card.revealed?"default":"pointer", transition:"all 0.3s", transform:flipping===card.id?"rotateY(90deg)":"rotateY(0deg)" }}>
+              {card.revealed ? (
+                <div style={{ padding:"18px 16px" }}>
+                  <div style={{ fontSize:11, color:C.yellow, fontWeight:700, marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
+                  <div style={{ fontSize:16, color:C.text, fontWeight:600, marginBottom:14, lineHeight:1.5 }}>"{card.card_text}"</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <img src={card.sender?.photo_url||`https://i.pravatar.cc/80?u=${card.sender?.id}`} style={{ width:36, height:36, borderRadius:"50%", objectFit:"cover", border:`2px solid rgba(255,212,59,0.4)` }} alt="" />
+                    <div>
+                      <div style={{ color:C.text, fontWeight:700, fontSize:13 }}>{card.sender?.name}</div>
+                      <div style={{ color:C.dim, fontSize:11 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding:"18px 16px", display:"flex", alignItems:"center", gap:14 }}>
+                  {/* Kártya hátoldala */}
+                  <div style={{ width:56, height:76, borderRadius:10, background:"linear-gradient(135deg,#1a2340,#0f1520)", border:"1px solid rgba(255,92,92,0.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, position:"relative", overflow:"hidden" }}>
+                    <div style={{ position:"absolute", inset:0, background:"radial-gradient(circle at 30% 30%, rgba(255,92,92,0.15), transparent 60%)" }} />
+                    <span style={{ fontSize:24, position:"relative" }}>🃏</span>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ color:C.text, fontWeight:700, fontSize:14 }}>Új kártya érkezett!</div>
+                    <div style={{ color:C.dim, fontSize:12, marginTop:4 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
+                    <div style={{ marginTop:10, display:"inline-flex", alignItems:"center", gap:6, background:C.accentSoft, border:`1px solid ${C.accent}`, borderRadius:20, padding:"6px 12px" }}>
+                      <span style={{ fontSize:12 }}>👆</span>
+                      <span style={{ color:C.accent, fontSize:12, fontWeight:700 }}>Koppints a felfedéshez</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Küldés modal */}
+      {sendModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,0.85)", display:"flex", flexDirection:"column" }} onClick={e => e.target===e.currentTarget && setSendModal(false)}>
+          <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", padding:"24px 16px", maxHeight:"85vh", overflowY:"auto" }}>
+            <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 20px" }} />
+            {!selectedUser ? (
+              <>
+                <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:16 }}>Kinek küldöd? 🃏</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {nearbyUsers.slice(0,10).map(u => (
+                    <button key={u.id} onClick={() => setSelectedUser(u)} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:14, background:C.card, border:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left" }}>
+                      <img src={u.photo_url||`https://i.pravatar.cc/80?u=${u.id}`} style={{ width:44, height:44, borderRadius:"50%", objectFit:"cover" }} alt="" />
+                      <div><div style={{ color:C.text, fontWeight:700 }}>{u.name}{u.age ? `, ${u.age}` : ""}</div><div style={{ color:C.dim, fontSize:12 }}>A közeledben</div></div>
+                    </button>
+                  ))}
+                  {nearbyUsers.length === 0 && <div style={{ color:C.dim, textAlign:"center", padding:20 }}>Ma már mindenki kapott tőled kártyát</div>}
+                </div>
+              </>
+            ) : !selectedCategory ? (
+              <>
+                <button onClick={() => setSelectedUser(null)} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>← Vissza</button>
+                <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:16 }}>Melyik kategória? ✨</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {Object.keys(COMPLIMENT_CARDS).map(cat => (
+                    <button key={cat} onClick={() => setSelectedCategory(cat)} style={{ padding:"14px 16px", borderRadius:14, background:C.card, border:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left", color:C.text, fontWeight:700, fontSize:15 }}>{cat}</button>
+                  ))}
+                </div>
+              </>
+            ) : !selectedCard ? (
+              <>
+                <button onClick={() => setSelectedCategory(null)} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>← Vissza</button>
+                <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:16 }}>Melyik üzenet? 💌</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {COMPLIMENT_CARDS[selectedCategory].map((text, i) => (
+                    <button key={i} onClick={() => setSelectedCard(text)} style={{ padding:"14px 16px", borderRadius:14, background:C.card, border:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left", color:C.text, fontSize:14, lineHeight:1.5 }}>"{text}"</button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setSelectedCard(null)} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:13, marginBottom:16, padding:0 }}>← Vissza</button>
+                <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:20 }}>Megerősítés 🚀</div>
+                <div style={{ background:C.card, borderRadius:16, padding:16, marginBottom:16, border:`1px solid ${C.border}` }}>
+                  <div style={{ fontSize:11, color:C.yellow, fontWeight:700, marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>{selectedCategory}</div>
+                  <div style={{ color:C.text, fontSize:15, fontWeight:600, lineHeight:1.5 }}>"{selectedCard}"</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, padding:"12px 14px", background:C.card, borderRadius:14, border:`1px solid ${C.border}` }}>
+                  <img src={selectedUser.photo_url||`https://i.pravatar.cc/80?u=${selectedUser.id}`} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover" }} alt="" />
+                  <div>
+                    <div style={{ color:C.text, fontWeight:700 }}>Nekik: {selectedUser.name}</div>
+                    <div style={{ color:C.dim, fontSize:12 }}>Névtelenül küldöd el 🎭</div>
+                  </div>
+                </div>
+                <button onClick={handleSend} disabled={sending} style={{ width:"100%", padding:"16px", borderRadius:16, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:16, cursor:"pointer" }}>
+                  {sending ? "Küldés..." : "🃏 Kártya elküldése"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Felfedés vásárlás modal */}
+      {buyModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }} onClick={e => e.target===e.currentTarget && setBuyModal(false)}>
+          <div style={{ background:C.surface, borderRadius:24, padding:28, width:"100%", maxWidth:360, textAlign:"center" }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>🃏</div>
+            <div style={{ fontWeight:800, fontSize:20, color:C.text, marginBottom:8 }}>{isPro ? "Holnap felfedheted" : "Következő felfedés 2 nap múlva"}</div>
+            <div style={{ color:C.muted, fontSize:14, marginBottom:24 }}>{isPro ? "PRO előfizetőként naponta 1 kártyát fedhetsz fel ingyen." : "Free fiókon 2 naponta 1 felfedés jár ingyen. PRO-val naponta."}</div>
+            <button onClick={() => { setBuyModal(false); }} style={{ width:"100%", padding:"14px", borderRadius:14, border:`1px solid ${C.border}`, background:C.card, color:C.muted, fontWeight:600, fontSize:14, cursor:"pointer" }}>Majd később</button>
+            {!isPro && <button onClick={onUpgrade} style={{ width:"100%", padding:"14px", borderRadius:14, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer", marginTop:10 }}>PRO – napi felfedés 🔑</button>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2279,6 +2535,7 @@ export default function App() {
     await supabase.auth.signOut();
   };
   const unreadCount = matches.filter(m=>m.unread).length;
+  const newCardsCount = 0; // realtime frissítés később bővíthető
 
   if (appState==="loading") return <Shell><div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20 }}><div style={{ width:110,height:110,borderRadius:26,overflow:"hidden",flexShrink:0,animation:"pulse 1.8s ease-in-out infinite" }}><img src="/icon-512.png" alt="NearMatch" style={{ width:"115%",height:"115%",objectFit:"cover",display:"block",marginLeft:"-7.5%",marginTop:"-7.5%" }} /></div><Spinner /></div></Shell>;
   if (appState==="auth") return <Shell><AuthScreen /></Shell>;
@@ -2286,7 +2543,7 @@ export default function App() {
 
   return (
     <Shell>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:C.surface,flexShrink:0 }}>
+      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",paddingTop:"calc(12px + env(safe-area-inset-top))",borderBottom:`1px solid ${C.border}`,background:C.surface,flexShrink:0 }}>
         <div style={{ display:"flex",alignItems:"center",gap:8 }}>
           <span style={{ fontSize:22,fontWeight:900,background:`linear-gradient(135deg,${C.accent},#ff8c42)`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent" }}>NearMatch</span>
           {myProfile?.is_founder && <div style={{ background:"linear-gradient(135deg,#a78bfa,#6366f1)",borderRadius:8,padding:"3px 8px",fontSize:10,color:"#fff",fontWeight:700 }}>FOUNDER</div>}
@@ -2331,13 +2588,14 @@ export default function App() {
 
           {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
+            {tab==="cards" && <CardsScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} session={session} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
           </>
         )}
       </div>
-      {!activeChat && <BottomNav active={tab} setActive={setTab} unreadCount={unreadCount} newLikesCount={newLikesCount} />}
+      {!activeChat && <BottomNav active={tab} setActive={setTab} unreadCount={unreadCount} newLikesCount={newLikesCount} newCardsCount={newCardsCount} />}
     </Shell>
   );
 }
