@@ -387,6 +387,7 @@ function BottomNav({ active, setActive, unreadCount, newLikesCount, newCardsCoun
     { id:"radar", icon:"◎", label:"Radar" },
     { id:"swipe", icon:"♥", label:"Swipe" },
     { id:"cards", icon:"🃏", label:"Kártyák" },
+    { id:"likeok", icon:"🔥", label:"Likeok" },
     { id:"matches", icon:"💬", label:"Matchek" },
     { id:"profile", icon:"👤", label:"Profil" },
   ];
@@ -394,9 +395,10 @@ function BottomNav({ active, setActive, unreadCount, newLikesCount, newCardsCoun
     <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:C.surface, flexShrink:0 }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => setActive(t.id)} style={{ flex:1, padding:"10px 0", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
-          <span style={{ fontSize:18, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
-          <span style={{ fontSize:9, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
+          <span style={{ fontSize:16, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
+          <span style={{ fontSize:8, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
           {t.id==="matches" && unreadCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{unreadCount}</div>)}
+          {t.id==="likeok" && newLikesCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.orange, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{newLikesCount}</div>)}
           {t.id==="cards" && newCardsCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.yellow, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#000", fontWeight:700 }}>{newCardsCount}</div>)}
         </button>
       ))}
@@ -442,11 +444,12 @@ function CardsScreen({ myId, isPro, onUpgrade, session }) {
     // Ma küldött kártyák (receiver_id-k)
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const { data: sent } = await supabase.from("compliment_cards").select("receiver_id").eq("sender_id", myId).gte("created_at", todayStart.toISOString());
-    setSentToday((sent || []).map(s => s.receiver_id));
+    const sentIds = (sent || []).map(s => s.receiver_id);
+    setSentToday(sentIds);
 
     // Közeli userek akiknek még nem küldtünk ma
     const { data: nearby } = await supabase.from("profiles").select("id,name,photo_url,age").neq("id", myId).eq("is_banned", false).limit(30);
-    setNearbyUsers((nearby || []).filter(u => !(sent||[]).map(s=>s.receiver_id).includes(u.id)));
+    setNearbyUsers((nearby || []).filter(u => !sentIds.includes(u.id)));
     setLoading(false);
   };
 
