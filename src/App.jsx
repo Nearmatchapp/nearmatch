@@ -1507,17 +1507,15 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" });
   const startPos = useRef(null);
 
-  useEffect(() => {
+  const loadMyCards = useCallback(async () => {
     if (!myProfile?.id) return;
-    // Kiosztható kártyák betöltése
-    const loadMyCards = async () => {
-      const { data } = await supabase.from("compliment_cards")
-        .select("*").eq("sender_id", myProfile.id).eq("is_mine_to_give", true)
-        .is("given_to", null);
-      setMyCards(data || []);
-    };
-    loadMyCards();
+    const { data } = await supabase.from("compliment_cards")
+      .select("*").eq("sender_id", myProfile.id).eq("is_mine_to_give", true)
+      .is("given_to", null);
+    setMyCards(data || []);
   }, [myProfile?.id]);
+
+  useEffect(() => { loadMyCards(); }, [loadMyCards]);
 
   const slLimit = isPro ? 5 : 1;
   const [slUsed, setSlUsed] = useState(0);
@@ -1736,7 +1734,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   return (
     <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"4px 8px 8px",userSelect:"none",position:"relative" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
       {showFilters && <FilterPanel />}
-      {showCards && <CardsModal myId={myProfile?.id} isPro={isPro} onClose={() => setShowCards(false)} onUpgrade={onUpgrade} onOpenChat={onOpenChat} />}
+      {showCards && <CardsModal myId={myProfile?.id} isPro={isPro} onClose={() => { setShowCards(false); loadMyCards(); }} onUpgrade={onUpgrade} onOpenChat={onOpenChat} />}
 
       {/* Kártya odaadás modal */}
       {giveCardModal && (() => {
@@ -1856,12 +1854,11 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           <button onClick={() => {showLabel("PASS");act("pass");}} style={{ width:56,height:56,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:24,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
           <button onClick={() => {showLabel("LIKE");act("like");}} style={{ width:70,height:70,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",fontSize:30,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accentGlow}` }}>♥</button>
           <button onClick={() => { if(slLeft<=0){setProWallType("superlike");return;} showLabel("SUPER LIKE"); act("superlike"); }} style={{ width:56,height:56,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.12)":C.card,border:`1px solid ${slLeft>0?"#4dabf7":C.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>⭐</button>
-          {myCards.length > 0 && (
-            <button onClick={() => setGiveCardModal(true)} style={{ width:48,height:48,borderRadius:"50%",background:"rgba(255,140,66,0.12)",border:"1px solid rgba(255,140,66,0.4)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative" }}>
-              <NearMatchCard size={0.28} />
-              <div style={{ position:"absolute",top:-4,right:-4,width:16,height:16,borderRadius:"50%",background:C.orange,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",fontWeight:800 }}>{myCards.length}</div>
-            </button>
-          )}
+          <button onClick={() => myCards.length > 0 ? setGiveCardModal(true) : null}
+            style={{ width:48,height:48,borderRadius:"50%",background:myCards.length>0?"rgba(255,140,66,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${myCards.length>0?"rgba(255,140,66,0.4)":C.border}`,cursor:myCards.length>0?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",opacity:myCards.length>0?1:0.3,transition:"all 0.2s" }}>
+            <NearMatchCard size={0.28} />
+            {myCards.length > 0 && <div style={{ position:"absolute",top:-4,right:-4,width:16,height:16,borderRadius:"50%",background:C.orange,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",fontWeight:800 }}>{myCards.length}</div>}
+          </button>
         </div>
       </div>
     </div>
