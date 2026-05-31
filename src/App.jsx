@@ -1959,15 +1959,18 @@ export default function App() {
     setInAppToast({ match, text });
     toastTimerRef.current = setTimeout(() => setInAppToast(null), 4000);
   };
-  const [myLocation, setMyLocation] = useState(null);
+  const [myLocation, setMyLocation] = useState(() => {
+    const cached = localStorage.getItem("myLocation");
+    return cached ? JSON.parse(cached) : null;
+  });
   const [boostActive, setBoostActive] = useState(false);
-  const [lastBoostWeek, setLastBoostWeek] = useState(null);
+  const [lastBoostWeek, setLastBoostWeek] = useState(() => { const s = localStorage.getItem("lastBoostWeek"); return s ? parseInt(s) : null; });
   const [newLikesCount, setNewLikesCount] = useState(0);
 
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const isPro = myProfile?.is_pro||false;
   const boostAvailable = isPro && lastBoostWeek!==getWeekNumber() && !boostActive;
-  const handleBoost = () => { if(!boostAvailable) return; setBoostActive(true); setLastBoostWeek(getWeekNumber()); setTimeout(()=>setBoostActive(false), 10*60*1000); };
+  const handleBoost = () => { if(!boostAvailable) return; const w = getWeekNumber(); setBoostActive(true); setLastBoostWeek(w); localStorage.setItem("lastBoostWeek", w); setTimeout(()=>setBoostActive(false), 10*60*1000); };
 
   const handleBuyBoost = async () => {
     try {
@@ -2045,6 +2048,7 @@ export default function App() {
         const pos = await new Promise((res,rej) => navigator.geolocation.getCurrentPosition(res,rej,{timeout:8000}));
         const { latitude:lat, longitude:lng } = pos.coords;
         setMyLocation({ lat, lng });
+        localStorage.setItem("myLocation", JSON.stringify({ lat, lng }));
         await supabase.from("profiles").update({ lat, lng, last_seen:new Date().toISOString() }).eq("id", session.user.id);
 
         // "Közel voltunk" ellenőrzés – 1km-en belüli aktív userek
