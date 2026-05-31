@@ -653,7 +653,7 @@ function CardsScreen({ myId, isPro, onUpgrade, session }) {
                   <img src={selectedUser.photo_url||`https://i.pravatar.cc/80?u=${selectedUser.id}`} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover" }} alt="" />
                   <div>
                     <div style={{ color:C.text, fontWeight:700 }}>Nekik: {selectedUser.name}</div>
-                    <div style={{ color:C.dim, fontSize:12 }}>Névtelenül küldöd el 🎭</div>
+                    <div style={{ color:C.dim, fontSize:12 }}>Felfedés után látja hogy tőled jött 💌</div>
                   </div>
                 </div>
                 <button onClick={handleSend} disabled={sending} style={{ width:"100%", padding:"16px", borderRadius:16, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:16, cursor:"pointer" }}>
@@ -1311,7 +1311,6 @@ function CardsModal({ myId, isPro, onClose, onUpgrade }) {
     setLoading(false);
   };
 
-  // Éjfélkor generál 3 kártyát ha még nincs mai
   const generateDailyCards = async () => {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const { data: existing } = await supabase.from("compliment_cards")
@@ -1319,16 +1318,16 @@ function CardsModal({ myId, isPro, onClose, onUpgrade }) {
       .gte("created_at", todayStart.toISOString());
     if ((existing||[]).length > 0) return;
 
-    // Generálunk 3 különböző kategóriájú kártyát (semleges szöveg – a küldéskor lesz nemspecifikus)
+    // 3 különböző kategória, minden kategóriából 1 random szöveg (semleges pool)
     const categories = Object.keys(COMPLIMENT_CARDS.other);
-    const shuffledCats = categories.sort(() => Math.random() - 0.5).slice(0, 3);
+    const shuffledCats = [...categories].sort(() => Math.random() - 0.5).slice(0, 3);
     const cards = shuffledCats.map(cat => {
       const texts = COMPLIMENT_CARDS.other[cat];
       const text = texts[Math.floor(Math.random() * texts.length)];
       return { sender_id: myId, receiver_id: myId, card_text: text, category: cat, is_mine_to_give: true };
     });
-    await supabase.from("compliment_cards").insert(cards);
-    loadData();
+    const { error } = await supabase.from("compliment_cards").insert(cards);
+    if (!error) loadData();
   };
 
   useEffect(() => { generateDailyCards(); }, []);
@@ -1705,19 +1704,24 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
             <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 20px" }} />
             <div style={{ fontWeight:800, fontSize:17, color:C.text, marginBottom:6 }}>Melyik kártyát adod oda?</div>
             <div style={{ color:C.dim, fontSize:13, marginBottom:20 }}>
-              {cur?.name} névtelenül kapja meg 🎭
+              {cur?.name} megkapja, és felfedés után látja hogy tőled jött 💌
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {myCards.map(card => (
-                <button key={card.id} onClick={() => handleGiveCard(card)} disabled={givingCard}
-                  style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:16, background:C.card, border:`1px solid rgba(255,140,66,0.3)`, cursor:"pointer", textAlign:"left" }}>
-                  <NearMatchCard size={0.55} />
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:10, color:C.orange, fontWeight:700, marginBottom:4, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
-                    <div style={{ color:C.text, fontSize:13, fontWeight:600, lineHeight:1.4 }}>"{card.card_text}"</div>
-                  </div>
-                </button>
-              ))}
+              {myCards.map(card => {
+                const genderCards = getCardsForGender(cur?.gender);
+                const catTexts = genderCards[card.category] || COMPLIMENT_CARDS.other[card.category] || [];
+                const previewText = catTexts.length > 0 ? catTexts[0] : card.card_text;
+                return (
+                  <button key={card.id} onClick={() => handleGiveCard(card)} disabled={givingCard}
+                    style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:16, background:C.card, border:`1px solid rgba(255,140,66,0.3)`, cursor:"pointer", textAlign:"left" }}>
+                    <NearMatchCard size={0.55} />
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:10, color:C.orange, fontWeight:700, marginBottom:4, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
+                      <div style={{ color:C.text, fontSize:13, fontWeight:600, lineHeight:1.4 }}>"{previewText}"</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
             <button onClick={() => setGiveCardModal(false)} style={{ width:"100%", marginTop:14, padding:"13px", borderRadius:14, border:`1px solid ${C.border}`, background:"none", color:C.muted, fontSize:14, cursor:"pointer" }}>Mégse</button>
           </div>
