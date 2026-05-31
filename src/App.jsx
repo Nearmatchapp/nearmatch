@@ -1307,33 +1307,42 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
     setLoading(false);
   };
 
+  const genLock = useRef(false);
+
   const generateDailyCards = async () => {
-    if (!myId) { console.log("CARDS: no myId"); return; }
-    const todayKey = new Date().toDateString();
-    const lastGenKey = `cardsGenerated_${myId}`;
-    const stored = localStorage.getItem(lastGenKey);
-    console.log("CARDS: todayKey=", todayKey, "stored=", stored);
-    if (stored === todayKey) { console.log("CARDS: already generated today, skip"); return; }
+    if (!myId || genLock.current) return;
+    genLock.current = true;
 
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const { data: existing, error: checkError } = await supabase
-      .from("compliment_cards")
-      .select("id")
-      .eq("sender_id", myId)
-      .eq("is_mine_to_give", true)
-      .gte("created_at", todayStart.toISOString());
+    const lastGenKey = `cardsGeneratedAt_${myId}`;
+    const lastGen = localStorage.getItem(lastGenKey);
+    const now = Date.now();
 
-    console.log("CARDS: existing=", existing, "error=", checkError);
-
-    if (checkError) { console.error("Card check error:", checkError); return; }
-
-    if ((existing||[]).length > 0) {
-      localStorage.setItem(lastGenKey, todayKey);
-      console.log("CARDS: found existing, saved to localStorage");
+    // 24 órán belül generált? Akkor skip
+    if (lastGen && (now - parseInt(lastGen)) < 24 * 60 * 60 * 1000) {
+      genLock.current = false;
       return;
     }
 
-    console.log("CARDS: generating new cards...");
+    // DB ellenőrzés: van-e az elmúlt 24 órában generált kártya
+    const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+    const { data: existing, error: checkError } = await supabase
+      .from("compliment_cards")
+      .select("id, created_at")
+      .eq("sender_id", myId)
+      .eq("is_mine_to_give", true)
+      .gte("created_at", dayAgo.toISOString());
+
+    if (checkError) { console.error("Card check error:", checkError); genLock.current = false; return; }
+
+    if ((existing||[]).length > 0) {
+      // Már van az elmúlt 24 órában – jegyezzük meg a legutóbbi időpontját
+      const latest = Math.max(...existing.map(c => new Date(c.created_at).getTime()));
+      localStorage.setItem(lastGenKey, latest.toString());
+      genLock.current = false;
+      return;
+    }
+
+    // Generálás
     const categories = Object.keys(COMPLIMENT_CARDS.other);
     const shuffledCats = [...categories].sort(() => Math.random() - 0.5).slice(0, 3);
     const cards = shuffledCats.map(cat => {
@@ -1343,11 +1352,13 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
     });
 
     const { error } = await supabase.from("compliment_cards").insert(cards);
-    console.log("CARDS: insert error=", error);
     if (!error) {
-      localStorage.setItem(lastGenKey, todayKey);
+      localStorage.setItem(lastGenKey, now.toString());
       await loadData();
+    } else {
+      console.error("Card insert error:", error);
     }
+    genLock.current = false;
   };
 
   useEffect(() => {
