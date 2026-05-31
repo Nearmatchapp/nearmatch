@@ -382,11 +382,10 @@ function Onboarding({ user, onComplete }) {
 }
 
 // ── BOTTOM NAV ─────────────────────────────────────────
-function BottomNav({ active, setActive, unreadCount, newLikesCount, newCardsCount }) {
+function BottomNav({ active, setActive, unreadCount, newLikesCount }) {
   const tabs = [
     { id:"radar", icon:"◎", label:"Radar" },
     { id:"swipe", icon:"♥", label:"Swipe" },
-    { id:"cards", icon:"🃏", label:"Kártyák" },
     { id:"likeok", icon:"🔥", label:"Likeok" },
     { id:"matches", icon:"💬", label:"Matchek" },
     { id:"profile", icon:"👤", label:"Profil" },
@@ -395,11 +394,10 @@ function BottomNav({ active, setActive, unreadCount, newLikesCount, newCardsCoun
     <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:C.surface, flexShrink:0 }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => setActive(t.id)} style={{ flex:1, padding:"10px 0", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
-          <span style={{ fontSize:16, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
-          <span style={{ fontSize:8, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
+          <span style={{ fontSize:18, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
+          <span style={{ fontSize:9, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
           {t.id==="matches" && unreadCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{unreadCount}</div>)}
           {t.id==="likeok" && newLikesCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.orange, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{newLikesCount}</div>)}
-          {t.id==="cards" && newCardsCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.yellow, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#000", fontWeight:700 }}>{newCardsCount}</div>)}
         </button>
       ))}
     </div>
@@ -1186,6 +1184,261 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
 // ── SWIPE ──────────────────────────────────────────────
 const THRESHOLD = 100;
 
+// ── NEARMATCH CARD SVG ──────────────────────────────────
+function NearMatchCard({ revealed = false, size = 1 }) {
+  const w = 80 * size, h = 110 * size;
+  return (
+    <svg width={w} height={h} viewBox="0 0 80 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cardBg" x1="0" y1="0" x2="80" y2="110" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1a2340" />
+          <stop offset="100%" stopColor="#0d1525" />
+        </linearGradient>
+        <linearGradient id="accentGrad" x1="0" y1="0" x2="80" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ff5c5c" />
+          <stop offset="100%" stopColor="#ff8c42" />
+        </linearGradient>
+        <linearGradient id="shimmer" x1="0" y1="0" x2="80" y2="110" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.08)" />
+          <stop offset="50%" stopColor="rgba(255,255,255,0.02)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0.05)" />
+        </linearGradient>
+      </defs>
+      {/* Alap kártya */}
+      <rect width="80" height="110" rx="10" fill="url(#cardBg)" />
+      <rect width="80" height="110" rx="10" fill="url(#shimmer)" />
+      <rect x="0.5" y="0.5" width="79" height="109" rx="9.5" stroke="rgba(255,92,92,0.25)" strokeWidth="1" />
+      {/* Sarok díszítés */}
+      <rect x="5" y="5" width="14" height="14" rx="3" fill="rgba(255,92,92,0.08)" stroke="rgba(255,92,92,0.2)" strokeWidth="0.5" />
+      <rect x="61" y="91" width="14" height="14" rx="3" fill="rgba(255,92,92,0.08)" stroke="rgba(255,92,92,0.2)" strokeWidth="0.5" transform="rotate(180 68 98)" />
+      {/* NM betűk a sarokban */}
+      <text x="8" y="16" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Georgia,serif">NM</text>
+      <text x="72" y="104" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Georgia,serif" textAnchor="middle" transform="rotate(180 68 98)">NM</text>
+      {/* Középső szív ikon */}
+      <path d="M40 72 C40 72 24 61 24 51 C24 45 28.5 41 34 41 C37 41 39.5 42.5 40 44 C40.5 42.5 43 41 46 41 C51.5 41 56 45 56 51 C56 61 40 72 40 72Z" fill="url(#accentGrad)" opacity="0.9" />
+      {/* Gradient overlay a szíven */}
+      <path d="M40 72 C40 72 24 61 24 51 C24 45 28.5 41 34 41 C37 41 39.5 42.5 40 44 C40.5 42.5 43 41 46 41 C51.5 41 56 45 56 51 C56 61 40 72 40 72Z" fill="rgba(255,255,255,0.1)" />
+      {/* NearMatch szöveg alul */}
+      <text x="40" y="88" fontSize="6" fontWeight="700" fill="rgba(255,255,255,0.4)" fontFamily="Georgia,serif" textAnchor="middle" letterSpacing="1">NEARMATCH</text>
+      {/* Pont díszítés */}
+      <circle cx="40" cy="22" r="2" fill="rgba(255,92,92,0.4)" />
+      <circle cx="35" cy="22" r="1.5" fill="rgba(255,92,92,0.2)" />
+      <circle cx="45" cy="22" r="1.5" fill="rgba(255,92,92,0.2)" />
+    </svg>
+  );
+}
+
+function CardsModal({ myId, isPro, onClose, onUpgrade }) {
+  const [step, setStep] = useState("list"); // list | send_who | send_cat | send_card | confirm
+  const [receivedCards, setReceivedCards] = useState([]);
+  const [nearbyUsers, setNearbyUsers] = useState([]);
+  const [sentToday, setSentToday] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [flipping, setFlipping] = useState(null);
+  const [buyModal, setBuyModal] = useState(false);
+
+  const canReveal = () => {
+    const last = localStorage.getItem(`lastReveal_${myId}`);
+    if (!last) return true;
+    const diff = (Date.now() - parseInt(last)) / (1000 * 60 * 60 * 24);
+    return isPro ? diff >= 1 : diff >= 2;
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    const { data: recv } = await supabase.from("compliment_cards")
+      .select("*, sender:profiles!sender_id(id,name,photo_url)")
+      .eq("receiver_id", myId).order("created_at", { ascending: false });
+    setReceivedCards(recv || []);
+
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const { data: sent } = await supabase.from("compliment_cards")
+      .select("receiver_id").eq("sender_id", myId)
+      .gte("created_at", todayStart.toISOString());
+    const sentIds = (sent || []).map(s => s.receiver_id);
+    setSentToday(sentIds);
+
+    const { data: nearby } = await supabase.from("profiles")
+      .select("id,name,photo_url,age").neq("id", myId)
+      .eq("is_banned", false).limit(50);
+    setNearbyUsers((nearby || []).filter(u => !sentIds.includes(u.id)));
+    setLoading(false);
+  };
+
+  const handleReveal = async (card) => {
+    if (card.revealed) return;
+    if (!canReveal()) { setBuyModal(true); return; }
+    setFlipping(card.id);
+    await supabase.from("compliment_cards").update({ revealed: true, revealed_at: new Date().toISOString() }).eq("id", card.id);
+    localStorage.setItem(`lastReveal_${myId}`, Date.now().toString());
+    setReceivedCards(prev => prev.map(c => c.id === card.id ? { ...c, revealed: true } : c));
+    setTimeout(() => setFlipping(null), 600);
+  };
+
+  const handleSend = async () => {
+    if (!selectedUser || !selectedCard) return;
+    setSending(true);
+    await supabase.from("compliment_cards").insert({ sender_id: myId, receiver_id: selectedUser.id, card_text: selectedCard, category: selectedCategory });
+    setSending(false);
+    setStep("list");
+    setSelectedUser(null); setSelectedCategory(null); setSelectedCard(null);
+    loadData();
+  };
+
+  const cardsLeft = 3 - sentToday.length;
+  const unrevealed = receivedCards.filter(c => !c.revealed).length;
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,0.88)", display:"flex", flexDirection:"column" }} onClick={e => e.target===e.currentTarget && onClose()}>
+      <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", maxHeight:"88vh", display:"flex", flexDirection:"column" }}>
+        {/* Handle */}
+        <div style={{ padding:"12px 16px 0", flexShrink:0 }}>
+          <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 16px" }} />
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+            {step !== "list" ? (
+              <button onClick={() => { if(step==="send_cat") setStep("send_who"); else if(step==="send_card") setStep("send_cat"); else if(step==="confirm") setStep("send_card"); else setStep("list"); }} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:14, fontWeight:600, padding:0 }}>← Vissza</button>
+            ) : <div />}
+            <div style={{ fontWeight:800, fontSize:17, color:C.text }}>
+              {step==="list" && "🃏 Kártyák"}
+              {step==="send_who" && "Kinek küldöd?"}
+              {step==="send_cat" && "Melyik kategória?"}
+              {step==="send_card" && "Melyik üzenet?"}
+              {step==="confirm" && "Megerősítés"}
+            </div>
+            <button onClick={onClose} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:20, padding:0 }}>✕</button>
+          </div>
+        </div>
+
+        <div style={{ overflowY:"auto", padding:"0 16px 32px", flex:1 }}>
+          {loading ? (
+            <div style={{ display:"flex", justifyContent:"center", padding:40 }}><div style={{ width:28, height:28, border:`3px solid ${C.accent}`, borderTopColor:"transparent", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} /></div>
+          ) : step === "list" ? (<>
+            {/* Kiosztás gomb */}
+            <button onClick={() => cardsLeft > 0 ? setStep("send_who") : null}
+              style={{ width:"100%", padding:"14px 16px", borderRadius:16, border:`1px solid ${cardsLeft>0?C.accent:C.border}`, background:cardsLeft>0?C.accentSoft:C.card, cursor:cardsLeft>0?"pointer":"default", marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
+              <NearMatchCard size={0.55} />
+              <div style={{ textAlign:"left" }}>
+                <div style={{ color:cardsLeft>0?C.accent:C.muted, fontWeight:700, fontSize:15 }}>{cardsLeft > 0 ? `${cardsLeft} kártya kiosztható ma` : "Ma mind a 3 kártyát elküldted"}</div>
+                <div style={{ color:C.dim, fontSize:12, marginTop:2 }}>Napi 3 db • névtelen küldés</div>
+              </div>
+            </button>
+
+            {/* Kapott kártyák */}
+            <div style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>
+              Kapott kártyák
+              {unrevealed > 0 && <span style={{ background:C.accent, color:"#fff", borderRadius:10, padding:"1px 7px", fontSize:10, marginLeft:8 }}>{unrevealed} új</span>}
+            </div>
+            {receivedCards.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"40px 20px" }}>
+                <NearMatchCard size={1.2} />
+                <div style={{ fontWeight:700, color:C.muted, marginTop:16 }}>Még nincs kártyád</div>
+                <div style={{ fontSize:13, color:C.dim, marginTop:6 }}>Amikor valaki küld egyet, itt jelenik meg</div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {receivedCards.map(card => (
+                  <div key={card.id} onClick={() => !card.revealed && handleReveal(card)}
+                    style={{ borderRadius:16, overflow:"hidden", border:`1px solid ${card.revealed?"rgba(255,212,59,0.3)":C.border}`, background:card.revealed?"linear-gradient(135deg,rgba(255,212,59,0.07),rgba(255,140,66,0.07))":C.card, cursor:card.revealed?"default":"pointer", opacity:flipping===card.id?0.3:1, transition:"opacity 0.3s" }}>
+                    {card.revealed ? (
+                      <div style={{ padding:"16px" }}>
+                        <div style={{ fontSize:10, color:C.yellow, fontWeight:700, marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
+                        <div style={{ fontSize:15, color:C.text, fontWeight:600, marginBottom:14, lineHeight:1.5 }}>"{card.card_text}"</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <img src={card.sender?.photo_url||`https://i.pravatar.cc/80?u=${card.sender?.id}`} style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,212,59,0.4)" }} alt="" />
+                          <div><div style={{ color:C.text, fontWeight:700, fontSize:13 }}>{card.sender?.name}</div><div style={{ color:C.dim, fontSize:11 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div></div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", gap:14 }}>
+                        <NearMatchCard size={0.6} />
+                        <div style={{ flex:1 }}>
+                          <div style={{ color:C.text, fontWeight:700, fontSize:14 }}>Új kártya érkezett!</div>
+                          <div style={{ color:C.dim, fontSize:12, marginTop:3 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
+                          <div style={{ marginTop:10, display:"inline-flex", alignItems:"center", gap:6, background:C.accentSoft, border:`1px solid rgba(255,92,92,0.3)`, borderRadius:20, padding:"5px 12px" }}>
+                            <span style={{ color:C.accent, fontSize:12, fontWeight:700 }}>👆 Koppints a felfedéshez</span>
+                          </div>
+                          <div style={{ color:C.dim, fontSize:11, marginTop:6 }}>{isPro ? "PRO: napi 1 ingyenes" : "2 naponta 1 ingyenes"}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>) : step === "send_who" ? (
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {nearbyUsers.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"40px 20px", color:C.dim }}>
+                  <div style={{ fontSize:13 }}>Ma már mindenki kapott tőled kártyát, vagy nincs elegendő felhasználó a közeledben</div>
+                </div>
+              ) : nearbyUsers.slice(0,15).map(u => (
+                <button key={u.id} onClick={() => { setSelectedUser(u); setStep("send_cat"); }}
+                  style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:14, background:C.card, border:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left" }}>
+                  <img src={u.photo_url||`https://i.pravatar.cc/80?u=${u.id}`} style={{ width:44, height:44, borderRadius:"50%", objectFit:"cover" }} alt="" />
+                  <div><div style={{ color:C.text, fontWeight:700 }}>{u.name}{u.age?`, ${u.age}`:""}</div><div style={{ color:C.dim, fontSize:12 }}>Kártya küldése</div></div>
+                </button>
+              ))}
+            </div>
+          ) : step === "send_cat" ? (
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {Object.keys(COMPLIMENT_CARDS).map(cat => (
+                <button key={cat} onClick={() => { setSelectedCategory(cat); setStep("send_card"); }}
+                  style={{ padding:"16px", borderRadius:14, background:C.card, border:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left", color:C.text, fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:12 }}>
+                  <span style={{ fontSize:24 }}>{cat.split(" ")[0]}</span>
+                  <span>{cat.split(" ").slice(1).join(" ")}</span>
+                </button>
+              ))}
+            </div>
+          ) : step === "send_card" ? (
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {COMPLIMENT_CARDS[selectedCategory].map((text, i) => (
+                <button key={i} onClick={() => { setSelectedCard(text); setStep("confirm"); }}
+                  style={{ padding:"14px 16px", borderRadius:14, background:C.card, border:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left", color:C.text, fontSize:14, lineHeight:1.5 }}>
+                  "{text}"
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:20 }}><NearMatchCard size={1.4} /></div>
+              <div style={{ background:C.card, borderRadius:16, padding:16, marginBottom:16, border:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:10, color:C.yellow, fontWeight:700, marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>{selectedCategory}</div>
+                <div style={{ color:C.text, fontSize:15, fontWeight:600, lineHeight:1.5 }}>"{selectedCard}"</div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, padding:"12px 14px", background:C.card, borderRadius:14, border:`1px solid ${C.border}` }}>
+                <img src={selectedUser?.photo_url||`https://i.pravatar.cc/80?u=${selectedUser?.id}`} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover" }} alt="" />
+                <div><div style={{ color:C.text, fontWeight:700 }}>Nekik: {selectedUser?.name}</div><div style={{ color:C.dim, fontSize:12 }}>🎭 Névtelenül küldöd el</div></div>
+              </div>
+              <button onClick={handleSend} disabled={sending}
+                style={{ width:"100%", padding:"16px", borderRadius:16, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:16, cursor:"pointer" }}>
+                {sending ? "Küldés..." : "🃏 Kártya elküldése"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {buyModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:600, background:"rgba(0,0,0,0.9)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }} onClick={e => e.target===e.currentTarget && setBuyModal(false)}>
+          <div style={{ background:C.surface, borderRadius:24, padding:28, width:"100%", maxWidth:340, textAlign:"center" }}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:16 }}><NearMatchCard size={1.2} /></div>
+            <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:8 }}>{isPro ? "Holnap felfedheted" : "Következő felfedés 2 nap múlva"}</div>
+            <div style={{ color:C.muted, fontSize:13, marginBottom:24 }}>{isPro ? "PRO-val naponta 1 felfedés jár ingyen." : "Free fiókon 2 naponta 1 ingyenes. PRO-val naponta."}</div>
+            <button onClick={() => setBuyModal(false)} style={{ width:"100%", padding:"13px", borderRadius:14, border:`1px solid ${C.border}`, background:C.card, color:C.muted, fontWeight:600, fontSize:14, cursor:"pointer", marginBottom:10 }}>Majd később</button>
+            {!isPro && <button onClick={() => { setBuyModal(false); onUpgrade(); }} style={{ width:"100%", padding:"13px", borderRadius:14, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer" }}>⚡ PRO – napi felfedés</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpgrade }) {
   const [idx, setIdx] = useState(0);
   const [history, setHistory] = useState([]);
@@ -1195,6 +1448,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const [actionLabel, setActionLabel] = useState(null);
   const [proWallType, setProWallType] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showCards, setShowCards] = useState(false);
   const [filters, setFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" });
   const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" });
   const startPos = useRef(null);
@@ -1397,8 +1651,13 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   return (
     <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"4px 8px 8px",userSelect:"none",position:"relative" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
       {showFilters && <FilterPanel />}
-      {/* Szűrő gomb */}
-      <div style={{ display:"flex",justifyContent:"flex-end",marginBottom:6,flexShrink:0 }}>
+      {showCards && <CardsModal myId={myProfile?.id} isPro={isPro} onClose={() => setShowCards(false)} onUpgrade={onUpgrade} />}
+      {/* Gombok sor */}
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexShrink:0 }}>
+        <button onClick={() => setShowCards(true)} style={{ display:"flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:20,border:`1px solid rgba(255,92,92,0.3)`,background:"rgba(255,92,92,0.08)",color:C.accent,cursor:"pointer",fontSize:13,fontWeight:600 }}>
+          <NearMatchCard size={0.28} />
+          Kártyák
+        </button>
         <button onClick={() => setShowFilters(true)} style={{ display:"flex",alignItems:"center",gap:7,padding:"8px 16px",borderRadius:20,border:`1px solid ${isFiltered?C.accent:C.border}`,background:isFiltered?C.accentSoft:C.card,color:isFiltered?C.accent:C.muted,cursor:"pointer",fontSize:13,fontWeight:600 }}>
           <FilterIcon active={isFiltered} />
           Szűrők {isFiltered && <span style={{ width:6,height:6,borderRadius:"50%",background:C.accent,display:"inline-block" }} />}
@@ -2591,14 +2850,13 @@ export default function App() {
 
           {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
-            {tab==="cards" && <CardsScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} session={session} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
           </>
         )}
       </div>
-      {!activeChat && <BottomNav active={tab} setActive={setTab} unreadCount={unreadCount} newLikesCount={newLikesCount} newCardsCount={newCardsCount} />}
+      {!activeChat && <BottomNav active={tab} setActive={setTab} unreadCount={unreadCount} newLikesCount={newLikesCount} />}
     </Shell>
   );
 }
