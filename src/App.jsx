@@ -1308,13 +1308,19 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
   };
 
   const generateDailyCards = async () => {
+    const todayKey = new Date().toDateString();
+    const lastGenKey = `cardsGenerated_${myId}`;
+    if (localStorage.getItem(lastGenKey) === todayKey) return; // már generált ma
+
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const { data: existing } = await supabase.from("compliment_cards")
       .select("id").eq("sender_id", myId).eq("is_mine_to_give", true)
       .gte("created_at", todayStart.toISOString());
-    if ((existing||[]).length > 0) return;
+    if ((existing||[]).length > 0) {
+      localStorage.setItem(lastGenKey, todayKey); // már van, jegyezzük meg
+      return;
+    }
 
-    // 3 különböző kategória, minden kategóriából 1 random szöveg (semleges pool)
     const categories = Object.keys(COMPLIMENT_CARDS.other);
     const shuffledCats = [...categories].sort(() => Math.random() - 0.5).slice(0, 3);
     const cards = shuffledCats.map(cat => {
@@ -1323,7 +1329,10 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
       return { sender_id: myId, receiver_id: myId, card_text: text, category: cat, is_mine_to_give: true };
     });
     const { error } = await supabase.from("compliment_cards").insert(cards);
-    if (!error) loadData();
+    if (!error) {
+      localStorage.setItem(lastGenKey, todayKey);
+      loadData();
+    }
   };
 
   useEffect(() => { generateDailyCards(); }, []);
