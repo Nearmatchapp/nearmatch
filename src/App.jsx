@@ -1273,7 +1273,8 @@ function NearMatchCard({ size = 1 }) {
   );
 }
 
-function CardsModal({ myId, isPro, onClose, onUpgrade }) {
+function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
+  const [profileModal, setProfileModal] = useState(null);
   const [myCards, setMyCards] = useState([]); // kártyák amiket én kioszthatom
   const [receivedCards, setReceivedCards] = useState([]); // kártyák amiket kaptam
   const [loading, setLoading] = useState(true);
@@ -1396,12 +1397,16 @@ function CardsModal({ myId, isPro, onClose, onUpgrade }) {
                       <div style={{ padding:"16px" }}>
                         <div style={{ fontSize:10, color:C.yellow, fontWeight:700, marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
                         <div style={{ fontSize:15, color:C.text, fontWeight:600, marginBottom:14, lineHeight:1.5 }}>"{card.card_text}"</div>
-                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                          <img src={card.sender?.photo_url||`https://i.pravatar.cc/80?u=${card.sender?.id}`} style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,212,59,0.4)" }} alt="" />
+                        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                          <img src={card.sender?.photo_url||`https://i.pravatar.cc/80?u=${card.sender?.id}`} style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,212,59,0.4)", cursor:"pointer" }} alt="" onClick={() => setProfileModal(card.sender)} />
                           <div>
                             <div style={{ color:C.text, fontWeight:700, fontSize:13 }}>{card.sender?.name}</div>
                             <div style={{ color:C.dim, fontSize:11 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
                           </div>
+                        </div>
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button onClick={() => setProfileModal(card.sender)} style={{ flex:1, padding:"9px", borderRadius:12, border:`1px solid ${C.border}`, background:C.card, color:C.text, fontSize:13, fontWeight:600, cursor:"pointer" }}>👤 Profil</button>
+                          <button onClick={() => { onOpenChat && onOpenChat(card.sender); onClose(); }} style={{ flex:1, padding:"9px", borderRadius:12, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>💬 Üzenet</button>
                         </div>
                       </div>
                     ) : (
@@ -1436,11 +1441,30 @@ function CardsModal({ myId, isPro, onClose, onUpgrade }) {
           </div>
         </div>
       )}
+
+      {profileModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.92)", display:"flex", flexDirection:"column" }} onClick={e => e.target===e.currentTarget && setProfileModal(null)}>
+          <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", padding:"24px 16px 40px", maxHeight:"70vh", overflowY:"auto" }}>
+            <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 20px" }} />
+            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
+              <img src={profileModal.photo_url||`https://i.pravatar.cc/120?u=${profileModal.id}`} style={{ width:70, height:70, borderRadius:"50%", objectFit:"cover", border:`3px solid rgba(255,212,59,0.4)` }} alt="" />
+              <div>
+                <div style={{ fontSize:22, fontWeight:800, color:C.text }}>{profileModal.name}</div>
+                {profileModal.age && <div style={{ color:C.muted, fontSize:14 }}>{profileModal.age} éves</div>}
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setProfileModal(null)} style={{ flex:1, padding:"13px", borderRadius:14, border:`1px solid ${C.border}`, background:C.card, color:C.muted, fontSize:14, cursor:"pointer" }}>Bezárás</button>
+              <button onClick={() => { onOpenChat && onOpenChat(profileModal); onClose(); }} style={{ flex:2, padding:"13px", borderRadius:14, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer" }}>💬 Üzenet küldése</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpgrade }) {
+function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpgrade, onOpenChat }) {
   const [idx, setIdx] = useState(0);
   const [history, setHistory] = useState([]);
   const [cardPage, setCardPage] = useState(0);
@@ -1686,7 +1710,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   return (
     <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"4px 8px 8px",userSelect:"none",position:"relative" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
       {showFilters && <FilterPanel />}
-      {showCards && <CardsModal myId={myProfile?.id} isPro={isPro} onClose={() => setShowCards(false)} onUpgrade={onUpgrade} />}
+      {showCards && <CardsModal myId={myProfile?.id} isPro={isPro} onClose={() => setShowCards(false)} onUpgrade={onUpgrade} onOpenChat={onOpenChat} />}
 
       {/* Kártya odaadás modal */}
       {giveCardModal && (() => {
@@ -2924,7 +2948,7 @@ export default function App() {
           )}
 
           {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
-            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
+            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={(sender) => { const m = matches.find(x => x.other?.id === sender?.id); if(m){ setActiveChat(m); setTab("matches"); } }} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
