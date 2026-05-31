@@ -1194,36 +1194,26 @@ function NearMatchCard({ revealed = false, size = 1 }) {
           <stop offset="0%" stopColor="#1a2340" />
           <stop offset="100%" stopColor="#0d1525" />
         </linearGradient>
-        <linearGradient id="accentGrad" x1="0" y1="0" x2="80" y2="0" gradientUnits="userSpaceOnUse">
+        <linearGradient id="accentGrad" x1="24" y1="41" x2="56" y2="72" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#ff5c5c" />
           <stop offset="100%" stopColor="#ff8c42" />
         </linearGradient>
-        <linearGradient id="shimmer" x1="0" y1="0" x2="80" y2="110" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.08)" />
-          <stop offset="50%" stopColor="rgba(255,255,255,0.02)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0.05)" />
-        </linearGradient>
       </defs>
-      {/* Alap kártya */}
+      {/* Alap */}
       <rect width="80" height="110" rx="10" fill="url(#cardBg)" />
-      <rect width="80" height="110" rx="10" fill="url(#shimmer)" />
-      <rect x="0.5" y="0.5" width="79" height="109" rx="9.5" stroke="rgba(255,92,92,0.25)" strokeWidth="1" />
-      {/* Sarok díszítés */}
-      <rect x="5" y="5" width="14" height="14" rx="3" fill="rgba(255,92,92,0.08)" stroke="rgba(255,92,92,0.2)" strokeWidth="0.5" />
-      <rect x="61" y="91" width="14" height="14" rx="3" fill="rgba(255,92,92,0.08)" stroke="rgba(255,92,92,0.2)" strokeWidth="0.5" transform="rotate(180 68 98)" />
-      {/* NM betűk a sarokban */}
-      <text x="8" y="16" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Georgia,serif">NM</text>
-      <text x="72" y="104" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Georgia,serif" textAnchor="middle" transform="rotate(180 68 98)">NM</text>
-      {/* Középső szív ikon */}
-      <path d="M40 72 C40 72 24 61 24 51 C24 45 28.5 41 34 41 C37 41 39.5 42.5 40 44 C40.5 42.5 43 41 46 41 C51.5 41 56 45 56 51 C56 61 40 72 40 72Z" fill="url(#accentGrad)" opacity="0.9" />
-      {/* Gradient overlay a szíven */}
-      <path d="M40 72 C40 72 24 61 24 51 C24 45 28.5 41 34 41 C37 41 39.5 42.5 40 44 C40.5 42.5 43 41 46 41 C51.5 41 56 45 56 51 C56 61 40 72 40 72Z" fill="rgba(255,255,255,0.1)" />
-      {/* NearMatch szöveg alul */}
-      <text x="40" y="88" fontSize="6" fontWeight="700" fill="rgba(255,255,255,0.4)" fontFamily="Georgia,serif" textAnchor="middle" letterSpacing="1">NEARMATCH</text>
-      {/* Pont díszítés */}
-      <circle cx="40" cy="22" r="2" fill="rgba(255,92,92,0.4)" />
-      <circle cx="35" cy="22" r="1.5" fill="rgba(255,92,92,0.2)" />
-      <circle cx="45" cy="22" r="1.5" fill="rgba(255,92,92,0.2)" />
+      <rect x="0.5" y="0.5" width="79" height="109" rx="9.5" stroke="rgba(255,92,92,0.3)" strokeWidth="1" />
+      {/* Belső keret */}
+      <rect x="5" y="5" width="70" height="100" rx="7" stroke="rgba(255,92,92,0.12)" strokeWidth="0.5" />
+      {/* Bal felső NM */}
+      <text x="9" y="17" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif">NM</text>
+      {/* Jobb alsó NM (forgatva) */}
+      <g transform="rotate(180, 40, 55)">
+        <text x="9" y="17" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif">NM</text>
+      </g>
+      {/* Szív */}
+      <path d="M40 70 C40 70 24 59 24 49 C24 43 28.5 39 34 39 C37 39 39.5 40.5 40 42 C40.5 40.5 43 39 46 39 C51.5 39 56 43 56 49 C56 59 40 70 40 70Z" fill="url(#accentGrad)" />
+      {/* NEARMATCH szöveg */}
+      <text x="40" y="86" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,0.35)" fontFamily="Arial,sans-serif" textAnchor="middle" letterSpacing="1.5">NEARMATCH</text>
     </svg>
   );
 }
@@ -1266,7 +1256,7 @@ function CardsModal({ myId, isPro, onClose, onUpgrade }) {
 
     const { data: nearby } = await supabase.from("profiles")
       .select("id,name,photo_url,age").neq("id", myId)
-      .eq("is_banned", false).limit(50);
+      .limit(50);
     setNearbyUsers((nearby || []).filter(u => !sentIds.includes(u.id)));
     setLoading(false);
   };
