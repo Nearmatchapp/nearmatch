@@ -1903,6 +1903,10 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
               <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8 }}>🚬 Dohányzás</label>
               <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{SMOKING_OPTIONS.map(opt => (<button key={opt} onClick={() => setDraft(d=>({...d,smoking:opt}))} style={{ padding:"7px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:`1px solid ${draft.smoking===opt?C.accent:C.border}`,background:draft.smoking===opt?C.accentSoft:C.card,color:draft.smoking===opt?C.accent:C.muted }}>{opt}</button>))}</div>
             </div>
+            <div>
+              <label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:8 }}>💍 Mit keresel?</label>
+              <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{LOOKING_FOR_OPTIONS.map(x => (<button key={x.l} onClick={() => setDraft(d=>({...d,looking_for:d.looking_for===x.l?"":x.l}))} style={{ padding:"7px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:`1px solid ${draft.looking_for===x.l?C.accent:C.border}`,background:draft.looking_for===x.l?C.accentSoft:C.card,color:draft.looking_for===x.l?C.accent:C.muted }}>{x.i} {x.l}</button>))}</div>
+            </div>
           </div>
         ) : (
           <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
