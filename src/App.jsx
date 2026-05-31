@@ -1963,14 +1963,33 @@ export default function App() {
     const cached = localStorage.getItem("myLocation");
     return cached ? JSON.parse(cached) : null;
   });
-  const [boostActive, setBoostActive] = useState(false);
+  const [boostActive, setBoostActive] = useState(() => {
+    const boostEnd = localStorage.getItem("boostEnd");
+    if (boostEnd && Date.now() < parseInt(boostEnd)) return true;
+    return false;
+  });
+  const boostTimerRef = useRef(null);
+
+  useEffect(() => {
+    const boostEnd = localStorage.getItem("boostEnd");
+    if (boostEnd) {
+      const remaining = parseInt(boostEnd) - Date.now();
+      if (remaining > 0) {
+        boostTimerRef.current = setTimeout(() => { setBoostActive(false); localStorage.removeItem("boostEnd"); }, remaining);
+      } else {
+        setBoostActive(false);
+        localStorage.removeItem("boostEnd");
+      }
+    }
+    return () => { if (boostTimerRef.current) clearTimeout(boostTimerRef.current); };
+  }, []);
   const [lastBoostWeek, setLastBoostWeek] = useState(() => { const s = localStorage.getItem("lastBoostWeek"); return s ? parseInt(s) : null; });
   const [newLikesCount, setNewLikesCount] = useState(0);
 
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const isPro = myProfile?.is_pro||false;
   const boostAvailable = isPro && lastBoostWeek!==getWeekNumber() && !boostActive;
-  const handleBoost = () => { if(!boostAvailable) return; const w = getWeekNumber(); setBoostActive(true); setLastBoostWeek(w); localStorage.setItem("lastBoostWeek", w); setTimeout(()=>setBoostActive(false), 10*60*1000); };
+  const handleBoost = () => { if(!boostAvailable) return; const w = getWeekNumber(); const end = Date.now() + 10*60*1000; setBoostActive(true); setLastBoostWeek(w); localStorage.setItem("lastBoostWeek", w); localStorage.setItem("boostEnd", end); if(boostTimerRef.current) clearTimeout(boostTimerRef.current); boostTimerRef.current = setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); };
 
   const handleBuyBoost = async () => {
     try {
@@ -2001,7 +2020,7 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("pro") === "success") { setMyProfile(p => p ? {...p, is_pro: true} : p); window.history.replaceState({}, "", window.location.pathname); }
-    if (params.get("boost") === "success") { setBoostActive(true); setTimeout(()=>setBoostActive(false), 10*60*1000); window.history.replaceState({}, "", window.location.pathname); }
+    if (params.get("boost") === "success") { const end = Date.now() + 10*60*1000; setBoostActive(true); localStorage.setItem("boostEnd", end); setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); window.history.replaceState({}, "", window.location.pathname); }
   }, []);
 
   useEffect(() => {
