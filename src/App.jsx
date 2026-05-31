@@ -1293,9 +1293,10 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
   const loadData = async () => {
     setLoading(true);
     // Kártyák amiket én kioszthatom (is_mine_to_give = true, még nem adtam oda)
-    const { data: mine } = await supabase.from("compliment_cards")
+    const { data: mine, error: mineErr } = await supabase.from("compliment_cards")
       .select("*").eq("sender_id", myId).eq("is_mine_to_give", true)
       .is("given_to", null).order("created_at", { ascending: false });
+    console.log("LOADDATA mine=", mine, "err=", mineErr);
     setMyCards(mine || []);
 
     // Kártyák amiket kaptam (valaki nekem adta)
