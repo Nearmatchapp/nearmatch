@@ -40,43 +40,103 @@ const EDU_OPTIONS = ["Középiskola","Szakképzés","Főiskola / BA","Egyetem / 
 const SMOKING_OPTIONS = ["Nem dohányzik","Alkalmanként","Rendszeresen","Leszokott"];
 
 const COMPLIMENT_CARDS = {
-  "💫 Megjelenés": [
-    "Te vagy ma a legszebb lány, akit láttam",
-    "Te vagy ma a legszebb fiú, akit láttam",
-    "A mosolyod feldobta a napom",
-    "A szemed teljesen lenyűgözött",
-    "Olyan kisugárzásod van, amit nem lehet figyelmen kívül hagyni",
-    "Te vagy a legsármosabb ember ma a közelemben",
-    "A fotóid között nem tudtam melyiket nézzem tovább",
-    "Olyan természetes szépséged van, ami ritkaság",
-  ],
-  "👗 Stílus": [
-    "Ma a te outfited a legjobb, amit láttam",
-    "A stílusod teljesen egyedi és imádom",
-    "Pontosan tudod hogyan kell öltözni",
-    "Az összeállításod chef's kiss 🤌",
-    "A stílusod annyira magabiztos – imponáló",
-    "Olyan ízlésed van, ami azonnali figyelmet kelt",
-    "A vibes-od már a fotókból átjön",
-  ],
-  "✨ Személyiség": [
-    "A bio-d alapján azonnal szimpatikus vagy",
-    "Olyan embernek tűnsz akivel soha nem unatkozna az ember",
-    "Az érdeklődési köreid alapján teljesen összeillünk",
-    "Valami azt súgja nekem, hogy nagyon jó a humorod",
-    "Az a fajta energia árad belőled, ami magával ragad",
-    "Szerintem te vagy a legjobb hallgatóság a közelemben",
-    "Úgy érzem, veled mindig lehetne miről beszélni",
-  ],
-  "❤️ Romantikus": [
-    "Rád gondoltam mielőtt erre az appra nyitottam",
-    "Szerintem egy randi veled élmény lenne",
-    "Ha közelebb lennénk, mindenképp megszólítanálak",
-    "Valami azt mondja, hogy te lehetnél ma a legszebb ismeretségem",
-    "Azt kívánom, bárcsak hamarabb találkoztunk volna",
-    "Egy kávé veled – ez ma az én álmom",
-    "Ha a sors összehozott volna, nem engedtelek volna el",
-  ],
+  female: {
+    "💫 Megjelenés": [
+      "Te vagy ma a legszebb lány, akit láttam",
+      "A mosolyod feldobta a napom",
+      "A szemed teljesen lenyűgözött",
+      "Olyan természetes szépséged van, ami ritkaság",
+      "Olyan kisugárzásod van, amit nem lehet figyelmen kívül hagyni",
+      "Te vagy a legsármosabb lány ma a közelemben",
+    ],
+    "👗 Stílus": [
+      "Ma a te outfited a legjobb, amit láttam",
+      "A stílusod teljesen egyedi és imádom",
+      "Pontosan tudod hogyan kell öltözni",
+      "Az összeállításod chef's kiss 🤌",
+      "A vibes-od már a fotókból átjön",
+      "Olyan ízlésed van, ami azonnali figyelmet kelt",
+    ],
+    "✨ Személyiség": [
+      "A bio-d alapján azonnal szimpatikus vagy",
+      "Olyan lánynak tűnsz akivel soha nem unatkozna az ember",
+      "Az érdeklődési köreid alapján teljesen összeillünk",
+      "Az a fajta energia árad belőled, ami magával ragad",
+      "Úgy érzem, veled mindig lehetne miről beszélni",
+    ],
+    "❤️ Romantikus": [
+      "Rád gondoltam mielőtt erre az appra nyitottam",
+      "Szerintem egy randi veled élmény lenne",
+      "Ha közelebb lennénk, mindenképp megszólítanálak",
+      "Egy kávé veled – ez ma az én álmom",
+      "Azt kívánom, bárcsak hamarabb találkoztunk volna",
+    ],
+  },
+  male: {
+    "💫 Megjelenés": [
+      "Te vagy ma a legszebb fiú, akit láttam",
+      "A mosolyod feldobta a napom",
+      "A szemed teljesen lenyűgözött",
+      "Olyan természetes kisugárzásod van, ami ritkaság",
+      "Olyan magabiztosság árad belőled, amit nem lehet figyelmen kívül hagyni",
+      "Te vagy a legsármosabb fiú ma a közelemben",
+    ],
+    "👗 Stílus": [
+      "Ma a te outfited a legjobb, amit láttam",
+      "A stílusod teljesen egyedi és imádom",
+      "Pontosan tudod hogyan kell öltözni",
+      "Az összeállításod chef's kiss 🤌",
+      "A vibes-od már a fotókból átjön",
+      "Olyan ízlésed van, ami azonnali figyelmet kelt",
+    ],
+    "✨ Személyiség": [
+      "A bio-d alapján azonnal szimpatikus vagy",
+      "Olyan fickónak tűnsz akivel soha nem unatkozna az ember",
+      "Az érdeklődési köreid alapján teljesen összeillünk",
+      "Az a fajta energia árad belőled, ami magával ragad",
+      "Úgy érzem, veled mindig lehetne miről beszélni",
+    ],
+    "❤️ Romantikus": [
+      "Rád gondoltam mielőtt erre az appra nyitottam",
+      "Szerintem egy randi veled élmény lenne",
+      "Ha közelebb lennénk, mindenképp megszólítanálak",
+      "Egy kávé veled – ez ma az én álmom",
+      "Azt kívánom, bárcsak hamarabb találkoztunk volna",
+    ],
+  },
+  other: {
+    "💫 Megjelenés": [
+      "Te vagy ma a legsugárzóbb ember, akit láttam",
+      "A mosolyod feldobta a napom",
+      "A szemed teljesen lenyűgözött",
+      "Olyan természetes szépséged van, ami ritkaság",
+      "Olyan kisugárzásod van, amit nem lehet figyelmen kívül hagyni",
+    ],
+    "👗 Stílus": [
+      "Ma a te outfited a legjobb, amit láttam",
+      "A stílusod teljesen egyedi és imádom",
+      "Az összeállításod chef's kiss 🤌",
+      "A vibes-od már a fotókból átjön",
+    ],
+    "✨ Személyiség": [
+      "A bio-d alapján azonnal szimpatikus vagy",
+      "Olyan embernek tűnsz akivel soha nem unatkozna az ember",
+      "Az érdeklődési köreid alapján teljesen összeillünk",
+      "Úgy érzem, veled mindig lehetne miről beszélni",
+    ],
+    "❤️ Romantikus": [
+      "Rád gondoltam mielőtt erre az appra nyitottam",
+      "Szerintem egy randi veled élmény lenne",
+      "Egy kávé veled – ez ma az én álmom",
+      "Azt kívánom, bárcsak hamarabb találkoztunk volna",
+    ],
+  },
+};
+
+const getCardsForGender = (gender) => {
+  if (gender === "Nő" || gender === "female") return COMPLIMENT_CARDS.female;
+  if (gender === "Férfi" || gender === "male") return COMPLIMENT_CARDS.male;
+  return COMPLIMENT_CARDS.other;
 };
 
 function distanceKm(lat1, lng1, lat2, lng2) {
@@ -1258,13 +1318,16 @@ function CardsModal({ myId, isPro, onClose, onUpgrade }) {
       .select("id").eq("sender_id", myId).eq("is_mine_to_give", true)
       .gte("created_at", todayStart.toISOString());
     if ((existing||[]).length > 0) return;
-    const allCards = Object.entries(COMPLIMENT_CARDS).flatMap(([cat, texts]) => texts.map(t => ({ cat, t })));
-    const shuffled = allCards.sort(() => Math.random() - 0.5).slice(0, 3);
-    await supabase.from("compliment_cards").insert(shuffled.map(c => ({
-      sender_id: myId, receiver_id: myId,
-      card_text: c.t, category: c.cat,
-      is_mine_to_give: true
-    })));
+
+    // Generálunk 3 különböző kategóriájú kártyát (semleges szöveg – a küldéskor lesz nemspecifikus)
+    const categories = Object.keys(COMPLIMENT_CARDS.other);
+    const shuffledCats = categories.sort(() => Math.random() - 0.5).slice(0, 3);
+    const cards = shuffledCats.map(cat => {
+      const texts = COMPLIMENT_CARDS.other[cat];
+      const text = texts[Math.floor(Math.random() * texts.length)];
+      return { sender_id: myId, receiver_id: myId, card_text: text, category: cat, is_mine_to_give: true };
+    });
+    await supabase.from("compliment_cards").insert(cards);
     loadData();
   };
 
@@ -1604,11 +1667,15 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const handleGiveCard = async (card) => {
     if (!cur || givingCard) return;
     setGivingCard(true);
-    // Kártya átadása: új sor a receiver_id-vel, az eredeti törlése
+    // Nemspecifikus szöveg kiválasztása a célszemély neme alapján
+    const genderCards = getCardsForGender(cur.gender);
+    const catTexts = genderCards[card.category] || COMPLIMENT_CARDS.other[card.category] || [];
+    const genderText = catTexts.length > 0 ? catTexts[Math.floor(Math.random() * catTexts.length)] : card.card_text;
+
     await supabase.from("compliment_cards").insert({
       sender_id: myProfile.id,
       receiver_id: cur.id,
-      card_text: card.card_text,
+      card_text: genderText,
       category: card.category,
       is_mine_to_give: false,
     });
