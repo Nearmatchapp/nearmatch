@@ -1308,19 +1308,28 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
   };
 
   const generateDailyCards = async () => {
+    if (!myId) return;
     const todayKey = new Date().toDateString();
     const lastGenKey = `cardsGenerated_${myId}`;
-    if (localStorage.getItem(lastGenKey) === todayKey) return; // már generált ma
+    if (localStorage.getItem(lastGenKey) === todayKey) return;
 
+    // Dupla-ellenőrzés: DB-ben is megnézzük
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const { data: existing } = await supabase.from("compliment_cards")
-      .select("id").eq("sender_id", myId).eq("is_mine_to_give", true)
+    const { data: existing, error: checkError } = await supabase
+      .from("compliment_cards")
+      .select("id")
+      .eq("sender_id", myId)
+      .eq("is_mine_to_give", true)
       .gte("created_at", todayStart.toISOString());
+
+    if (checkError) { console.error("Card check error:", checkError); return; }
+
     if ((existing||[]).length > 0) {
-      localStorage.setItem(lastGenKey, todayKey); // már van, jegyezzük meg
+      localStorage.setItem(lastGenKey, todayKey);
       return;
     }
 
+    // Generálás – 3 különböző kategória
     const categories = Object.keys(COMPLIMENT_CARDS.other);
     const shuffledCats = [...categories].sort(() => Math.random() - 0.5).slice(0, 3);
     const cards = shuffledCats.map(cat => {
@@ -1328,14 +1337,19 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
       const text = texts[Math.floor(Math.random() * texts.length)];
       return { sender_id: myId, receiver_id: myId, card_text: text, category: cat, is_mine_to_give: true };
     });
+
     const { error } = await supabase.from("compliment_cards").insert(cards);
     if (!error) {
       localStorage.setItem(lastGenKey, todayKey);
-      loadData();
+      await loadData();
+    } else {
+      console.error("Card insert error:", error);
     }
   };
 
-  useEffect(() => { generateDailyCards(); }, []);
+  useEffect(() => {
+    if (myId) generateDailyCards();
+  }, [myId]);
 
   const handleReveal = async (card) => {
     if (card.revealed) return;
