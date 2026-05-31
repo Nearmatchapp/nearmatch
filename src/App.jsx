@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./supabase.js";
 
 const STRIPE_PRICE_ID = "price_1TcXG4B9BUbmA0wIpIjDmRuf";
+const STRIPE_BOOST_PRICE_ID = "price_1Td5GlB9BUbmA0wlBuXEdzef";
 
 const C = {
   bg: "#080b10", surface: "#0f1520", card: "#141c2b",
@@ -1692,7 +1693,7 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
 }
 
 // ── PROFIL ─────────────────────────────────────────────
-function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onUpgrade, onSignOut, onDeleteAccount }) {
+function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onBuyBoost, onUpgrade, onSignOut, onDeleteAccount }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1813,8 +1814,20 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
         </div>
         {!editing && boostAvailable && (
           <button onClick={onBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:8 }}>
-            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12 }}>30 percig előre kerülsz • Heti 1 db</div></div>
+            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12 }}>10 percig előre kerülsz • Heti 1 db ingyen</div></div>
           </button>
+        )}
+        {!editing && !boostActive && (
+          <button onClick={onBuyBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,140,66,0.12),rgba(255,92,92,0.12))",border:"1px solid rgba(255,140,66,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:8 }}>
+            <div style={{ fontSize:26 }}>🚀</div><div style={{ flex:1 }}><div style={{ color:C.orange,fontWeight:700,fontSize:14 }}>Kiemelés vásárlása</div><div style={{ color:C.dim,fontSize:12 }}>10 perc extra kiemelés • 990 Ft</div></div>
+            <div style={{ color:C.orange,fontSize:12,fontWeight:700 }}>990 Ft</div>
+          </button>
+        )}
+        {!editing && boostActive && (
+          <div style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.15),rgba(255,140,66,0.15))",border:"1px solid rgba(255,212,59,0.5)",borderRadius:16,display:"flex",alignItems:"center",gap:12,marginBottom:8 }}>
+            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés aktív!</div><div style={{ color:C.dim,fontSize:12 }}>Most előre kerülsz a listákon</div></div>
+            <div style={{ width:10,height:10,borderRadius:"50%",background:C.yellow,boxShadow:`0 0 8px ${C.yellow}`,animation:"pulse 1.5s ease-in-out infinite" }} />
+          </div>
         )}
 
         {/* Hang üzenet mód */}
@@ -1954,7 +1967,20 @@ export default function App() {
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const isPro = myProfile?.is_pro||false;
   const boostAvailable = isPro && lastBoostWeek!==getWeekNumber() && !boostActive;
-  const handleBoost = () => { if(!boostAvailable) return; setBoostActive(true); setLastBoostWeek(getWeekNumber()); setTimeout(()=>setBoostActive(false), 30*60*1000); };
+  const handleBoost = () => { if(!boostAvailable) return; setBoostActive(true); setLastBoostWeek(getWeekNumber()); setTimeout(()=>setBoostActive(false), 10*60*1000); };
+
+  const handleBuyBoost = async () => {
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${s?.access_token}` },
+        body: JSON.stringify({ price_id: STRIPE_BOOST_PRICE_ID, success_url: window.location.origin+"?boost=success", cancel_url: window.location.origin+"?boost=cancel", mode: "payment" }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (err) { console.error(err); }
+  };
 
   const handleUpgrade = async () => {
     try {
@@ -1972,6 +1998,7 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("pro") === "success") { setMyProfile(p => p ? {...p, is_pro: true} : p); window.history.replaceState({}, "", window.location.pathname); }
+    if (params.get("boost") === "success") { setBoostActive(true); setTimeout(()=>setBoostActive(false), 10*60*1000); window.history.replaceState({}, "", window.location.pathname); }
   }, []);
 
   useEffect(() => {
@@ -2279,7 +2306,7 @@ export default function App() {
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
-            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
+            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
           </>
         )}
       </div>
