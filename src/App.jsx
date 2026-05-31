@@ -1308,12 +1308,13 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
   };
 
   const generateDailyCards = async () => {
-    if (!myId) return;
+    if (!myId) { console.log("CARDS: no myId"); return; }
     const todayKey = new Date().toDateString();
     const lastGenKey = `cardsGenerated_${myId}`;
-    if (localStorage.getItem(lastGenKey) === todayKey) return;
+    const stored = localStorage.getItem(lastGenKey);
+    console.log("CARDS: todayKey=", todayKey, "stored=", stored);
+    if (stored === todayKey) { console.log("CARDS: already generated today, skip"); return; }
 
-    // Dupla-ellenőrzés: DB-ben is megnézzük
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     const { data: existing, error: checkError } = await supabase
       .from("compliment_cards")
@@ -1322,14 +1323,17 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
       .eq("is_mine_to_give", true)
       .gte("created_at", todayStart.toISOString());
 
+    console.log("CARDS: existing=", existing, "error=", checkError);
+
     if (checkError) { console.error("Card check error:", checkError); return; }
 
     if ((existing||[]).length > 0) {
       localStorage.setItem(lastGenKey, todayKey);
+      console.log("CARDS: found existing, saved to localStorage");
       return;
     }
 
-    // Generálás – 3 különböző kategória
+    console.log("CARDS: generating new cards...");
     const categories = Object.keys(COMPLIMENT_CARDS.other);
     const shuffledCats = [...categories].sort(() => Math.random() - 0.5).slice(0, 3);
     const cards = shuffledCats.map(cat => {
@@ -1339,11 +1343,10 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
     });
 
     const { error } = await supabase.from("compliment_cards").insert(cards);
+    console.log("CARDS: insert error=", error);
     if (!error) {
       localStorage.setItem(lastGenKey, todayKey);
       await loadData();
-    } else {
-      console.error("Card insert error:", error);
     }
   };
 
