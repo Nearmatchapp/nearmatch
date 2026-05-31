@@ -1245,34 +1245,29 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
 const THRESHOLD = 100;
 
 // ── NEARMATCH CARD SVG ──────────────────────────────────
-function NearMatchCard({ revealed = false, size = 1 }) {
+function NearMatchCard({ size = 1 }) {
+  const uid = useRef(`nm_${Math.random().toString(36).slice(2)}`).current;
   const w = 80 * size, h = 110 * size;
   return (
     <svg width={w} height={h} viewBox="0 0 80 110" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="cardBg" x1="0" y1="0" x2="80" y2="110" gradientUnits="userSpaceOnUse">
+        <linearGradient id={`cardBg_${uid}`} x1="0" y1="0" x2="80" y2="110" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#1a2340" />
           <stop offset="100%" stopColor="#0d1525" />
         </linearGradient>
-        <linearGradient id="accentGrad" x1="24" y1="41" x2="56" y2="72" gradientUnits="userSpaceOnUse">
+        <linearGradient id={`accentGrad_${uid}`} x1="24" y1="41" x2="56" y2="72" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#ff5c5c" />
           <stop offset="100%" stopColor="#ff8c42" />
         </linearGradient>
       </defs>
-      {/* Alap */}
-      <rect width="80" height="110" rx="10" fill="url(#cardBg)" />
+      <rect width="80" height="110" rx="10" fill={`url(#cardBg_${uid})`} />
       <rect x="0.5" y="0.5" width="79" height="109" rx="9.5" stroke="rgba(255,92,92,0.3)" strokeWidth="1" />
-      {/* Belső keret */}
       <rect x="5" y="5" width="70" height="100" rx="7" stroke="rgba(255,92,92,0.12)" strokeWidth="0.5" />
-      {/* Bal felső NM */}
       <text x="9" y="17" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif">NM</text>
-      {/* Jobb alsó NM (forgatva) */}
       <g transform="rotate(180, 40, 55)">
         <text x="9" y="17" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif">NM</text>
       </g>
-      {/* Szív */}
-      <path d="M40 70 C40 70 24 59 24 49 C24 43 28.5 39 34 39 C37 39 39.5 40.5 40 42 C40.5 40.5 43 39 46 39 C51.5 39 56 43 56 49 C56 59 40 70 40 70Z" fill="url(#accentGrad)" />
-      {/* NEARMATCH szöveg */}
+      <path d="M40 70 C40 70 24 59 24 49 C24 43 28.5 39 34 39 C37 39 39.5 40.5 40 42 C40.5 40.5 43 39 46 39 C51.5 39 56 43 56 49 C56 59 40 70 40 70Z" fill={`url(#accentGrad_${uid})`} />
       <text x="40" y="86" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,0.35)" fontFamily="Arial,sans-serif" textAnchor="middle" letterSpacing="1.5">NEARMATCH</text>
     </svg>
   );
@@ -1663,18 +1658,14 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const onTouchMove = (e) => { if(!startPos.current) return; const t=e.touches[0]; setDrag({x:t.clientX-startPos.current.x,y:t.clientY-startPos.current.y,dragging:true}); };
   const onTouchEnd = () => { if(drag.x>THRESHOLD){showLabel("LIKE");act("like");}else if(drag.x<-THRESHOLD){showLabel("PASS");act("pass");}else setDrag({x:0,y:0,dragging:false}); startPos.current=null; };
 
-  const handleGiveCard = async (card) => {
+  const handleGiveCard = async (card, previewText) => {
     if (!cur || givingCard) return;
     setGivingCard(true);
-    // Nemspecifikus szöveg kiválasztása a célszemély neme alapján
-    const genderCards = getCardsForGender(cur.gender);
-    const catTexts = genderCards[card.category] || COMPLIMENT_CARDS.other[card.category] || [];
-    const genderText = catTexts.length > 0 ? catTexts[Math.floor(Math.random() * catTexts.length)] : card.card_text;
-
+    const finalText = previewText || card.card_text;
     await supabase.from("compliment_cards").insert({
       sender_id: myProfile.id,
       receiver_id: cur.id,
-      card_text: genderText,
+      card_text: finalText,
       category: card.category,
       is_mine_to_give: false,
     });
@@ -1698,35 +1689,38 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
       {showCards && <CardsModal myId={myProfile?.id} isPro={isPro} onClose={() => setShowCards(false)} onUpgrade={onUpgrade} />}
 
       {/* Kártya odaadás modal */}
-      {giveCardModal && (
-        <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,0.88)", display:"flex", flexDirection:"column" }} onClick={e => e.target===e.currentTarget && setGiveCardModal(false)}>
-          <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", padding:"20px 16px 40px" }}>
-            <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 20px" }} />
-            <div style={{ fontWeight:800, fontSize:17, color:C.text, marginBottom:6 }}>Melyik kártyát adod oda?</div>
-            <div style={{ color:C.dim, fontSize:13, marginBottom:20 }}>
-              {cur?.name} megkapja, és felfedés után látja hogy tőled jött 💌
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {myCards.map(card => {
-                const genderCards = getCardsForGender(cur?.gender);
-                const catTexts = genderCards[card.category] || COMPLIMENT_CARDS.other[card.category] || [];
-                const previewText = catTexts.length > 0 ? catTexts[0] : card.card_text;
-                return (
-                  <button key={card.id} onClick={() => handleGiveCard(card)} disabled={givingCard}
+      {giveCardModal && (() => {
+        const genderCards = getCardsForGender(cur?.gender);
+        const cardsWithText = myCards.map(card => {
+          const catTexts = genderCards[card.category] || COMPLIMENT_CARDS.other[card.category] || [];
+          const text = catTexts.length > 0 ? catTexts[Math.floor(Math.random() * catTexts.length)] : card.card_text;
+          return { ...card, previewText: text };
+        });
+        return (
+          <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,0.88)", display:"flex", flexDirection:"column" }} onClick={e => e.target===e.currentTarget && setGiveCardModal(false)}>
+            <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", padding:"20px 16px 40px" }}>
+              <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 20px" }} />
+              <div style={{ fontWeight:800, fontSize:17, color:C.text, marginBottom:6 }}>Melyik kártyát adod oda?</div>
+              <div style={{ color:C.dim, fontSize:13, marginBottom:20 }}>
+                {cur?.name} megkapja, felfedés után látja hogy tőled jött 💌
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {cardsWithText.map(card => (
+                  <button key={card.id} onClick={() => handleGiveCard(card, card.previewText)} disabled={givingCard}
                     style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:16, background:C.card, border:`1px solid rgba(255,140,66,0.3)`, cursor:"pointer", textAlign:"left" }}>
                     <NearMatchCard size={0.55} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:10, color:C.orange, fontWeight:700, marginBottom:4, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
-                      <div style={{ color:C.text, fontSize:13, fontWeight:600, lineHeight:1.4 }}>"{previewText}"</div>
+                      <div style={{ color:C.text, fontSize:13, fontWeight:600, lineHeight:1.4 }}>"{card.previewText}"</div>
                     </div>
                   </button>
-                );
-              })}
+                ))}
+              </div>
+              <button onClick={() => setGiveCardModal(false)} style={{ width:"100%", marginTop:14, padding:"13px", borderRadius:14, border:`1px solid ${C.border}`, background:"none", color:C.muted, fontSize:14, cursor:"pointer" }}>Mégse</button>
             </div>
-            <button onClick={() => setGiveCardModal(false)} style={{ width:"100%", marginTop:14, padding:"13px", borderRadius:14, border:`1px solid ${C.border}`, background:"none", color:C.muted, fontSize:14, cursor:"pointer" }}>Mégse</button>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* Gombok sor */}
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexShrink:0 }}>
         <button onClick={() => setShowCards(true)} style={{ display:"flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:20,border:`1px solid rgba(255,92,92,0.3)`,background:"rgba(255,92,92,0.08)",color:C.accent,cursor:"pointer",fontSize:13,fontWeight:600 }}>
