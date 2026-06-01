@@ -1835,12 +1835,18 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
     if (gone) return;
     setGone(true);
     setHistory(h => [...h.slice(-9), { idx, user:cur }]);
-    await onSwipe(cur.id, dir);
+    onSwipe(cur.id, dir);
     if (dir==="superlike") {
       const today = getTodayKey();
       if (today!==slDay) { setSlDay(today); setSlUsed(1); } else { setSlUsed(u=>u+1); }
     }
-    setTimeout(() => { setIdx(i=>i+1); setGone(false); setDrag({ x:0,y:0,dragging:false }); }, 350);
+    setTimeout(() => {
+      // Új kártyára váltás: minden reset azonnal, animáció nélkül
+      setIdx(i=>i+1);
+      setCardPage(0);
+      setDrag({ x:0, y:0, dragging:false });
+      setGone(false);
+    }, 320);
   };
 
   const handleRewind = () => {
@@ -1884,7 +1890,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   };
 
   const transform = gone?`translateX(${drag.x>0?600:-600}px) rotate(${drag.x>0?25:-25}deg)`:`translateX(${drag.x}px) translateY(${drag.y*0.3}px) rotate(${drag.x/15}deg)`;
-  const transition = drag.dragging&&!gone?"none":"transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)";
+  const transition = (drag.dragging || (!gone && drag.x===0)) ? "none" : "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)";
   const likeOpacity = Math.max(0,drag.x/THRESHOLD);
   const passOpacity = Math.max(0,-drag.x/THRESHOLD);
   const distLabel = (km) => km!=null ? (km<1?`${Math.round(km*1000)}m`:`${km.toFixed(1)}km`) : "";
@@ -1943,12 +1949,12 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
       )}
       <div style={{ flex:1,position:"relative",minHeight:0 }}>
         {next && (
-          <div style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",transform:"scale(0.95)",opacity:0.7 }}>
+          <div style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",transform:gone?"scale(1)":"scale(0.95)",opacity:gone?1:0.7,transition:"transform 0.32s ease, opacity 0.32s ease" }}>
             <img src={next.photo_url||`https://i.pravatar.cc/300?u=${next.id}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={next.name} />
             <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)" }} />
           </div>
         )}
-        <div onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        <div key={cur.id} onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           onClick={(e) => {
             if(Math.abs(drag.x)>5) return;
             const rect=e.currentTarget.getBoundingClientRect();
