@@ -2664,14 +2664,19 @@ export default function App() {
     }
     return () => { if (boostTimerRef.current) clearTimeout(boostTimerRef.current); };
   }, []);
-  const [lastBoostWeek, setLastBoostWeek] = useState(() => { const s = localStorage.getItem("lastBoostWeek"); return s ? parseInt(s) : null; });
+  const [lastBoostWeek, setLastBoostWeek] = useState(null);
+
+  useEffect(() => {
+    if (!myProfile?.id) return;
+    const s = localStorage.getItem(`lastBoostWeek_${myProfile.id}`);
+    setLastBoostWeek(s ? parseInt(s) : null);
+  }, [myProfile?.id]);
   const [newLikesCount, setNewLikesCount] = useState(0);
 
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const isPro = myProfile?.is_pro||false;
   const boostAvailable = isPro && lastBoostWeek!==getWeekNumber() && !boostActive;
-  console.log("BOOST DEBUG: isPro=", isPro, "is_pro=", myProfile?.is_pro, "lastBoostWeek=", lastBoostWeek, "currentWeek=", getWeekNumber(), "boostActive=", boostActive, "available=", boostAvailable);
-  const handleBoost = () => { if(!boostAvailable) return; const w = getWeekNumber(); const end = Date.now() + 10*60*1000; setBoostActive(true); setLastBoostWeek(w); localStorage.setItem("lastBoostWeek", w); localStorage.setItem("boostEnd", end); if(boostTimerRef.current) clearTimeout(boostTimerRef.current); boostTimerRef.current = setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); };
+  const handleBoost = () => { if(!boostAvailable) return; const w = getWeekNumber(); const end = Date.now() + 10*60*1000; setBoostActive(true); setLastBoostWeek(w); localStorage.setItem(`lastBoostWeek_${myProfile.id}`, w); localStorage.setItem("boostEnd", end); if(boostTimerRef.current) clearTimeout(boostTimerRef.current); boostTimerRef.current = setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); };
 
   const handleBuyBoost = async () => {
     try {
