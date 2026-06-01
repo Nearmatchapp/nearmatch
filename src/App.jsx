@@ -1264,9 +1264,7 @@ function NearMatchCard({ size = 1 }) {
       <rect x="0.5" y="0.5" width="79" height="109" rx="9.5" stroke="rgba(255,92,92,0.3)" strokeWidth="1" />
       <rect x="5" y="5" width="70" height="100" rx="7" stroke="rgba(255,92,92,0.12)" strokeWidth="0.5" />
       <text x="9" y="17" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif">NM</text>
-      <g transform="rotate(180, 40, 55)">
-        <text x="9" y="17" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif">NM</text>
-      </g>
+      <text x="71" y="100" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif" textAnchor="end">NM</text>
       <path d="M40 70 C40 70 24 59 24 49 C24 43 28.5 39 34 39 C37 39 39.5 40.5 40 42 C40.5 40.5 43 39 46 39 C51.5 39 56 43 56 49 C56 59 40 70 40 70Z" fill={`url(#accentGrad_${uid})`} />
       <text x="40" y="86" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,0.35)" fontFamily="Arial,sans-serif" textAnchor="middle" letterSpacing="1.5">NEARMATCH</text>
     </svg>
@@ -1717,10 +1715,16 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const onTouchMove = (e) => { if(!startPos.current) return; const t=e.touches[0]; setDrag({x:t.clientX-startPos.current.x,y:t.clientY-startPos.current.y,dragging:true}); };
   const onTouchEnd = () => { if(drag.x>THRESHOLD){showLabel("LIKE");act("like");}else if(drag.x<-THRESHOLD){showLabel("PASS");act("pass");}else setDrag({x:0,y:0,dragging:false}); startPos.current=null; };
 
-  const handleGiveCard = async (card, previewText) => {
+  const handleGiveCard = async (card) => {
     if (!cur || givingCard) return;
     setGivingCard(true);
-    const finalText = previewText || card.card_text;
+    // A kártya szövege marad, csak a nemspecifikus szavakat igazítjuk a célszemélyhez
+    let finalText = card.card_text;
+    if (cur.gender === "Férfi" || cur.gender === "male") {
+      finalText = finalText.replace(/legszebb lány/gi, "legszebb fiú").replace(/legsugárzóbb ember/gi, "legszebb fiú");
+    } else if (cur.gender === "Nő" || cur.gender === "female") {
+      finalText = finalText.replace(/legszebb fiú/gi, "legszebb lány").replace(/legsugárzóbb ember/gi, "legszebb lány");
+    }
     await supabase.from("compliment_cards").insert({
       sender_id: myProfile.id,
       receiver_id: cur.id,
@@ -1749,15 +1753,6 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
       {/* Kártya odaadás modal */}
       {giveCardModal && (() => {
-        const genderCards = getCardsForGender(cur?.gender);
-        // Determinisztikus szöveg: a kártya id + célszemély id alapján, nem random
-        const hashStr = (s) => { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; } return Math.abs(h); };
-        const cardsWithText = myCards.map(card => {
-          const catTexts = genderCards[card.category] || COMPLIMENT_CARDS.other[card.category] || [];
-          const seed = hashStr(card.id + (cur?.id || ""));
-          const text = catTexts.length > 0 ? catTexts[seed % catTexts.length] : card.card_text;
-          return { ...card, previewText: text };
-        });
         return (
           <div style={{ position:"fixed", inset:0, zIndex:500, background:"rgba(0,0,0,0.88)", display:"flex", flexDirection:"column" }} onClick={e => e.target===e.currentTarget && setGiveCardModal(false)}>
             <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", padding:"20px 16px 40px" }}>
@@ -1767,13 +1762,13 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
                 {cur?.name} megkapja, felfedés után látja hogy tőled jött 💌
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {cardsWithText.map(card => (
-                  <button key={card.id} onClick={() => handleGiveCard(card, card.previewText)} disabled={givingCard}
+                {myCards.map(card => (
+                  <button key={card.id} onClick={() => handleGiveCard(card)} disabled={givingCard}
                     style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:16, background:C.card, border:`1px solid rgba(255,140,66,0.3)`, cursor:"pointer", textAlign:"left" }}>
                     <NearMatchCard size={0.55} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:10, color:C.orange, fontWeight:700, marginBottom:4, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
-                      <div style={{ color:C.text, fontSize:13, fontWeight:600, lineHeight:1.4 }}>"{card.previewText}"</div>
+                      <div style={{ color:C.text, fontSize:13, fontWeight:600, lineHeight:1.4 }}>"{card.card_text}"</div>
                     </div>
                   </button>
                 ))}
