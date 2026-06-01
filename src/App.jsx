@@ -2846,6 +2846,35 @@ export default function App() {
     return () => { supabase.removeChannel(sub); supabase.removeChannel(msgSub); };
   }, [session, loadMatches, myProfile]);
 
+  // ── CHAT NYITÁS (kártya küldőjével, match nélkül is) ──
+  const handleOpenChatWith = async (sender) => {
+    if (!sender?.id || !session?.user?.id) return;
+    // Van már match?
+    let m = matches.find(x => x.other?.id === sender.id);
+    if (m) { setActiveChat(m); setTab("matches"); return; }
+
+    // Nincs – keressük a DB-ben
+    const myId = session.user.id;
+    const { data: existing } = await supabase.from("matches").select("*")
+      .or(`and(user1_id.eq.${myId},user2_id.eq.${sender.id}),and(user1_id.eq.${sender.id},user2_id.eq.${myId})`)
+      .maybeSingle();
+
+    let matchRow = existing;
+    if (!matchRow) {
+      // Létrehozunk egy matchet
+      const { data: created } = await supabase.from("matches")
+        .insert({ user1_id: myId, user2_id: sender.id })
+        .select("*").single();
+      matchRow = created;
+    }
+    if (matchRow) {
+      const matchObj = { ...matchRow, other: sender, unread: false };
+      setActiveChat(matchObj);
+      setTab("matches");
+      loadMatches();
+    }
+  };
+
   // ── JAVÍTOTT HANDLESWIPE ────────────────────────────
   const handleSwipe = async (targetId, action) => {
     if (!session?.user?.id) return;
@@ -2981,7 +3010,7 @@ export default function App() {
           )}
 
           {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
-            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={(sender) => { const m = matches.find(x => x.other?.id === sender?.id); if(m){ setActiveChat(m); setTab("matches"); } }} />}
+            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={handleOpenChatWith} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
