@@ -559,7 +559,7 @@ function Onboarding({ user, onComplete }) {
 function BottomNav({ active, setActive, unreadCount, newLikesCount }) {
   const tabs = [
     { id:"radar", icon:"◎", label:"Radar" },
-    { id:"swipe", icon:"♥", label:"Swipe" },
+    { id:"swipe", icon:"❤️", label:"Swipe" },
     { id:"likeok", icon:"🔥", label:"Likeok" },
     { id:"matches", icon:"💬", label:"Matchek" },
     { id:"profile", icon:"👤", label:"Profil" },
@@ -913,7 +913,7 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
           </div>
           <div style={{ display:"flex", gap:10, padding:"16px", borderTop:`1px solid ${C.border}` }}>
             <button onClick={() => handleAction(profileModal.id, "pass")} style={{ flex:1, padding:"16px", background:C.card, border:`1px solid ${C.border}`, borderRadius:16, color:C.text, fontSize:22, cursor:"pointer" }}>✕</button>
-            <button onClick={() => handleAction(profileModal.id, "like")} style={{ flex:2, padding:"16px", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer" }}>♥ Lájkolom</button>
+            <button onClick={() => handleAction(profileModal.id, "like")} style={{ flex:2, padding:"16px", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer" }}>❤️ Lájkolom</button>
           </div>
         </div>
       )}
@@ -968,7 +968,7 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
               </div>
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={(e) => { e.stopPropagation(); handleAction(u.id, "pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
-                <button onClick={(e) => { e.stopPropagation(); handleAction(u.id, "like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>♥</button>
+                <button onClick={(e) => { e.stopPropagation(); handleAction(u.id, "like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><HeartIcon size={18} color="#fff" /></button>
               </div>
             </div>
           ))}
@@ -1230,7 +1230,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
           </div>
           <div style={{ display:"flex",gap:10,padding:"16px",borderTop:`1px solid ${C.border}` }}>
             <button onClick={() => handleRadarSwipe(profileModal.id,"pass")} style={{ flex:1,padding:"16px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,color:C.text,fontSize:22,cursor:"pointer" }}>✕</button>
-            <button onClick={() => handleRadarSwipe(profileModal.id,"like")} style={{ flex:2,padding:"16px",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",borderRadius:16,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer" }}>♥ Lájkolom</button>
+            <button onClick={() => handleRadarSwipe(profileModal.id,"like")} style={{ flex:2,padding:"16px",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",borderRadius:16,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer" }}>❤️ Lájkolom</button>
           </div>
         </div>
       )}
@@ -1319,7 +1319,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
               </div>
               <div style={{ display:"flex", gap:6 }}>
                 <button onClick={() => { if(!isPro){setShowProWall(true);return;} handleRadarSwipe(selected.id,"pass"); }} style={{ width:34, height:34, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                <button onClick={() => { if(!isPro){setShowProWall(true);return;} handleRadarSwipe(selected.id,"like"); }} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>♥</button>
+                <button onClick={() => { if(!isPro){setShowProWall(true);return;} handleRadarSwipe(selected.id,"like"); }} style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}><HeartIcon size={16} color="#fff" /></button>
               </div>
             </div>
           )}
@@ -1342,7 +1342,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
               {isPro ? (
                 <div style={{ display:"flex", gap:6 }}>
                   <button onClick={(e) => { e.stopPropagation(); handleRadarSwipe(u.id,"pass"); }} style={{ width:44, height:44, borderRadius:"50%", background:C.surface, border:`1px solid ${C.border}`, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleRadarSwipe(u.id,"like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}>♥</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleRadarSwipe(u.id,"like"); }} style={{ width:44, height:44, borderRadius:"50%", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", flexShrink:0 }}><HeartIcon size={16} color="#fff" /></button>
                 </div>
               ) : (
                 <button onClick={onUpgrade} style={{ background:"rgba(255,212,59,0.1)", border:"1px solid rgba(255,212,59,0.3)", color:C.yellow, borderRadius:10, padding:"7px 12px", cursor:"pointer", fontSize:12, fontWeight:600 }}>🔒 Pro</button>
@@ -1359,6 +1359,14 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
 const THRESHOLD = 100;
 
 // ── NEARMATCH CARD SVG ──────────────────────────────────
+function HeartIcon({ size = 24, color = "#fff" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+  );
+}
+
 function NearMatchCard({ size = 1 }) {
   const uid = useRef(`nm_${Math.random().toString(36).slice(2)}`).current;
   const w = 80 * size, h = 110 * size;
@@ -1997,7 +2005,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
         <div style={{ display:"flex",justifyContent:"center",alignItems:"center",gap:12 }}>
           <button onClick={handleRewind} style={{ width:48,height:48,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>↩️</button>
           <button onClick={() => {showLabel("PASS");act("pass");}} style={{ width:56,height:56,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:24,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.muted }}>✕</button>
-          <button onClick={() => {showLabel("LIKE");act("like");}} style={{ width:70,height:70,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",fontSize:30,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accentGlow}`,color:"#fff" }}>♥</button>
+          <button onClick={() => {showLabel("LIKE");act("like");}} style={{ width:70,height:70,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accentGlow}` }}><HeartIcon size={32} color="#fff" /></button>
           <button onClick={() => { if(slLeft<=0){setProWallType("superlike");return;} showLabel("SUPER LIKE"); act("superlike"); }} style={{ width:56,height:56,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.12)":C.card,border:`1px solid ${slLeft>0?"#4dabf7":C.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>⭐</button>
           <button onClick={() => myCards.length > 0 ? setGiveCardModal(true) : null}
             style={{ width:48,height:48,borderRadius:"50%",background:myCards.length>0?"rgba(255,140,66,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${myCards.length>0?"rgba(255,140,66,0.4)":C.border}`,cursor:myCards.length>0?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",opacity:myCards.length>0?1:0.3,transition:"all 0.2s" }}>
