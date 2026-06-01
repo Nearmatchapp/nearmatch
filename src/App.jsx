@@ -1512,8 +1512,13 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
   const [myCards, setMyCards] = useState([]);
   const [giveCardModal, setGiveCardModal] = useState(false);
   const [givingCard, setGivingCard] = useState(false);
-  const [filters, setFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" });
-  const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" });
+  const DEFAULT_FILTERS = { minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" };
+  const loadSavedFilters = () => {
+    try { const s = localStorage.getItem("swipeFilters"); return s ? JSON.parse(s) : DEFAULT_FILTERS; }
+    catch { return DEFAULT_FILTERS; }
+  };
+  const [filters, setFilters] = useState(loadSavedFilters);
+  const [activeFilters, setActiveFilters] = useState(loadSavedFilters);
   const startPos = useRef(null);
 
   const loadMyCards = useCallback(async () => {
@@ -1660,11 +1665,11 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
           {/* Gombok */}
           <div style={{ display:"flex", gap:10 }}>
-            <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki",lookingFor:""}; setFilters(d); setActiveFilters(d); setShowFilters(false); }}
+            <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki",lookingFor:""}; setFilters(d); setActiveFilters(d); localStorage.setItem("swipeFilters", JSON.stringify(d)); setShowFilters(false); }}
               style={{ flex:1,padding:"14px",borderRadius:14,border:`1px solid ${C.border}`,background:"none",color:C.muted,cursor:"pointer",fontSize:14,fontWeight:600 }}>
               Visszaállít
             </button>
-            <button onClick={() => { setActiveFilters(filters); setShowFilters(false); }}
+            <button onClick={() => { setActiveFilters(filters); localStorage.setItem("swipeFilters", JSON.stringify(filters)); setShowFilters(false); }}
               style={{ flex:2,padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,boxShadow:`0 4px 16px ${C.accentGlow}` }}>
               Mutat →
             </button>
@@ -1680,7 +1685,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
       <div style={{ fontSize:50 }}>😕</div>
       <div style={{ fontSize:16, color:C.text }}>Nincs találat</div>
       <div style={{ fontSize:13, color:C.muted, textAlign:"center" }}>{isFiltered ? "Próbálj tágabb szűrőkkel!" : "Próbálj később!"}</div>
-      {isFiltered && <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki"}; setFilters(d); setActiveFilters(d); }} style={{ padding:"12px 24px",borderRadius:14,border:"none",background:C.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14 }}>Szűrők törlése</button>}
+      {isFiltered && <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki",lookingFor:""}; setFilters(d); setActiveFilters(d); localStorage.setItem("swipeFilters", JSON.stringify(d)); }} style={{ padding:"12px 24px",borderRadius:14,border:"none",background:C.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14 }}>Szűrők törlése</button>}
     </div>
   );
 
