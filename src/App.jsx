@@ -191,16 +191,40 @@ function ResetPasswordScreen({ onDone }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    // A recovery tokent a Supabase a URL hash-ből olvassa ki és session-t hoz létre
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) { setSessionReady(true); return; }
+      // Ha még nincs, figyeljük az auth eseményt
+    };
+    checkSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        setSessionReady(true);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleReset = async () => {
     if (!password || password.length < 6) { setError("A jelszó legalább 6 karakter legyen!"); return; }
     if (password !== password2) { setError("A két jelszó nem egyezik!"); return; }
     setLoading(true); setError("");
     try {
+      // Biztosítsuk hogy van session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setError("A visszaállító link lejárt vagy érvénytelen. Kérj újat a bejelentkezésnél.");
+        setLoading(false);
+        return;
+      }
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setSuccess("Jelszó megváltoztatva! Bejelentkezés...");
-      setTimeout(() => { window.location.hash = ""; onDone(); }, 1500);
+      setTimeout(() => { window.history.replaceState({}, "", window.location.pathname); onDone(); }, 1500);
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
@@ -219,8 +243,9 @@ function ResetPasswordScreen({ onDone }) {
           style={{ width:"100%", padding:"14px 16px", borderRadius:13, background:C.card, border:`1px solid ${C.border}`, color:C.text, fontSize:15, outline:"none" }} />
         {error && <div style={{ background:"rgba(255,92,92,0.1)", border:`1px solid ${C.accent}`, borderRadius:10, padding:"10px 14px", color:C.accent, fontSize:13 }}>{error}</div>}
         {success && <div style={{ background:"rgba(62,207,142,0.1)", border:`1px solid ${C.green}`, borderRadius:10, padding:"10px 14px", color:C.green, fontSize:13 }}>{success}</div>}
-        <button onClick={handleReset} disabled={loading}
-          style={{ width:"100%", padding:"16px", background:loading?C.card:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:loading?"not-allowed":"pointer" }}>
+        {!sessionReady && !error && <div style={{ background:"rgba(255,212,59,0.1)", border:`1px solid ${C.yellow}`, borderRadius:10, padding:"10px 14px", color:C.yellow, fontSize:13 }}>⏳ Link ellenőrzése...</div>}
+        <button onClick={handleReset} disabled={loading||!sessionReady}
+          style={{ width:"100%", padding:"16px", background:(loading||!sessionReady)?C.card:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:(loading||!sessionReady)?"not-allowed":"pointer", opacity:(loading||!sessionReady)?0.5:1 }}>
           {loading ? <Spinner /> : "Jelszó mentése →"}
         </button>
       </div>
@@ -271,7 +296,7 @@ function AuthScreen() {
     setLoading(true); setError(""); setSuccess("");
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/#reset-password`,
+        redirectTo: `${window.location.origin}/?type=recovery`,
       });
       if (error) throw error;
       setSuccess("Elküldtük a jelszó-visszaállító linket az emailedre! 📧");
@@ -2806,23 +2831,21 @@ export default function App() {
   }, [session]);
 
   useEffect(() => {
-    // Jelszó-visszaállítás: ha a recovery linkről jött
-    if (window.location.hash.includes("reset-password") || window.location.hash.includes("type=recovery")) {
+    // Jelszó-visszaállítás detektálása (query param vagy hash)
+    const isRecovery = window.location.search.includes("type=recovery") || window.location.hash.includes("type=recovery");
+    if (isRecovery) {
       setAppState("reset-password");
     }
     supabase.auth.getSession().then(({ data:{ session } }) => {
       setSession(session);
-      if (window.location.hash.includes("reset-password") || window.location.hash.includes("type=recovery")) {
-        setAppState("reset-password");
-        return;
-      }
+      if (isRecovery) { setAppState("reset-password"); return; }
       if (session) loadProfile(session.user.id);
       else setAppState("auth");
     });
     const { data:{ subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (event === "PASSWORD_RECOVERY") { setAppState("reset-password"); return; }
-      if (window.location.hash.includes("reset-password")) { setAppState("reset-password"); return; }
+      if (window.location.search.includes("type=recovery") || window.location.hash.includes("type=recovery")) { setAppState("reset-password"); return; }
       if (session) loadProfile(session.user.id);
       else { setMyProfile(null); setAppState("auth"); }
     });
