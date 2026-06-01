@@ -1293,10 +1293,9 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
   const loadData = async () => {
     setLoading(true);
     // Kártyák amiket én kioszthatom (is_mine_to_give = true, még nem adtam oda)
-    const { data: mine, error: mineErr } = await supabase.from("compliment_cards")
+    const { data: mine } = await supabase.from("compliment_cards")
       .select("*").eq("sender_id", myId).eq("is_mine_to_give", true)
       .is("given_to", null).order("created_at", { ascending: false });
-    console.log("LOADDATA mine=", mine, "err=", mineErr);
     setMyCards(mine || []);
 
     // Kártyák amiket kaptam (valaki nekem adta)
@@ -1751,9 +1750,12 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
       {/* Kártya odaadás modal */}
       {giveCardModal && (() => {
         const genderCards = getCardsForGender(cur?.gender);
+        // Determinisztikus szöveg: a kártya id + célszemély id alapján, nem random
+        const hashStr = (s) => { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0; } return Math.abs(h); };
         const cardsWithText = myCards.map(card => {
           const catTexts = genderCards[card.category] || COMPLIMENT_CARDS.other[card.category] || [];
-          const text = catTexts.length > 0 ? catTexts[Math.floor(Math.random() * catTexts.length)] : card.card_text;
+          const seed = hashStr(card.id + (cur?.id || ""));
+          const text = catTexts.length > 0 ? catTexts[seed % catTexts.length] : card.card_text;
           return { ...card, previewText: text };
         });
         return (
