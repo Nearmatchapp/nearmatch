@@ -185,6 +185,49 @@ function Spinner() {
 }
 
 // ── AUTH ───────────────────────────────────────────────
+function ResetPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleReset = async () => {
+    if (!password || password.length < 6) { setError("A jelszó legalább 6 karakter legyen!"); return; }
+    if (password !== password2) { setError("A két jelszó nem egyezik!"); return; }
+    setLoading(true); setError("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setSuccess("Jelszó megváltoztatva! Bejelentkezés...");
+      setTimeout(() => { window.location.hash = ""; onDone(); }, 1500);
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"32px 28px" }}>
+      <div style={{ width:80, height:80, borderRadius:24, marginBottom:20, overflow:"hidden", background:"#141c2b" }}>
+        <img src="/icon-512.png" alt="NearMatch" style={{ width:"115%", height:"115%", objectFit:"cover", display:"block", marginLeft:"-7.5%", marginTop:"-7.5%" }} />
+      </div>
+      <h1 style={{ fontSize:26, fontWeight:900, color:C.text, fontFamily:"Georgia,serif", margin:"0 0 6px" }}>Új jelszó</h1>
+      <p style={{ color:C.muted, fontSize:13, margin:"0 0 28px", textAlign:"center" }}>Add meg az új jelszavad</p>
+      <div style={{ width:"100%", display:"flex", flexDirection:"column", gap:12 }}>
+        <input type="password" placeholder="Új jelszó" value={password} onChange={e => setPassword(e.target.value)}
+          style={{ width:"100%", padding:"14px 16px", borderRadius:13, background:C.card, border:`1px solid ${C.border}`, color:C.text, fontSize:15, outline:"none" }} />
+        <input type="password" placeholder="Új jelszó újra" value={password2} onChange={e => setPassword2(e.target.value)}
+          onKeyDown={e => e.key==="Enter" && handleReset()}
+          style={{ width:"100%", padding:"14px 16px", borderRadius:13, background:C.card, border:`1px solid ${C.border}`, color:C.text, fontSize:15, outline:"none" }} />
+        {error && <div style={{ background:"rgba(255,92,92,0.1)", border:`1px solid ${C.accent}`, borderRadius:10, padding:"10px 14px", color:C.accent, fontSize:13 }}>{error}</div>}
+        {success && <div style={{ background:"rgba(62,207,142,0.1)", border:`1px solid ${C.green}`, borderRadius:10, padding:"10px 14px", color:C.green, fontSize:13 }}>{success}</div>}
+        <button onClick={handleReset} disabled={loading}
+          style={{ width:"100%", padding:"16px", background:loading?C.card:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:loading?"not-allowed":"pointer" }}>
+          {loading ? <Spinner /> : "Jelszó mentése →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AuthScreen() {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
@@ -221,6 +264,18 @@ function AuthScreen() {
       setError(e.message);
       setGoogleLoading(false);
     }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) { setError("Add meg az email címed a jelszó visszaállításához!"); return; }
+    setLoading(true); setError(""); setSuccess("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/#reset-password`,
+      });
+      if (error) throw error;
+      setSuccess("Elküldtük a jelszó-visszaállító linket az emailedre! 📧");
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
   return (
@@ -275,6 +330,12 @@ function AuthScreen() {
           style={{ width:"100%", padding:"16px", background:loading?C.card:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:loading?"not-allowed":"pointer", marginTop:4 }}>
           {loading ? <Spinner /> : mode === "login" ? "Bejelentkezés →" : "Regisztráció →"}
         </button>
+        {mode === "login" && (
+          <button onClick={handleResetPassword} disabled={loading}
+            style={{ background:"none", border:"none", color:C.muted, fontSize:13, cursor:"pointer", marginTop:4, textDecoration:"underline" }}>
+            Elfelejtetted a jelszavad?
+          </button>
+        )}
       </div>
     </div>
   );
@@ -2745,13 +2806,23 @@ export default function App() {
   }, [session]);
 
   useEffect(() => {
+    // Jelszó-visszaállítás: ha a recovery linkről jött
+    if (window.location.hash.includes("reset-password") || window.location.hash.includes("type=recovery")) {
+      setAppState("reset-password");
+    }
     supabase.auth.getSession().then(({ data:{ session } }) => {
       setSession(session);
+      if (window.location.hash.includes("reset-password") || window.location.hash.includes("type=recovery")) {
+        setAppState("reset-password");
+        return;
+      }
       if (session) loadProfile(session.user.id);
       else setAppState("auth");
     });
-    const { data:{ subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data:{ subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (event === "PASSWORD_RECOVERY") { setAppState("reset-password"); return; }
+      if (window.location.hash.includes("reset-password")) { setAppState("reset-password"); return; }
       if (session) loadProfile(session.user.id);
       else { setMyProfile(null); setAppState("auth"); }
     });
@@ -3029,6 +3100,7 @@ export default function App() {
 
   if (appState==="loading") return <Shell><div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20 }}><div style={{ width:110,height:110,borderRadius:26,overflow:"hidden",flexShrink:0,animation:"pulse 1.8s ease-in-out infinite" }}><img src="/icon-512.png" alt="NearMatch" style={{ width:"115%",height:"115%",objectFit:"cover",display:"block",marginLeft:"-7.5%",marginTop:"-7.5%" }} /></div><Spinner /></div></Shell>;
   if (appState==="auth") return <Shell><AuthScreen /></Shell>;
+  if (appState==="reset-password") return <Shell><ResetPasswordScreen onDone={() => { setAppState("loading"); supabase.auth.getSession().then(({ data:{ session } }) => { if(session) loadProfile(session.user.id); else setAppState("auth"); }); }} /></Shell>;
   if (appState==="onboarding") return <Shell><Onboarding user={session.user} onComplete={p=>{ setMyProfile(p); setAppState("main"); registerOneSignalUser(p.id); }} /></Shell>;
 
   return (
