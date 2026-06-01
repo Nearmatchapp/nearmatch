@@ -2365,7 +2365,7 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
 }
 
 // ── PROFIL ─────────────────────────────────────────────
-function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onBuyBoost, onUpgrade, onSignOut, onDeleteAccount }) {
+function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, boostTimeLeft, onBoost, onBuyBoost, onUpgrade, onSignOut, onDeleteAccount }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -2502,8 +2502,15 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
         )}
         {!editing && boostActive && (
           <div style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.15),rgba(255,140,66,0.15))",border:"1px solid rgba(255,212,59,0.5)",borderRadius:16,display:"flex",alignItems:"center",gap:12,marginBottom:8 }}>
-            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés aktív!</div><div style={{ color:C.dim,fontSize:12 }}>Most előre kerülsz a listákon</div></div>
-            <div style={{ width:10,height:10,borderRadius:"50%",background:C.yellow,boxShadow:`0 0 8px ${C.yellow}`,animation:"pulse 1.5s ease-in-out infinite" }} />
+            <div style={{ fontSize:26 }}>⚡</div>
+            <div style={{ flex:1 }}>
+              <div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés aktív!</div>
+              <div style={{ color:C.dim,fontSize:12 }}>Most előre kerülsz a listákon</div>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ color:C.yellow,fontWeight:800,fontSize:18,fontVariantNumeric:"tabular-nums" }}>{Math.floor(boostTimeLeft/60)}:{String(boostTimeLeft%60).padStart(2,"0")}</div>
+              <div style={{ color:C.dim,fontSize:10 }}>hátra</div>
+            </div>
           </div>
         )}
 
@@ -2649,7 +2656,23 @@ export default function App() {
     if (boostEnd && Date.now() < parseInt(boostEnd)) return true;
     return false;
   });
+  const [boostTimeLeft, setBoostTimeLeft] = useState(0);
   const boostTimerRef = useRef(null);
+
+  // Másodpercenkénti visszaszámláló
+  useEffect(() => {
+    if (!boostActive) { setBoostTimeLeft(0); return; }
+    const tick = () => {
+      const boostEnd = localStorage.getItem("boostEnd");
+      if (!boostEnd) { setBoostTimeLeft(0); return; }
+      const remaining = Math.max(0, Math.floor((parseInt(boostEnd) - Date.now()) / 1000));
+      setBoostTimeLeft(remaining);
+      if (remaining <= 0) { setBoostActive(false); localStorage.removeItem("boostEnd"); }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [boostActive]);
 
   useEffect(() => {
     const boostEnd = localStorage.getItem("boostEnd");
@@ -3057,7 +3080,7 @@ export default function App() {
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={handleOpenChatWith} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
-            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
+            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} boostTimeLeft={boostTimeLeft} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
           </>
         )}
       </div>
