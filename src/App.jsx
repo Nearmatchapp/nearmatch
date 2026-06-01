@@ -194,19 +194,46 @@ function ResetPasswordScreen({ onDone }) {
   const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    // A recovery tokent a Supabase a URL hash-ből olvassa ki és session-t hoz létre
     const checkSession = async () => {
+      // 1. Van már session?
       const { data: { session } } = await supabase.auth.getSession();
       if (session) { setSessionReady(true); return; }
-      // Ha még nincs, figyeljük az auth eseményt
+
+      // 2. Token a hash-ből (Supabase recovery formátum: #access_token=...&refresh_token=...&type=recovery)
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (!error) { setSessionReady(true); return; }
+      }
+
+      // 3. Token query paramból (PKCE flow: ?code=...)
+      const queryParams = new URLSearchParams(window.location.search);
+      const code = queryParams.get("code");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) { setSessionReady(true); return; }
+      }
     };
     checkSession();
+
+    // Időtúllépés: ha 6 mp után sincs session, jelezzük
+    const timeout = setTimeout(() => {
+      setSessionReady(prev => {
+        if (!prev) setError("A visszaállító link lejárt vagy érvénytelen. Kérj újat a bejelentkezésnél.");
+        return prev;
+      });
+    }, 6000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+      if (session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED")) {
         setSessionReady(true);
       }
     });
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
   const handleReset = async () => {
