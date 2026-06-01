@@ -1318,7 +1318,7 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
     const lastGen = localStorage.getItem(lastGenKey);
     const now = Date.now();
 
-    // 24 órán belül generált? Akkor skip
+    // 24 órán belül generált? Akkor skip — semmi DB hívás
     if (lastGen && (now - parseInt(lastGen)) < 24 * 60 * 60 * 1000) {
       genLock.current = false;
       return;
@@ -1336,7 +1336,6 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
     if (checkError) { console.error("Card check error:", checkError); genLock.current = false; return; }
 
     if ((existing||[]).length > 0) {
-      // Már van az elmúlt 24 órában – jegyezzük meg a legutóbbi időpontját
       const latest = Math.max(...existing.map(c => new Date(c.created_at).getTime()));
       localStorage.setItem(lastGenKey, latest.toString());
       genLock.current = false;
@@ -1354,6 +1353,7 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
 
     const { error } = await supabase.from("compliment_cards").insert(cards);
     if (!error) {
+      // Időbélyeg AZONNAL mentve, mielőtt bármi más történne — ez akadályozza meg az újragenerálást
       localStorage.setItem(lastGenKey, now.toString());
       await loadData();
     } else {
