@@ -3,6 +3,7 @@ import { supabase } from "./supabase.js";
 
 const STRIPE_PRICE_ID = "price_1TcXG4B9BUbmA0wIpIjDmRuf";
 const STRIPE_BOOST_PRICE_ID = "price_1Td5GlB9BUbmA0wI8uXEdzef";
+const STRIPE_REVEAL_PRICE_ID = "price_1TdanQB9BUbmA0wIIvVBccrw";
 
 const C = {
   bg: "#080b10", surface: "#0f1520", card: "#141c2b",
@@ -1365,12 +1366,27 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
 
   const handleReveal = async (card) => {
     if (card.revealed) return;
-    if (!canReveal()) { setBuyModal(true); return; }
+    if (!canReveal()) { setBuyModal(card); return; }
     setFlipping(card.id);
     await supabase.from("compliment_cards").update({ revealed: true, revealed_at: new Date().toISOString() }).eq("id", card.id);
     localStorage.setItem(`lastReveal_${myId}`, Date.now().toString());
     setReceivedCards(prev => prev.map(c => c.id === card.id ? { ...c, revealed: true } : c));
     setTimeout(() => setFlipping(null), 600);
+  };
+
+  const handleBuyReveal = async (card) => {
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      // Elmentjük melyik kártyát akarjuk felfedni, hogy visszatéréskor tudjuk
+      localStorage.setItem(`pendingReveal_${myId}`, card.id);
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${s?.access_token}` },
+        body: JSON.stringify({ price_id: STRIPE_REVEAL_PRICE_ID, success_url: window.location.origin+"?reveal=success", cancel_url: window.location.origin+"?reveal=cancel", mode: "payment" }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (err) { console.error(err); }
   };
 
   const unrevealed = receivedCards.filter(c => !c.revealed).length;
@@ -1469,10 +1485,11 @@ function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
         <div style={{ position:"fixed", inset:0, zIndex:600, background:"rgba(0,0,0,0.9)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }} onClick={e => e.target===e.currentTarget && setBuyModal(false)}>
           <div style={{ background:C.surface, borderRadius:24, padding:28, width:"100%", maxWidth:340, textAlign:"center" }}>
             <div style={{ display:"flex", justifyContent:"center", marginBottom:16 }}><NearMatchCard size={1.2} /></div>
-            <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:8 }}>{isPro ? "Holnap felfedheted" : "Következő felfedés 2 nap múlva"}</div>
-            <div style={{ color:C.muted, fontSize:13, marginBottom:24 }}>{isPro ? "PRO-val naponta 1 felfedés jár ingyen." : "Free fiókon 2 naponta 1 ingyenes. PRO-val naponta."}</div>
-            <button onClick={() => setBuyModal(false)} style={{ width:"100%", padding:"13px", borderRadius:14, border:`1px solid ${C.border}`, background:C.card, color:C.muted, fontWeight:600, fontSize:14, cursor:"pointer", marginBottom:10 }}>Majd később</button>
-            {!isPro && <button onClick={() => { setBuyModal(false); onUpgrade(); }} style={{ width:"100%", padding:"13px", borderRadius:14, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer" }}>⚡ PRO – napi felfedés</button>}
+            <div style={{ fontWeight:800, fontSize:18, color:C.text, marginBottom:8 }}>Elérted a napi ingyenes felfedést</div>
+            <div style={{ color:C.muted, fontSize:13, marginBottom:24 }}>{isPro ? "Holnap újra felfedhetsz egyet ingyen, vagy fedd fel most azonnal." : "Free fiókon 2 naponta jár 1 ingyenes. Fedd fel most azonnal, vagy válts PRO-ra."}</div>
+            <button onClick={() => { const card = buyModal; setBuyModal(false); handleBuyReveal(card); }} style={{ width:"100%", padding:"14px", borderRadius:14, border:"none", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, color:"#fff", fontWeight:800, fontSize:15, cursor:"pointer", marginBottom:10 }}>🔓 Felfedés most – 490 Ft</button>
+            {!isPro && <button onClick={() => { setBuyModal(false); onUpgrade(); }} style={{ width:"100%", padding:"13px", borderRadius:14, border:`1px solid rgba(255,212,59,0.4)`, background:"rgba(255,212,59,0.08)", color:C.yellow, fontWeight:700, fontSize:14, cursor:"pointer", marginBottom:10 }}>⚡ PRO – napi ingyenes felfedés</button>}
+            <button onClick={() => setBuyModal(false)} style={{ width:"100%", padding:"13px", borderRadius:14, border:`1px solid ${C.border}`, background:"none", color:C.muted, fontWeight:600, fontSize:14, cursor:"pointer" }}>Majd később</button>
           </div>
         </div>
       )}
@@ -2680,7 +2697,18 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("pro") === "success") { setMyProfile(p => p ? {...p, is_pro: true} : p); window.history.replaceState({}, "", window.location.pathname); }
     if (params.get("boost") === "success") { const end = Date.now() + 10*60*1000; setBoostActive(true); localStorage.setItem("boostEnd", end); setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); window.history.replaceState({}, "", window.location.pathname); }
-  }, []);
+    if (params.get("reveal") === "success" && session?.user?.id) {
+      const cardId = localStorage.getItem(`pendingReveal_${session.user.id}`);
+      if (cardId) {
+        supabase.from("compliment_cards").update({ revealed: true, revealed_at: new Date().toISOString() }).eq("id", cardId).then(() => {
+          localStorage.removeItem(`pendingReveal_${session.user.id}`);
+          // Sikeres felfedés után jelezzük a usernek
+          localStorage.setItem(`revealJustPurchased_${session.user.id}`, cardId);
+        });
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [session]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data:{ session } }) => {
