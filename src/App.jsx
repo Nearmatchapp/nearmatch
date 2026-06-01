@@ -2489,6 +2489,11 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
             <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12 }}>10 percig előre kerülsz • Heti 1 db ingyen</div></div>
           </button>
         )}
+        {!editing && isPro && !boostAvailable && !boostActive && (
+          <div style={{ width:"100%",padding:"14px 16px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,display:"flex",alignItems:"center",gap:12,marginBottom:8,opacity:0.7 }}>
+            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.muted,fontWeight:700,fontSize:14 }}>Heti ingyenes kiemelés felhasználva</div><div style={{ color:C.dim,fontSize:12 }}>Jövő héten újra jár • vagy vegyél egyet most</div></div>
+          </div>
+        )}
         {!editing && !boostActive && (
           <button onClick={onBuyBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,140,66,0.12),rgba(255,92,92,0.12))",border:"1px solid rgba(255,140,66,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:8 }}>
             <div style={{ fontSize:26 }}>🚀</div><div style={{ flex:1 }}><div style={{ color:C.orange,fontWeight:700,fontSize:14 }}>Kiemelés vásárlása</div><div style={{ color:C.dim,fontSize:12 }}>10 perc extra kiemelés • 990 Ft</div></div>
@@ -2665,6 +2670,7 @@ export default function App() {
   const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const isPro = myProfile?.is_pro||false;
   const boostAvailable = isPro && lastBoostWeek!==getWeekNumber() && !boostActive;
+  console.log("BOOST DEBUG: isPro=", isPro, "is_pro=", myProfile?.is_pro, "lastBoostWeek=", lastBoostWeek, "currentWeek=", getWeekNumber(), "boostActive=", boostActive, "available=", boostAvailable);
   const handleBoost = () => { if(!boostAvailable) return; const w = getWeekNumber(); const end = Date.now() + 10*60*1000; setBoostActive(true); setLastBoostWeek(w); localStorage.setItem("lastBoostWeek", w); localStorage.setItem("boostEnd", end); if(boostTimerRef.current) clearTimeout(boostTimerRef.current); boostTimerRef.current = setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); };
 
   const handleBuyBoost = async () => {
