@@ -1981,15 +1981,17 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
           })()}
           {cardPage < (cur.photos||(cur.photo_url?[cur.photo_url]:[])).length ? (
             <>
-              {(() => { const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]); return null; })()}
-              <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(8,11,16,0.9) 0%,transparent 50%)" }} />
+              {/* Felső fade – pöttyök és státusz olvashatóságához */}
+              <div style={{ position:"absolute",top:0,left:0,right:0,height:120,background:"linear-gradient(to bottom,rgba(8,11,16,0.65) 0%,transparent 100%)",pointerEvents:"none" }} />
+              {/* Alsó fade – beleolvad a szövegbe */}
+              <div style={{ position:"absolute",bottom:0,left:0,right:0,height:"55%",background:"linear-gradient(to top,rgba(8,11,16,0.98) 0%,rgba(8,11,16,0.85) 25%,rgba(8,11,16,0.4) 60%,transparent 100%)",pointerEvents:"none" }} />
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
               <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
               <div style={{ position:"absolute",top:30,right:20,border:"3px solid #ff5c5c",borderRadius:12,padding:"6px 16px",color:"#ff5c5c",fontSize:22,fontWeight:900,opacity:passOpacity,transform:"rotate(15deg)" }}>PASS</div>
-              <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"16px 20px 20px" }}>
-                <div style={{ display:"flex",alignItems:"baseline",gap:8,marginBottom:4 }}><span style={{ fontSize:28,fontWeight:900,color:"#fff" }}>{cur.name}</span><span style={{ fontSize:20,color:"rgba(255,255,255,0.5)" }}>{cur.age}</span></div>
-                {cur.looking_for ? <div style={{ display:"inline-flex",alignItems:"center",gap:5,background:"rgba(255,140,66,0.25)",border:"1px solid rgba(255,140,66,0.5)",borderRadius:20,padding:"4px 11px",marginBottom:8,fontSize:12,color:"#fff",fontWeight:600 }}>{cur.looking_for}</div> : <div style={{ fontSize:10,color:"rgba(255,255,255,0.3)",marginBottom:8 }}>looking_for: {JSON.stringify(cur.looking_for)}</div>}
-                <p style={{ color:"rgba(255,255,255,0.7)",fontSize:13,margin:"0 0 10px" }}>{cur.bio}</p>
+              <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"16px 20px 24px" }}>
+                <div style={{ display:"flex",alignItems:"baseline",gap:8,marginBottom:4 }}><span style={{ fontSize:28,fontWeight:900,color:"#fff" }}>{cur.name}</span><span style={{ fontSize:20,color:"rgba(255,255,255,0.6)" }}>{cur.age}</span></div>
+                {cur.looking_for && <div style={{ display:"inline-flex",alignItems:"center",gap:5,background:"rgba(255,140,66,0.25)",border:"1px solid rgba(255,140,66,0.5)",borderRadius:20,padding:"4px 11px",marginBottom:8,fontSize:12,color:"#fff",fontWeight:600 }}>{cur.looking_for}</div>}
+                <p style={{ color:"rgba(255,255,255,0.75)",fontSize:13,margin:"0 0 10px" }}>{cur.bio}</p>
                 <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{(cur.interests||[]).slice(0,3).map(t => <span key={t} style={{ background:"rgba(255,92,92,0.18)",border:"1px solid rgba(255,92,92,0.3)",borderRadius:20,padding:"4px 10px",fontSize:12,color:"#fff" }}>{t}</span>)}</div>
               </div>
             </>
