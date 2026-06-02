@@ -1974,17 +1974,22 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
                   {[...photos, "info"].map((_, p) => <div key={p} style={{ width:p===cardPage?20:6,height:6,borderRadius:3,background:p===cardPage?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
                 </div>
                 {cardPage < photos.length ? (
-                  <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0 }} alt={cur.name} />
+                  <>
+                    {/* Háttér: elmosott kitöltés */}
+                    <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0,filter:"blur(28px) brightness(0.55)",transform:"scale(1.15)" }} alt="" aria-hidden="true" />
+                    {/* Előtér: teljes kép, levágás nélkül */}
+                    <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"contain",position:"absolute",inset:0 }} alt={cur.name} />
+                  </>
                 ) : null}
               </>
             );
           })()}
           {cardPage < (cur.photos||(cur.photo_url?[cur.photo_url]:[])).length ? (
             <>
-              {/* Felső fade – nagyobb felület */}
-              <div style={{ position:"absolute",top:0,left:0,right:0,height:180,background:"linear-gradient(to bottom,rgba(8,11,16,0.85) 0%,rgba(8,11,16,0.4) 40%,transparent 100%)",pointerEvents:"none" }} />
-              {/* Alsó fade – kitölti a kártya alsó 75%-át */}
-              <div style={{ position:"absolute",bottom:0,left:0,right:0,height:"75%",background:"linear-gradient(to top,rgba(8,11,16,1) 0%,rgba(8,11,16,0.97) 20%,rgba(8,11,16,0.85) 38%,rgba(8,11,16,0.5) 60%,rgba(8,11,16,0.15) 82%,transparent 100%)",pointerEvents:"none" }} />
+              {/* Felső fade */}
+              <div style={{ position:"absolute",top:0,left:0,right:0,height:120,background:"linear-gradient(to bottom,rgba(8,11,16,0.55) 0%,transparent 100%)",pointerEvents:"none" }} />
+              {/* Alsó fade – a szöveg és gombok olvashatóságához */}
+              <div style={{ position:"absolute",bottom:0,left:0,right:0,height:"50%",background:"linear-gradient(to top,rgba(8,11,16,0.92) 0%,rgba(8,11,16,0.7) 30%,rgba(8,11,16,0.3) 60%,transparent 100%)",pointerEvents:"none" }} />
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
               <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
               <div style={{ position:"absolute",top:30,right:20,border:"3px solid #ff5c5c",borderRadius:12,padding:"6px 16px",color:"#ff5c5c",fontSize:22,fontWeight:900,opacity:passOpacity,transform:"rotate(15deg)" }}>PASS</div>
