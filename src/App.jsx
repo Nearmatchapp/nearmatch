@@ -1988,11 +1988,22 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
               <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
               <div style={{ position:"absolute",top:30,right:20,border:"3px solid #ff5c5c",borderRadius:12,padding:"6px 16px",color:"#ff5c5c",fontSize:22,fontWeight:900,opacity:passOpacity,transform:"rotate(15deg)" }}>PASS</div>
-              <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"16px 20px 24px" }}>
+              <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"16px 20px 18px" }}>
                 <div style={{ display:"flex",alignItems:"baseline",gap:8,marginBottom:4 }}><span style={{ fontSize:28,fontWeight:900,color:"#fff" }}>{cur.name}</span><span style={{ fontSize:20,color:"rgba(255,255,255,0.6)" }}>{cur.age}</span></div>
                 {cur.looking_for && <div style={{ display:"inline-flex",alignItems:"center",gap:5,background:"rgba(255,140,66,0.25)",border:"1px solid rgba(255,140,66,0.5)",borderRadius:20,padding:"4px 11px",marginBottom:8,fontSize:12,color:"#fff",fontWeight:600 }}>{cur.looking_for}</div>}
                 <p style={{ color:"rgba(255,255,255,0.75)",fontSize:13,margin:"0 0 10px" }}>{cur.bio}</p>
-                <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>{(cur.interests||[]).slice(0,3).map(t => <span key={t} style={{ background:"rgba(255,92,92,0.18)",border:"1px solid rgba(255,92,92,0.3)",borderRadius:20,padding:"4px 10px",fontSize:12,color:"#fff" }}>{t}</span>)}</div>
+                <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:16 }}>{(cur.interests||[]).slice(0,3).map(t => <span key={t} style={{ background:"rgba(255,92,92,0.18)",border:"1px solid rgba(255,92,92,0.3)",borderRadius:20,padding:"4px 10px",fontSize:12,color:"#fff" }}>{t}</span>)}</div>
+                {/* Akció gombok a kártyán */}
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:8 }} onMouseDown={e=>e.stopPropagation()} onTouchStart={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
+                  <button onClick={(e)=>{e.stopPropagation();handleRewind();}} style={{ width:44,height:44,borderRadius:"50%",background:"rgba(255,255,255,0.1)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,0.15)",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>↩️</button>
+                  <button onClick={(e)=>{e.stopPropagation();showLabel("PASS");act("pass");}} style={{ width:54,height:54,borderRadius:"50%",background:"rgba(255,255,255,0.1)",backdropFilter:"blur(8px)",border:"1px solid rgba(255,255,255,0.2)",fontSize:24,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff" }}>✕</button>
+                  <button onClick={(e)=>{e.stopPropagation();showLabel("LIKE");act("like");}} style={{ width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accentGlow}` }}><HeartIcon size={30} color="#fff" /></button>
+                  <button onClick={(e)=>{e.stopPropagation();if(slLeft<=0){setProWallType("superlike");return;}showLabel("SUPER LIKE");act("superlike");}} style={{ width:54,height:54,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.2)":"rgba(255,255,255,0.1)",backdropFilter:"blur(8px)",border:`1px solid ${slLeft>0?"rgba(77,171,247,0.5)":"rgba(255,255,255,0.15)"}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>⭐</button>
+                  <button onClick={(e)=>{e.stopPropagation();myCards.length>0?setGiveCardModal(true):null;}} style={{ width:44,height:44,borderRadius:"50%",background:myCards.length>0?"rgba(255,140,66,0.2)":"rgba(255,255,255,0.06)",backdropFilter:"blur(8px)",border:`1px solid ${myCards.length>0?"rgba(255,140,66,0.5)":"rgba(255,255,255,0.12)"}`,cursor:myCards.length>0?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",opacity:myCards.length>0?1:0.4 }}>
+                    <NearMatchCard size={0.26} />
+                    {myCards.length>0 && <div style={{ position:"absolute",top:-4,right:-4,width:16,height:16,borderRadius:"50%",background:C.orange,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",fontWeight:800 }}>{myCards.length}</div>}
+                  </button>
+                </div>
               </div>
             </>
           ) : (
@@ -2003,23 +2014,6 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
               {(cur.interests||[]).length>0&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}` }}><div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{cur.interests.map(t=><span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"4px 10px",fontSize:12,color:C.accent }}>{t}</span>)}</div></div>}
             </div>
           )}
-        </div>
-      </div>
-      <div style={{ flexShrink:0,paddingTop:10 }}>
-        <div style={{ display:"flex",justifyContent:"center",gap:6,marginBottom:10 }}>
-          {Array.from({length:slLimit}).map((_,i) => (<div key={i} style={{ width:20,height:4,borderRadius:2,background:i<slLeft?"#4dabf7":C.border }} />))}
-          <span style={{ color:C.dim,fontSize:10,marginLeft:4 }}>{slLeft}/{slLimit} Super Like</span>
-        </div>
-        <div style={{ display:"flex",justifyContent:"center",alignItems:"center",gap:12 }}>
-          <button onClick={handleRewind} style={{ width:48,height:48,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>↩️</button>
-          <button onClick={() => {showLabel("PASS");act("pass");}} style={{ width:56,height:56,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,fontSize:24,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.muted }}>✕</button>
-          <button onClick={() => {showLabel("LIKE");act("like");}} style={{ width:70,height:70,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${C.accentGlow}` }}><HeartIcon size={32} color="#fff" /></button>
-          <button onClick={() => { if(slLeft<=0){setProWallType("superlike");return;} showLabel("SUPER LIKE"); act("superlike"); }} style={{ width:56,height:56,borderRadius:"50%",background:slLeft>0?"rgba(77,171,247,0.12)":C.card,border:`1px solid ${slLeft>0?"#4dabf7":C.border}`,fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center" }}>⭐</button>
-          <button onClick={() => myCards.length > 0 ? setGiveCardModal(true) : null}
-            style={{ width:48,height:48,borderRadius:"50%",background:myCards.length>0?"rgba(255,140,66,0.12)":"rgba(255,255,255,0.04)",border:`1px solid ${myCards.length>0?"rgba(255,140,66,0.4)":C.border}`,cursor:myCards.length>0?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",opacity:myCards.length>0?1:0.3,transition:"all 0.2s" }}>
-            <NearMatchCard size={0.28} />
-            {myCards.length > 0 && <div style={{ position:"absolute",top:-4,right:-4,width:16,height:16,borderRadius:"50%",background:C.orange,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",fontWeight:800 }}>{myCards.length}</div>}
-          </button>
         </div>
       </div>
     </div>
