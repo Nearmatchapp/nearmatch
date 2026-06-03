@@ -2991,7 +2991,20 @@ export default function App() {
       if (u.is_incognito && !likedUsIds.has(u.id)) return false;
       return true;
     }).map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null }));
-    setSwipeUsers(boostActive ? [...forSwipe].sort((a,b)=>(a.distanceKm||99)-(b.distanceKm||99)) : forSwipe);
+    // Ghost Score alapú rendezés: null (új user) = 100-nak számít → elöl, alacsony score → hátul
+    const ghostSort = (a, b) => {
+      const sa = a.ghost_score ?? 100;
+      const sb = b.ghost_score ?? 100;
+      return sb - sa;
+    };
+    const swipeSorted = boostActive
+      ? [...forSwipe].sort((a, b) => {
+          const distDiff = (a.distanceKm||99) - (b.distanceKm||99);
+          if (distDiff !== 0) return distDiff;
+          return (b.ghost_score ?? 100) - (a.ghost_score ?? 100);
+        })
+      : [...forSwipe].sort(ghostSort);
+    setSwipeUsers(swipeSorted);
   }, [myLocation, session, boostActive]);
 
   useEffect(() => { loadNearby(); }, [loadNearby]);
