@@ -13,8 +13,17 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
   const [idx, setIdx] = useState(0);
   const [history, setHistory] = useState([]);
   const [cardPage, setCardPage] = useState(0);
-  const [drag, setDrag] = useState({ x:0, y:0, dragging:false });
   const [gone, setGone] = useState(false);
+  // Drag állapot ref-ekben + rAF-fel közvetlenül a DOM-ra írva (D2):
+  // korábban minden pointer-mozdulat setState-elt → teljes screen-render
+  // ujjkövetésenként, ettől volt darabos a húzás
+  const dragRef = useRef({ x:0, y:0 });
+  const draggingRef = useRef(false);
+  const movedRef = useRef(false);
+  const rafRef = useRef(null);
+  const cardRef = useRef(null);
+  const likeRef = useRef(null);
+  const passRef = useRef(null);
   // A swipe-olt user pillanatképe a kirepülő animáció idejére — a szülő a
   // listából azonnal eltávolítja, e nélkül a repülő kártya tartalma átváltana
   const [leaving, setLeaving] = useState(null);
@@ -92,6 +101,15 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
     setGone(true);
     setLeaving({ user: cur });
     setHistory(h => [...h.slice(-9), { user: cur }]);
+    // Kirepülés közvetlenül a DOM-on: like/superlike jobbra, pass balra
+    // (húzásnál a húzás iránya dönt)
+    const x = dragRef.current.x;
+    const flyRight = x !== 0 ? x > 0 : dir !== "pass";
+    const el = cardRef.current;
+    if (el) {
+      el.style.transition = "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)";
+      el.style.transform = `translateX(${flyRight?600:-600}px) rotate(${flyRight?25:-25}deg)`;
+    }
     onSwipe(cur.id, dir);
     if (dir==="superlike") {
       const today = getTodayKey();
@@ -100,7 +118,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
     setTimeout(() => {
       // A szülő már kivette a listából — az idx marad, a pakli lép magától
       setCardPage(0);
-      setDrag({ x:0, y:0, dragging:false });
+      dragRef.current = { x:0, y:0 };
       setGone(false);
       setLeaving(null);
     }, 320);
@@ -117,12 +135,47 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
     setCardPage(0);
   };
 
-  const onMouseDown = (e) => { startPos.current={x:e.clientX,y:e.clientY}; setDrag(d=>({...d,dragging:true})); };
-  const onMouseMove = (e) => { if(!drag.dragging||!startPos.current) return; setDrag({x:e.clientX-startPos.current.x,y:e.clientY-startPos.current.y,dragging:true}); };
-  const onMouseUp = () => { if(!drag.dragging) return; if(drag.x>THRESHOLD){showLabel("LIKE");act("like");}else if(drag.x<-THRESHOLD){showLabel("PASS");act("pass");}else setDrag({x:0,y:0,dragging:false}); startPos.current=null; };
-  const onTouchStart = (e) => { const t=e.touches[0]; startPos.current={x:t.clientX,y:t.clientY}; setDrag(d=>({...d,dragging:true})); };
-  const onTouchMove = (e) => { if(!startPos.current) return; const t=e.touches[0]; setDrag({x:t.clientX-startPos.current.x,y:t.clientY-startPos.current.y,dragging:true}); };
-  const onTouchEnd = () => { if(drag.x>THRESHOLD){showLabel("LIKE");act("like");}else if(drag.x<-THRESHOLD){showLabel("PASS");act("pass");}else setDrag({x:0,y:0,dragging:false}); startPos.current=null; };
+  // A húzás React-render nélkül, közvetlenül a DOM-ra írva fut (D2)
+  const applyDrag = () => {
+    rafRef.current = null;
+    const el = cardRef.current; if (!el) return;
+    const { x, y } = dragRef.current;
+    el.style.transition = "none";
+    el.style.transform = `translateX(${x}px) translateY(${y*0.3}px) rotate(${x/15}deg)`;
+    if (likeRef.current) likeRef.current.style.opacity = Math.max(0, x/THRESHOLD);
+    if (passRef.current) passRef.current.style.opacity = Math.max(0, -x/THRESHOLD);
+  };
+  const scheduleDrag = () => { if (rafRef.current == null) rafRef.current = requestAnimationFrame(applyDrag); };
+  const resetCardPosition = () => {
+    dragRef.current = { x:0, y:0 };
+    const el = cardRef.current; if (!el) return;
+    el.style.transition = "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)";
+    el.style.transform = "translateX(0px) translateY(0px) rotate(0deg)";
+    if (likeRef.current) likeRef.current.style.opacity = 0;
+    if (passRef.current) passRef.current.style.opacity = 0;
+  };
+  const beginDrag = (x, y) => { startPos.current = { x, y }; draggingRef.current = true; movedRef.current = false; };
+  const moveDrag = (x, y) => {
+    if (!draggingRef.current || !startPos.current) return;
+    dragRef.current = { x: x - startPos.current.x, y: y - startPos.current.y };
+    if (Math.abs(dragRef.current.x) > 5) movedRef.current = true;
+    scheduleDrag();
+  };
+  const release = () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    const x = dragRef.current.x;
+    startPos.current = null;
+    if (x > THRESHOLD) { showLabel("LIKE"); act("like"); }
+    else if (x < -THRESHOLD) { showLabel("PASS"); act("pass"); }
+    else resetCardPosition();
+  };
+  const onMouseDown = (e) => beginDrag(e.clientX, e.clientY);
+  const onMouseMove = (e) => moveDrag(e.clientX, e.clientY);
+  const onMouseUp = () => release();
+  const onTouchStart = (e) => { const t=e.touches[0]; beginDrag(t.clientX, t.clientY); };
+  const onTouchMove = (e) => { const t=e.touches[0]; moveDrag(t.clientX, t.clientY); };
+  const onTouchEnd = () => release();
 
   const handleGiveCard = async (card) => {
     if (!cur || givingCard) return;
@@ -149,10 +202,6 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
     setTimeout(() => setActionLabel(null), 1200);
   };
 
-  const transform = gone?`translateX(${drag.x>0?600:-600}px) rotate(${drag.x>0?25:-25}deg)`:`translateX(${drag.x}px) translateY(${drag.y*0.3}px) rotate(${drag.x/15}deg)`;
-  const transition = (drag.dragging || (!gone && drag.x===0)) ? "none" : "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)";
-  const likeOpacity = Math.max(0,drag.x/THRESHOLD);
-  const passOpacity = Math.max(0,-drag.x/THRESHOLD);
   const distLabel = (km) => km!=null ? (km<1?`${Math.round(km*1000)}m`:`${km.toFixed(1)}km`) : "";
 
   return (
@@ -214,9 +263,9 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
             <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)" }} />
           </div>
         )}
-        <div key={cur.id} onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        <div key={cur.id} ref={cardRef} onMouseDown={onMouseDown} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           onClick={(e) => {
-            if(Math.abs(drag.x)>5) return;
+            if(movedRef.current) return;
             const rect=e.currentTarget.getBoundingClientRect();
             const x=e.clientX-rect.left;
             const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]);
@@ -224,7 +273,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
             if(x > rect.width*0.5) setCardPage(p=>Math.min(p+1, totalPages-1));
             else setCardPage(p=>Math.max(p-1,0));
           }}
-          style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab",transform,transition }}>
+          style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab" }}>
           {(() => {
             const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]);
             const totalPages = photos.length;
@@ -251,8 +300,8 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
               {/* Alsó fade – a szöveg és gombok olvashatóságához */}
               <div style={{ position:"absolute",bottom:0,left:0,right:0,height:"50%",background:"linear-gradient(to top,rgba(8,11,16,0.92) 0%,rgba(8,11,16,0.7) 30%,rgba(8,11,16,0.3) 60%,transparent 100%)",pointerEvents:"none" }} />
               {cur.distanceKm!=null && <div style={{ position:"absolute",top:14,right:14,background:C.accent,borderRadius:10,padding:"4px 10px",fontSize:12,color:"#fff",fontWeight:700 }}>● {distLabel(cur.distanceKm)}</div>}
-              <div style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:likeOpacity,transform:"rotate(-15deg)" }}>LIKE</div>
-              <div style={{ position:"absolute",top:30,right:20,border:"3px solid #ff5c5c",borderRadius:12,padding:"6px 16px",color:"#ff5c5c",fontSize:22,fontWeight:900,opacity:passOpacity,transform:"rotate(15deg)" }}>PASS</div>
+              <div ref={likeRef} style={{ position:"absolute",top:30,left:20,border:"3px solid #3ecf8e",borderRadius:12,padding:"6px 16px",color:"#3ecf8e",fontSize:22,fontWeight:900,opacity:0,transform:"rotate(-15deg)" }}>LIKE</div>
+              <div ref={passRef} style={{ position:"absolute",top:30,right:20,border:"3px solid #ff5c5c",borderRadius:12,padding:"6px 16px",color:"#ff5c5c",fontSize:22,fontWeight:900,opacity:0,transform:"rotate(15deg)" }}>PASS</div>
               <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"16px 20px 18px" }}>
                 <div style={{ display:"flex",alignItems:"baseline",gap:8,marginBottom:4 }}><span style={{ fontSize:28,fontWeight:900,color:"#fff" }}>{cur.name}</span><span style={{ fontSize:20,color:"rgba(255,255,255,0.6)" }}>{cur.age}</span></div>
                 {cur.looking_for && <div style={{ display:"inline-flex",alignItems:"center",gap:5,background:"rgba(255,140,66,0.25)",border:"1px solid rgba(255,140,66,0.5)",borderRadius:20,padding:"4px 11px",marginBottom:8,fontSize:12,color:"#fff",fontWeight:600 }}>{cur.looking_for}</div>}
