@@ -182,6 +182,12 @@ export function boostMillisLeft(profile, now = Date.now()) {
   return Math.max(0, end - now);
 }
 
+// Olvasatlan jelölés a match-listán (B6: a badge eddig sosem jelent meg,
+// mert az unread mező sehol nem kapott értéket)
+export function applyUnread(matches, unreadMatchIds) {
+  return matches.map(m => ({ ...m, unread: unreadMatchIds.has(m.id) }));
+}
+
 // Közös láthatósági szabály: ki jelenhet meg a Radar/Swipe listákban
 export function isProfileListable(u, { swipedIds, likedUsIds }) {
   if (u.is_banned) return false;
@@ -605,7 +611,7 @@ function BottomNav({ active, setActive, unreadCount, newLikesCount }) {
     { id:"profile", icon:"👤", label:"Profil" },
   ];
   return (
-    <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:C.surface, flexShrink:0 }}>
+    <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:C.surface, flexShrink:0, paddingBottom:"env(safe-area-inset-bottom)" }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => setActive(t.id)} style={{ flex:1, padding:"10px 0", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
           <span style={{ fontSize:18, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
@@ -2161,7 +2167,7 @@ function VoicePlayer({ src, isMine }) {
   );
 }
 
-function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
+function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
@@ -2267,15 +2273,26 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted }) {
   ];
 
   useEffect(() => {
+    // A nekem küldött üzenetek olvasottra jelölése (B6) — a badge ebből számolódik
+    const markRead = async () => {
+      const { error } = await supabase.from("messages").update({ is_read: true })
+        .eq("match_id", match.id).neq("sender_id", myId).eq("is_read", false);
+      if (!error) onRead && onRead();
+    };
     const load = async () => {
       const { data } = await supabase.from("messages").select("*").eq("match_id", match.id).order("created_at", { ascending:true });
       setMsgs(data||[]); setLoading(false);
+      markRead();
     };
     load();
     const sub = supabase.channel(`messages:${match.id}`)
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages", filter:`match_id=eq.${match.id}` }, payload => { setMsgs(m => [...m, payload.new]); }).subscribe();
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages", filter:`match_id=eq.${match.id}` }, payload => {
+        setMsgs(m => [...m, payload.new]);
+        // Nyitott chatben az érkező üzenet azonnal olvasott
+        if (payload.new.sender_id !== myId) markRead();
+      }).subscribe();
     return () => supabase.removeChannel(sub);
-  }, [match.id]);
+  }, [match.id, myId]);
 
   useEffect(() => bottomRef.current?.scrollIntoView({ behavior:"smooth" }), [msgs]);
 
@@ -3070,8 +3087,17 @@ export default function App() {
       const lastMsgAt = lastMsg?.created_at || m.created_at;
       return { ...m, other, lastMsg:lastMsg?.voice_url ? "🎙️ Hangüzenet" : lastMsg?.text, timeLabel, lastMsgAt };
     }));
+    // Olvasatlan üzenetek match-enként (egyetlen query az összesre)
+    let unreadIds = new Set();
+    if (data.length > 0) {
+      const { data: unreadRows } = await supabase.from("messages").select("match_id")
+        .in("match_id", data.map(m => m.id))
+        .eq("is_read", false)
+        .neq("sender_id", session.user.id);
+      unreadIds = new Set((unreadRows||[]).map(r => r.match_id));
+    }
     // Legújabb üzenet szerint rendezés
-    const sorted = [...withOther].sort((a,b) => new Date(b.lastMsgAt) - new Date(a.lastMsgAt));
+    const sorted = applyUnread([...withOther].sort((a,b) => new Date(b.lastMsgAt) - new Date(a.lastMsgAt)), unreadIds);
     setMatches(sorted);
   }, [session]);
 
@@ -3244,7 +3270,7 @@ export default function App() {
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",minHeight:0 }}>
         {matchOverlay && <MatchOverlay user={matchOverlay} onMessage={() => { const m=matches.find(x=>x.other?.id===matchOverlay.id); setMatchOverlay(null); if(m){setActiveChat(m);setTab("matches");} }} onClose={()=>setMatchOverlay(null)} />}
         {activeChat ? (
-          <ChatView match={activeChat} myId={session.user.id} myVoiceOnly={myProfile?.voice_only} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} />
+          <ChatView match={activeChat} myId={session.user.id} myVoiceOnly={myProfile?.voice_only} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} onRead={loadMatches} />
         ) : (
           <>
             {/* Közel voltunk értesítő */}
@@ -3265,7 +3291,7 @@ export default function App() {
 
           {/* In-app üzenet értesítés */}
           {inAppToast && (
-            <div onClick={() => { setActiveChat(inAppToast.match); setTab("chat"); setInAppToast(null); }}
+            <div onClick={() => { setActiveChat(inAppToast.match); setTab("matches"); setInAppToast(null); }}
               style={{ position:"absolute", top:12, left:12, right:12, zIndex:300, background:C.card, borderRadius:18, padding:"12px 14px", border:`1px solid ${C.border}`, boxShadow:"0 8px 32px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:12, cursor:"pointer", animation:"slideDown 0.3s ease" }}>
               <img src={inAppToast.match.other?.photo_url||`https://i.pravatar.cc/300?u=${inAppToast.match.other?.id}`} style={{ width:42, height:42, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} alt="" />
               <div style={{ flex:1, minWidth:0 }}>

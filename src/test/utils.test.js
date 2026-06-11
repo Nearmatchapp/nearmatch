@@ -4,7 +4,7 @@ vi.mock('../supabase.js', () => ({
   supabase: {},
 }))
 
-const { distanceKm, getGhostLabel, isProfileListable, calcAge, isoWeekKey, boostMillisLeft } = await import('../App.jsx')
+const { distanceKm, getGhostLabel, isProfileListable, calcAge, isoWeekKey, boostMillisLeft, applyUnread } = await import('../App.jsx')
 
 describe('distanceKm', () => {
   it('ugyanaz a pont 0 km', () => {
@@ -135,5 +135,23 @@ describe('boostMillisLeft (B3: boost állapot a profilból)', () => {
 
   it('érvénytelen dátum → 0', () => {
     expect(boostMillisLeft({ boost_expires_at: 'rossz' }, now)).toBe(0)
+  })
+})
+
+describe('applyUnread (B6: olvasatlan badge)', () => {
+  it('a halmazban lévő matchek unread=true, a többi false', () => {
+    const matches = [{ id: 'm1' }, { id: 'm2' }, { id: 'm3' }]
+    const result = applyUnread(matches, new Set(['m2']))
+    expect(result.map(m => m.unread)).toEqual([false, true, false])
+  })
+
+  it('üres halmaz → minden olvasott', () => {
+    expect(applyUnread([{ id: 'm1' }], new Set()).every(m => !m.unread)).toBe(true)
+  })
+
+  it('a meglévő mezőket nem bántja', () => {
+    const [m] = applyUnread([{ id: 'm1', other: { name: 'X' } }], new Set(['m1']))
+    expect(m.other.name).toBe('X')
+    expect(m.unread).toBe(true)
   })
 })
