@@ -6,22 +6,17 @@ import {
 } from "./lib/constants.js";
 import {
   distanceKm, getTodayKey, calcAge, isoWeekKey, boostMillisLeft,
-  applyUnread, isProfileListable, getGhostLabel,
+  applyUnread, isProfileListable,
 } from "./lib/utils.js";
 import { registerOneSignalUser, sendPushNotification } from "./lib/push.js";
-
-function Shell({ children }) {
-  return (
-    <div style={{ width:"100%", maxWidth:390, margin:"0 auto", height:"100dvh", minHeight:"-webkit-fill-available", background:C.bg, display:"flex", flexDirection:"column", position:"relative", overflow:"hidden" }}>
-      {children}
-      <style>{`* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; } ::-webkit-scrollbar{display:none;} input[type=range]{-webkit-appearance:none;height:3px;background:rgba(240,244,255,0.15);border-radius:2px;outline:none;width:100%;} input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#ff5c5c;cursor:pointer;} @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}} @keyframes spin{to{transform:rotate(360deg);}}@keyframes slideDown{from{transform:translateY(-80px);opacity:0;}to{transform:translateY(0);opacity:1;}} div,button,input,textarea,span,a{touch-action:pan-x pan-y;} img{touch-action:pinch-zoom;}`}</style>
-    </div>
-  );
-}
-
-function Spinner() {
-  return <div style={{ width:40, height:40, border:`3px solid ${C.border}`, borderTop:`3px solid ${C.accent}`, borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto" }} />;
-}
+import Shell from "./components/Shell.jsx";
+import Spinner from "./components/Spinner.jsx";
+import BottomNav from "./components/BottomNav.jsx";
+import GhostScoreBadge from "./components/GhostScoreBadge.jsx";
+import MatchOverlay from "./components/MatchOverlay.jsx";
+import FilterPanel from "./components/FilterPanel.jsx";
+import BoostCountdown from "./components/BoostCountdown.jsx";
+import { HeartIcon, NearMatchCard, FilterIcon } from "./components/icons.jsx";
 
 // ── AUTH ───────────────────────────────────────────────
 function ResetPasswordScreen({ onDone }) {
@@ -393,28 +388,6 @@ function Onboarding({ user, onComplete }) {
   return null;
 }
 
-// ── BOTTOM NAV ─────────────────────────────────────────
-function BottomNav({ active, setActive, unreadCount, newLikesCount }) {
-  const tabs = [
-    { id:"radar", icon:"◎", label:"Radar" },
-    { id:"swipe", icon:"❤️", label:"Swipe" },
-    { id:"likeok", icon:"🔥", label:"Likeok" },
-    { id:"matches", icon:"💬", label:"Matchek" },
-    { id:"profile", icon:"👤", label:"Profil" },
-  ];
-  return (
-    <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:C.surface, flexShrink:0, paddingBottom:"env(safe-area-inset-bottom)" }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => setActive(t.id)} style={{ flex:1, padding:"10px 0", background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
-          <span style={{ fontSize:18, opacity:active===t.id?1:0.4 }}>{t.icon}</span>
-          <span style={{ fontSize:9, color:active===t.id?C.accent:C.dim }}>{t.label}</span>
-          {t.id==="matches" && unreadCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{unreadCount}</div>)}
-          {t.id==="likeok" && newLikesCount>0 && (<div style={{ position:"absolute", top:6, right:"10%", width:14, height:14, borderRadius:"50%", background:C.orange, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, color:"#fff", fontWeight:700 }}>{newLikesCount}</div>)}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 // ── LIKEOK SCREEN ──────────────────────────────────────
 function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
@@ -633,37 +606,6 @@ async function calcAndSaveGhostScore(userId) {
   } catch { return null; }
 }
 
-// score prop-ot kap közvetlenül a profile objektumból
-function GhostScoreBadge({ score }) {
-  if (score === null || score === undefined) return (
-    <div style={{ background:"rgba(20,28,43,0.95)", borderRadius:14, padding:"12px 14px", border:"1px solid rgba(240,244,255,0.08)", display:"flex", alignItems:"center", gap:12 }}>
-      <div style={{ textAlign:"center", minWidth:52 }}>
-        <div style={{ fontSize:26 }}>🆕</div>
-      </div>
-      <div style={{ flex:1 }}>
-        <div style={{ color:"#f0f4ff", fontWeight:700, fontSize:13, marginBottom:2 }}>Ghost Score</div>
-        <div style={{ color:"rgba(240,244,255,0.45)", fontSize:12 }}>Új felhasználó – még nincs adat</div>
-      </div>
-    </div>
-  );
-  const g = getGhostLabel(score);
-  return (
-    <div style={{ background:"rgba(20,28,43,0.95)", borderRadius:14, padding:"12px 14px", border:`1px solid ${g.color}44`, display:"flex", alignItems:"center", gap:12 }}>
-      <div style={{ textAlign:"center", minWidth:52 }}>
-        <div style={{ fontSize:26 }}>{g.emoji}</div>
-        <div style={{ fontSize:22, fontWeight:900, color:g.color, lineHeight:1 }}>{score}%</div>
-      </div>
-      <div style={{ flex:1 }}>
-        <div style={{ color:"#f0f4ff", fontWeight:700, fontSize:13, marginBottom:2 }}>Ghost Score</div>
-        <div style={{ color:g.color, fontSize:12, fontWeight:600, marginBottom:6 }}>{g.label}</div>
-        <div style={{ background:"rgba(240,244,255,0.08)", borderRadius:8, height:6 }}>
-          <div style={{ background:g.color, borderRadius:8, height:6, width:`${score}%`, transition:"width 0.6s" }} />
-        </div>
-        <div style={{ color:"rgba(240,244,255,0.4)", fontSize:11, marginTop:4 }}>{g.desc}</div>
-      </div>
-    </div>
-  );
-}
 
 function SatelliteMapView({ myProfile, visibleUsers, isPro, onSelect }) {
   const mapRef = useRef(null);
@@ -979,40 +921,6 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
 // ── SWIPE ──────────────────────────────────────────────
 const THRESHOLD = 100;
 
-// ── NEARMATCH CARD SVG ──────────────────────────────────
-function HeartIcon({ size = 24, color = "#fff" }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-    </svg>
-  );
-}
-
-function NearMatchCard({ size = 1 }) {
-  const uid = useRef(`nm_${Math.random().toString(36).slice(2)}`).current;
-  const w = 80 * size, h = 110 * size;
-  return (
-    <svg width={w} height={h} viewBox="0 0 80 110" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id={`cardBg_${uid}`} x1="0" y1="0" x2="80" y2="110" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#1a2340" />
-          <stop offset="100%" stopColor="#0d1525" />
-        </linearGradient>
-        <linearGradient id={`accentGrad_${uid}`} x1="24" y1="41" x2="56" y2="72" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ff5c5c" />
-          <stop offset="100%" stopColor="#ff8c42" />
-        </linearGradient>
-      </defs>
-      <rect width="80" height="110" rx="10" fill={`url(#cardBg_${uid})`} />
-      <rect x="0.5" y="0.5" width="79" height="109" rx="9.5" stroke="rgba(255,92,92,0.3)" strokeWidth="1" />
-      <rect x="5" y="5" width="70" height="100" rx="7" stroke="rgba(255,92,92,0.12)" strokeWidth="0.5" />
-      <text x="9" y="17" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif">NM</text>
-      <text x="71" y="100" fontSize="7" fontWeight="800" fill="#ff5c5c" fontFamily="Arial,sans-serif" textAnchor="end">NM</text>
-      <path d="M40 70 C40 70 24 59 24 49 C24 43 28.5 39 34 39 C37 39 39.5 40.5 40 42 C40.5 40.5 43 39 46 39 C51.5 39 56 43 56 49 C56 59 40 70 40 70Z" fill={`url(#accentGrad_${uid})`} />
-      <text x="40" y="86" fontSize="5.5" fontWeight="700" fill="rgba(255,255,255,0.35)" fontFamily="Arial,sans-serif" textAnchor="middle" letterSpacing="1.5">NEARMATCH</text>
-    </svg>
-  );
-}
 
 function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
   const [profileModal, setProfileModal] = useState(null);
@@ -1308,143 +1216,19 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
   const isFiltered = activeFilters.minAge !== 18 || activeFilters.maxAge !== 60 || activeFilters.maxDist !== 50 || activeFilters.gender !== "Mindenki" || !!activeFilters.lookingFor;
 
-  const SliderTrack = ({ min, max, value, onChange, label, unit="" }) => {
-    const pct = Math.round(((value - min) / (max - min)) * 100);
-    return (
-      <div>
-        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-          <span style={{ color:C.muted, fontSize:13 }}>{label}</span>
-          <span style={{ color:C.accent, fontWeight:700, fontSize:13 }}>{value}{unit}</span>
-        </div>
-        <div style={{ position:"relative", height:36, display:"flex", alignItems:"center" }}>
-          {/* Track háttér */}
-          <div style={{ position:"absolute", left:0, right:0, height:4, borderRadius:2, background:"rgba(255,255,255,0.1)" }} />
-          {/* Aktív sáv */}
-          <div style={{ position:"absolute", left:0, width:`${pct}%`, height:4, borderRadius:2, background:`linear-gradient(90deg,${C.accent},#ff8c42)` }} />
-          <input
-            type="range" min={min} max={max} value={value} step={1}
-            onChange={e => onChange(+e.target.value)}
-            style={{
-              position:"absolute", left:0, right:0, width:"100%",
-              appearance:"none", WebkitAppearance:"none",
-              background:"transparent", outline:"none", cursor:"pointer", margin:0, padding:0,
-            }}
-          />
-        </div>
-        <style>{`
-          input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 26px; height: 26px;
-            border-radius: 50%;
-            background: #fff;
-            border: 3px solid ${C.accent};
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(255,92,92,0.4);
-          }
-          input[type=range]::-moz-range-thumb {
-            width: 26px; height: 26px;
-            border-radius: 50%;
-            background: #fff;
-            border: 3px solid ${C.accent};
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(255,92,92,0.4);
-          }
-          input[type=range]::-webkit-slider-runnable-track { background: transparent; }
-          input[type=range]::-moz-range-track { background: transparent; }
-        `}</style>
-      </div>
-    );
-  };
-
-  const FilterIcon = ({ active }) => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? C.accent : C.muted} strokeWidth="2.2" strokeLinecap="round">
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="4" y1="12" x2="20" y2="12" />
-      <line x1="4" y1="18" x2="20" y2="18" />
-      <circle cx="9" cy="6" r="2.5" fill={active ? C.accent : C.surface} stroke={active ? C.accent : C.muted} />
-      <circle cx="15" cy="12" r="2.5" fill={active ? C.accent : C.surface} stroke={active ? C.accent : C.muted} />
-      <circle cx="9" cy="18" r="2.5" fill={active ? C.accent : C.surface} stroke={active ? C.accent : C.muted} />
-    </svg>
-  );
-
-  const FilterPanel = () => (
-    <div style={{ position:"absolute",inset:0,zIndex:95,background:"rgba(8,11,16,0.92)",backdropFilter:"blur(12px)",display:"flex",alignItems:"flex-end" }}>
-      <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"8px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column" }}>
-        <div style={{ width:36,height:4,borderRadius:2,background:C.border,margin:"0 auto 20px" }} />
-        <div style={{ padding:"0 20px 40px", display:"flex", flexDirection:"column", gap:24 }}>
-          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-            <span style={{ color:C.text,fontWeight:800,fontSize:18 }}>Szűrők</span>
-            <button onClick={() => setShowFilters(false)} style={{ width:32,height:32,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,color:C.muted,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
-          </div>
-
-          {/* Kor - két csúszka */}
-          <div>
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-              <span style={{ color:C.muted, fontSize:13, fontWeight:600 }}>Kor</span>
-              <span style={{ color:C.accent, fontWeight:700, fontSize:13 }}>{filters.minAge} – {filters.maxAge} év</span>
-            </div>
-            <SliderTrack min={18} max={filters.maxAge - 1} value={filters.minAge} label="Min kor" unit=" év"
-              onChange={v => setFilters(f => ({...f, minAge: v}))} />
-            <div style={{ marginTop:4 }}>
-              <SliderTrack min={filters.minAge + 1} max={80} value={filters.maxAge} label="Max kor" unit=" év"
-                onChange={v => setFilters(f => ({...f, maxAge: v}))} />
-            </div>
-          </div>
-
-          {/* Távolság */}
-          <SliderTrack min={1} max={100} value={filters.maxDist} label="Max távolság"
-            unit={filters.maxDist < 100 ? " km" : "+ km"}
-            onChange={v => setFilters(f => ({...f, maxDist: v}))} />
-
-          {/* Nem */}
-          <div>
-            <span style={{ color:C.muted, fontSize:13, fontWeight:600, display:"block", marginBottom:10 }}>Keresett nem</span>
-            <div style={{ display:"flex", gap:8 }}>
-              {["Mindenki","Nő","Férfi","Non-binary"].map(g => (
-                <button key={g} onClick={() => setFilters(f=>({...f,gender:g}))}
-                  style={{ flex:1,padding:"10px 4px",borderRadius:12,border:`1px solid ${filters.gender===g?C.accent:C.border}`,background:filters.gender===g?C.accentSoft:C.card,color:filters.gender===g?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:700,transition:"all 0.15s" }}>
-                  {g}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Keresett kapcsolat */}
-          <div>
-            <span style={{ color:C.muted, fontSize:13, fontWeight:600, display:"block", marginBottom:10 }}>Keresett kapcsolat</span>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-              {[{l:"Bármilyen",i:"✨"},{l:"Komoly kapcsolat",i:"💍"},{l:"Laza ismerkedés",i:"🌊"},{l:"Új barátok",i:"👋"},{l:"Meglátjuk",i:"🤷"}].map(x => (
-                <button key={x.l} onClick={() => setFilters(f=>({...f,lookingFor:f.lookingFor===x.l?"":x.l}))}
-                  style={{ padding:"8px 12px",borderRadius:20,border:`1px solid ${filters.lookingFor===x.l?C.accent:C.border}`,background:filters.lookingFor===x.l?C.accentSoft:C.card,color:filters.lookingFor===x.l?C.accent:C.muted,cursor:"pointer",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:5 }}>
-                  {x.i} {x.l}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Gombok */}
-          <div style={{ display:"flex", gap:10 }}>
-            <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki",lookingFor:""}; setFilters(d); setActiveFilters(d); localStorage.setItem("swipeFilters", JSON.stringify(d)); setShowFilters(false); }}
-              style={{ flex:1,padding:"14px",borderRadius:14,border:`1px solid ${C.border}`,background:"none",color:C.muted,cursor:"pointer",fontSize:14,fontWeight:600 }}>
-              Visszaállít
-            </button>
-            <button onClick={() => { setActiveFilters(filters); localStorage.setItem("swipeFilters", JSON.stringify(filters)); setShowFilters(false); }}
-              style={{ flex:2,padding:"14px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700,boxShadow:`0 4px 16px ${C.accentGlow}` }}>
-              Mutat →
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+  const applyFilters = () => { setActiveFilters(filters); localStorage.setItem("swipeFilters", JSON.stringify(filters)); setShowFilters(false); };
+  const resetFilters = () => { setFilters(DEFAULT_FILTERS); setActiveFilters(DEFAULT_FILTERS); localStorage.setItem("swipeFilters", JSON.stringify(DEFAULT_FILTERS)); setShowFilters(false); };
+  const filterPanel = showFilters && (
+    <FilterPanel filters={filters} setFilters={setFilters} onClose={() => setShowFilters(false)} onApply={applyFilters} onReset={resetFilters} />
   );
 
   if (!filteredUsers.length) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flex:1, flexDirection:"column", gap:16, padding:"0 24px", position:"relative" }}>
-      {showFilters && <FilterPanel />}
+      {filterPanel}
       <div style={{ fontSize:50 }}>😕</div>
       <div style={{ fontSize:16, color:C.text }}>Nincs találat</div>
       <div style={{ fontSize:13, color:C.muted, textAlign:"center" }}>{isFiltered ? "Próbálj tágabb szűrőkkel!" : "Próbálj később!"}</div>
-      {isFiltered && <button onClick={() => { const d={minAge:18,maxAge:60,maxDist:50,gender:"Mindenki",lookingFor:""}; setFilters(d); setActiveFilters(d); localStorage.setItem("swipeFilters", JSON.stringify(d)); }} style={{ padding:"12px 24px",borderRadius:14,border:"none",background:C.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14 }}>Szűrők törlése</button>}
+      {isFiltered && <button onClick={resetFilters} style={{ padding:"12px 24px",borderRadius:14,border:"none",background:C.accent,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14 }}>Szűrők törlése</button>}
     </div>
   );
 
@@ -1518,7 +1302,7 @@ function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpg
 
   return (
     <div style={{ flex:1,display:"flex",flexDirection:"column",padding:"4px 8px 8px",userSelect:"none",position:"relative" }} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
-      {showFilters && <FilterPanel />}
+      {filterPanel}
       {showCards && <CardsModal myId={myProfile?.id} isPro={isPro} onClose={() => { setShowCards(false); loadMyCards(); }} onUpgrade={onUpgrade} onOpenChat={onOpenChat} />}
 
       {/* Kártya odaadás modal */}
@@ -2125,7 +1909,7 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) 
 }
 
 // ── PROFIL ─────────────────────────────────────────────
-function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, boostTimeLeft, onBoost, onBuyBoost, onUpgrade, onSignOut, onDeleteAccount }) {
+function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onBuyBoost, onUpgrade, onSignOut, onDeleteAccount }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -2268,7 +2052,7 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
               <div style={{ color:C.dim,fontSize:12 }}>Most előre kerülsz a listákon</div>
             </div>
             <div style={{ textAlign:"right" }}>
-              <div style={{ color:C.yellow,fontWeight:800,fontSize:18,fontVariantNumeric:"tabular-nums" }}>{Math.floor(boostTimeLeft/60)}:{String(boostTimeLeft%60).padStart(2,"0")}</div>
+              <div style={{ color:C.yellow,fontWeight:800,fontSize:18,fontVariantNumeric:"tabular-nums" }}><BoostCountdown expiresAt={myProfile?.boost_expires_at} /></div>
               <div style={{ color:C.dim,fontSize:10 }}>hátra</div>
             </div>
           </div>
@@ -2371,19 +2155,6 @@ function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvail
   );
 }
 
-// ── MATCH OVERLAY ──────────────────────────────────────
-function MatchOverlay({ user, onMessage, onClose }) {
-  return (
-    <div style={{ position:"absolute",inset:0,background:"rgba(8,11,16,0.92)",backdropFilter:"blur(8px)",zIndex:80,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 24px" }}>
-      <div style={{ fontSize:60,marginBottom:16,animation:"pulse 1s infinite" }}>🎉</div>
-      <h2 style={{ fontSize:32,fontWeight:900,color:C.text,margin:"0 0 8px",fontFamily:"Georgia,serif" }}>Egymásra találtatok!</h2>
-      <p style={{ color:C.muted,marginBottom:24 }}>Te és {user.name} egymásra találtatok!</p>
-      <img src={user.photo_url||`https://i.pravatar.cc/300?u=${user.id}`} style={{ width:90,height:90,borderRadius:"50%",objectFit:"cover",border:`3px solid ${C.accent}`,marginBottom:28 }} alt={user.name} />
-      <button onClick={onMessage} style={{ width:"100%",padding:"16px",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",borderRadius:16,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer",marginBottom:10 }}>💬 Üzenet küldése</button>
-      <button onClick={onClose} style={{ background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:15 }}>Folytatom a böngészést</button>
-    </div>
-  );
-}
 
 // ── APP ────────────────────────────────────────────────
 export default function App() {
@@ -2413,19 +2184,17 @@ export default function App() {
   });
   // Boost állapot a profil boost_expires_at mezőjéből (a fizetett boostot a
   // Stripe webhook, a heti ingyeneset a use_weekly_boost RPC állítja be —
-  // kliens-oldalon nem hamisítható)
-  const [boostTimeLeft, setBoostTimeLeft] = useState(0);
-  const boostActive = boostTimeLeft > 0;
+  // kliens-oldalon nem hamisítható). Itt csak a be/ki határátmenet él:
+  // a másodpercenkénti visszaszámláló a BoostCountdown komponensben fut,
+  // így nem rendereli újra az egész appot (D1).
+  const [boostActive, setBoostActive] = useState(false);
 
   useEffect(() => {
-    const update = () => {
-      const left = Math.ceil(boostMillisLeft(myProfile) / 1000);
-      setBoostTimeLeft(left);
-      return left;
-    };
-    if (update() <= 0) return;
-    const interval = setInterval(() => { if (update() <= 0) clearInterval(interval); }, 1000);
-    return () => clearInterval(interval);
+    const ms = boostMillisLeft(myProfile);
+    setBoostActive(ms > 0);
+    if (ms <= 0) return;
+    const t = setTimeout(() => setBoostActive(false), ms + 250);
+    return () => clearTimeout(t);
   }, [myProfile?.boost_expires_at]);
 
   const [newLikesCount, setNewLikesCount] = useState(0);
@@ -2876,7 +2645,7 @@ export default function App() {
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={handleOpenChatWith} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
-            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} boostTimeLeft={boostTimeLeft} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
+            {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}
           </>
         )}
       </div>
