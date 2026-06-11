@@ -90,7 +90,8 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
     load();
     const sub = supabase.channel(`messages:${match.id}`)
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages", filter:`match_id=eq.${match.id}` }, payload => {
-        setMsgs(m => [...m, payload.new]);
+        // Dedup: a saját üzenet optimistán már a listában van (D6)
+        setMsgs(m => m.some(x => x.id === payload.new.id) ? m : [...m, payload.new]);
         // Nyitott chatben az érkező üzenet azonnal olvasott
         if (payload.new.sender_id !== myId) markRead();
       }).subscribe();
@@ -100,9 +101,25 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
   useEffect(() => bottomRef.current?.scrollIntoView({ behavior:"smooth" }), [msgs]);
 
   const send = async () => {
-    if (!input.trim()) return;
-    const text = input; setInput("");
-    await supabase.from("messages").insert({ match_id:match.id, sender_id:myId, text });
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    // Optimista megjelenítés: az üzenet azonnal látszik, nem a realtime
+    // visszhangra várva (D6); hibánál visszavonjuk és visszaadjuk a szöveget
+    const temp = { id: `tmp-${Date.now()}`, match_id: match.id, sender_id: myId, text, created_at: new Date().toISOString(), pending: true };
+    setMsgs(m => [...m, temp]);
+    const { data, error } = await supabase.from("messages")
+      .insert({ match_id: match.id, sender_id: myId, text }).select().single();
+    if (error) {
+      setMsgs(m => m.filter(x => x.id !== temp.id));
+      setInput(text);
+      return;
+    }
+    setMsgs(m => {
+      // temp → valódi sor; ha a realtime közben már beszúrta, a duplikátum kiesik
+      const replaced = m.map(x => x.id === temp.id ? data : x);
+      return replaced.filter((x, i) => replaced.findIndex(y => y.id === x.id) === i);
+    });
     // Ghost Score frissítése üzenetküldés után (saját score)
     calcAndSaveGhostScore(myId).catch(() => {});
     if (match.other?.id) {
@@ -223,7 +240,7 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
         {loading && <div style={{ textAlign:"center",paddingTop:20 }}><Spinner /></div>}
         {msgs.map(m => (
           <div key={m.id} style={{ display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start" }}>
-            <div style={{ maxWidth:"72%",padding:"10px 14px",borderRadius:m.sender_id===myId?"18px 18px 4px 18px":"18px 18px 18px 4px",background:m.sender_id===myId?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,color:"#fff",fontSize:14 }}>
+            <div style={{ maxWidth:"72%",padding:"10px 14px",borderRadius:m.sender_id===myId?"18px 18px 4px 18px":"18px 18px 18px 4px",background:m.sender_id===myId?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,color:"#fff",fontSize:14,opacity:m.pending?0.6:1,transition:"opacity 0.2s" }}>
               {m.voice_url ? (
                 <VoicePlayer src={m.voice_url} isMine={m.sender_id===myId} />
               ) : m.text}

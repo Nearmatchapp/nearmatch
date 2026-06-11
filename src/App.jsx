@@ -274,15 +274,22 @@ export default function App() {
 
   const loadMatches = useCallback(async () => {
     if (!session) return;
-    const { data } = await supabase.from("matches").select("*, user1:profiles!matches_user1_id_fkey(*), user2:profiles!matches_user2_id_fkey(*)").or(`user1_id.eq.${session.user.id},user2_id.eq.${session.user.id}`).order("created_at", { ascending:false });
+    // Az utolsó üzenet beágyazva érkezik (D5) — korábban match-enként külön
+    // query futott (N+1), ráadásul minden beérkező üzenetnél újra
+    const { data } = await supabase.from("matches")
+      .select("*, user1:profiles!matches_user1_id_fkey(*), user2:profiles!matches_user2_id_fkey(*), messages(text,voice_url,created_at)")
+      .or(`user1_id.eq.${session.user.id},user2_id.eq.${session.user.id}`)
+      .order("created_at", { foreignTable: "messages", ascending: false })
+      .limit(1, { foreignTable: "messages" })
+      .order("created_at", { ascending: false });
     if (!data) return;
-    const withOther = await Promise.all(data.map(async m => {
+    const withOther = data.map(m => {
       const other = m.user1_id===session.user.id ? m.user2 : m.user1;
-      const { data:lastMsg } = await supabase.from("messages").select("text,created_at,voice_url").eq("match_id",m.id).order("created_at",{ascending:false}).limit(1).single();
+      const lastMsg = (m.messages || [])[0];
       const timeLabel = lastMsg ? new Date(lastMsg.created_at).toLocaleTimeString("hu",{hour:"2-digit",minute:"2-digit"}) : "";
       const lastMsgAt = lastMsg?.created_at || m.created_at;
       return { ...m, other, lastMsg:lastMsg?.voice_url ? "🎙️ Hangüzenet" : lastMsg?.text, timeLabel, lastMsgAt };
-    }));
+    });
     // Olvasatlan üzenetek match-enként (egyetlen query az összesre)
     let unreadIds = new Set();
     if (data.length > 0) {
@@ -299,21 +306,38 @@ export default function App() {
 
   useEffect(() => { loadMatches(); }, [loadMatches]);
 
+  // Friss tükör a realtime handlereknek (a closure-beli state elavulna)
+  const matchesRef = useRef([]);
+  useEffect(() => { matchesRef.current = matches; }, [matches]);
+  const activeChatRef = useRef(null);
+  useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
+
   useEffect(() => {
     if (!session) return;
-    // Üzenetek realtime – sorrend frissítése + in-app értesítés
+    // Üzenetek realtime – lokális listafrissítés (nincs teljes refetch) + toast
     const msgSub = supabase.channel("messages_order")
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, async (payload) => {
-        loadMatches();
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, (payload) => {
         const msg = payload.new;
-        // Csak ha nem mi küldtük és nem a chat van nyitva ezzel a matchel
-        if (msg.sender_id !== session?.user?.id) {
-          // Megkeressük a match partner adatait
-          const { data: matchData } = await supabase.from("matches").select("*, user1:profiles!matches_user1_id_fkey(*), user2:profiles!matches_user2_id_fkey(*)").eq("id", msg.match_id).single();
-          if (matchData) {
-            const other = matchData.user1_id === session?.user?.id ? matchData.user2 : matchData.user1;
-            if (other) showInAppToast({ id: msg.match_id, other }, msg.voice_url ? "🎙️ Hangüzenet" : msg.text);
-          }
+        const isMine = msg.sender_id === session.user.id;
+        const chatOpen = activeChatRef.current?.id === msg.match_id;
+        const existing = matchesRef.current.find(m => m.id === msg.match_id);
+        if (!existing) { loadMatches(); return; }
+        setMatches(prev => {
+          const m = prev.find(x => x.id === msg.match_id);
+          if (!m) return prev;
+          const updated = {
+            ...m,
+            lastMsg: msg.voice_url ? "🎙️ Hangüzenet" : msg.text,
+            timeLabel: new Date(msg.created_at).toLocaleTimeString("hu",{hour:"2-digit",minute:"2-digit"}),
+            lastMsgAt: msg.created_at,
+            // Nyitott chatben érkezőt a ChatView azonnal olvasottra jelöli
+            unread: m.unread || (!isMine && !chatOpen),
+          };
+          return [updated, ...prev.filter(x => x.id !== msg.match_id)];
+        });
+        // Toast csak idegen üzenetre, és csak ha nem épp az a chat van nyitva (B13)
+        if (!isMine && !chatOpen && existing.other) {
+          showInAppToast({ id: msg.match_id, other: existing.other }, msg.voice_url ? "🎙️ Hangüzenet" : msg.text);
         }
       }).subscribe();
 
@@ -323,16 +347,15 @@ export default function App() {
         if (m.user1_id===session.user.id || m.user2_id===session.user.id) {
           const otherId = m.user1_id===session.user.id ? m.user2_id : m.user1_id;
           const { data:other } = await supabase.from("profiles").select("*").eq("id",otherId).single();
-          if (other) {
-            setMatchOverlay(other);
-            await sendPushNotification(otherId, "🎉 Új match!", `${myProfile?.name||"Valaki"} kedvelt téged!`, { type:"match" });
-          }
+          // A push-t a match létrehozója küldi (handleSwipe) — innen küldve
+          // duplán menne ki (B8)
+          if (other) setMatchOverlay(other);
           loadMatches();
           if (session?.user?.id) loadNewLikesCount(session.user.id);
         }
       }).subscribe();
     return () => { supabase.removeChannel(sub); supabase.removeChannel(msgSub); };
-  }, [session, loadMatches, myProfile]);
+  }, [session, loadMatches]);
 
   // ── CHAT NYITÁS (kártya küldőjével, match nélkül is) ──
   const handleOpenChatWith = async (sender) => {
