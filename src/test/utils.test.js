@@ -4,7 +4,7 @@ vi.mock('../supabase.js', () => ({
   supabase: {},
 }))
 
-const { distanceKm, getGhostLabel, isProfileListable } = await import('../App.jsx')
+const { distanceKm, getGhostLabel, isProfileListable, calcAge } = await import('../App.jsx')
 
 describe('distanceKm', () => {
   it('ugyanaz a pont 0 km', () => {
@@ -72,5 +72,32 @@ describe('isProfileListable (B1: kitiltás + inkognito + swipe szűrés)', () =>
       { id: 'u1', is_incognito: true },
       { swipedIds: new Set(), likedUsIds: new Set(['u1']) }
     )).toBe(true)
+  })
+})
+
+describe('calcAge (B2: hónap/nap pontos korhatár)', () => {
+  // Fix "ma": 2026-06-11
+  const now = new Date('2026-06-11T12:00:00Z')
+
+  it('a 18. születésnap előtt még 17 éves', () => {
+    expect(calcAge('2008-06-12', now)).toBe(17) // holnap lesz 18
+    expect(calcAge('2008-12-31', now)).toBe(17)
+  })
+
+  it('a 18. születésnapon és után már 18', () => {
+    expect(calcAge('2008-06-11', now)).toBe(18) // ma 18
+    expect(calcAge('2008-06-10', now)).toBe(18)
+    expect(calcAge('2008-01-01', now)).toBe(18)
+  })
+
+  it('a régi (csak év alapú) számítás hibáját javítja', () => {
+    // Évkülönbség szerint 2026-2008=18 lenne, valójában még 17
+    expect(calcAge('2008-11-20', now)).toBe(17)
+  })
+
+  it('érvénytelen / üres bemenetre null', () => {
+    expect(calcAge('', now)).toBeNull()
+    expect(calcAge(null, now)).toBeNull()
+    expect(calcAge('nem-datum', now)).toBeNull()
   })
 })

@@ -150,6 +150,18 @@ export function distanceKm(lat1, lng1, lat2, lng2) {
 
 function getTodayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
+// Pontos életkor: hónapot/napot is figyelembe vesz (a puszta évkülönbség
+// a 18. születésnap előtt állókat is átengedné a korhatár-ellenőrzésen)
+export function calcAge(birthdate, now = new Date()) {
+  if (!birthdate) return null;
+  const b = new Date(birthdate);
+  if (isNaN(b.getTime())) return null;
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
+
 // Közös láthatósági szabály: ki jelenhet meg a Radar/Swipe listákban
 export function isProfileListable(u, { swipedIds, likedUsIds }) {
   if (u.is_banned) return false;
@@ -420,8 +432,8 @@ function Onboarding({ user, onComplete }) {
         lat = pos.coords.latitude; lng = pos.coords.longitude;
       } catch {}
     }
-    const birthYear = data.birthdate ? new Date(data.birthdate).getFullYear() : null;
-    const age = birthYear ? new Date().getFullYear() - birthYear : null;
+    const age = calcAge(data.birthdate);
+    if (age === null || age < 18) { setSaving(false); return; }
     const profile = { id: user.id, name: data.name, bio: data.bio, age, gender: data.gender, interests: data.interests, looking_for: data.lookingFor, is_pro: true, is_founder: true, lat, lng, last_seen: new Date().toISOString() };
     const { error } = await supabase.from("profiles").upsert(profile);
     if (!error) onComplete(profile);
@@ -456,8 +468,7 @@ function Onboarding({ user, onComplete }) {
   );
 
   if (step === 1) {
-    const birthYear = data.birthdate ? new Date(data.birthdate).getFullYear() : null;
-    const age = birthYear ? new Date().getFullYear() - birthYear : null;
+    const age = calcAge(data.birthdate);
     const isUnderage = age !== null && age < 18;
     const canProceed = data.name && data.birthdate && data.gender && !isUnderage;
     return (
