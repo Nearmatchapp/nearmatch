@@ -192,7 +192,10 @@ export default function App() {
           const { data: nearby } = await supabase.from("profiles")
             .select("id, name, photo_url, lat, lng, last_seen, is_banned")
             .neq("id", session.user.id)
-            .eq("is_banned", false);
+            .eq("is_banned", false)
+            .gte("last_seen", new Date(Date.now() - 15*60*1000).toISOString())
+            .not("lat", "is", null)
+            .limit(100);
 
           if (nearby) {
             // Már swipe-olt vagy matchelt userek kizárása
@@ -232,7 +235,14 @@ export default function App() {
     // Inkognito usereket nem töltjük be (hacsak nem likeoltak minket)
     const { data: likedUsSwipes } = await supabase.from("swipes").select("swiper_id").eq("swiped_id", session.user.id).in("action",["like","superlike"]);
     const likedUsIds = new Set((likedUsSwipes||[]).map(s => s.swiper_id));
-    const { data } = await supabase.from("profiles").select("*").neq("id", session.user.id);
+    // Szerver-oldali szűkítés (D4): tiltottak kizárva, legutóbb aktívak
+    // előre, max 200 sor — eddig a TELJES profiles tábla jött le minden
+    // betöltésnél, és minden szűrés kliens-oldalon történt
+    const { data } = await supabase.from("profiles").select("*")
+      .neq("id", session.user.id)
+      .eq("is_banned", false)
+      .order("last_seen", { ascending: false, nullsFirst: false })
+      .limit(200);
     if (!data) return;
     const swipeExpiry = new Date(); swipeExpiry.setDate(swipeExpiry.getDate() - 20);
     const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id).gte("created_at", swipeExpiry.toISOString());
