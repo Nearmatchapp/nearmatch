@@ -390,6 +390,11 @@ export default function App() {
   const handleSwipe = async (targetId, action) => {
     if (!session?.user?.id) return;
 
+    // Lokális listafrissítés azonnal (D3) — korábban minden swipe után a
+    // teljes loadNearby + loadMatches újrafutott (6-10 query swipe-onként)
+    setNearbyUsers(prev => prev.filter(u => u.id !== targetId));
+    setSwipeUsers(prev => prev.filter(u => u.id !== targetId));
+
     // 1. Swipe mentése
     const { error } = await supabase.from("swipes").upsert(
       { swiper_id: session.user.id, swiped_id: targetId, action },
@@ -448,10 +453,23 @@ export default function App() {
       }
     }
 
-    // 5. UI frissítése
-    await loadNearby();
-    await loadMatches();
-    if (session?.user?.id) loadNewLikesCount(session.user.id);
+    // Match esetén a matches_realtime handler frissíti a match-listát;
+    // a Likeok-badge újraszámolása könnyű query-k, nem várunk rá
+    loadNewLikesCount(session.user.id);
+  };
+
+  // Visszatekerés (Pro): a swipe sort töröljük a DB-ből és a user visszakerül
+  // a pakli elejére — korábban csak lokálisan ugrott vissza az index, a swipe
+  // a DB-ben maradt, így következő betöltéskor a user mégis eltűnt
+  const handleUnswipe = async (user) => {
+    if (!session?.user?.id || !user?.id) return;
+    await supabase.from("swipes").delete()
+      .eq("swiper_id", session.user.id).eq("swiped_id", user.id);
+    setSwipeUsers(prev => prev.some(u => u.id === user.id) ? prev : [user, ...prev]);
+    if (user.lat && user.lng && myLocation) {
+      const d = distanceKm(myLocation.lat, myLocation.lng, user.lat, user.lng);
+      if (d < 20) setNearbyUsers(prev => prev.some(u => u.id === user.id) ? prev : [{ ...user, distanceKm: d }, ...prev].sort((a,b) => a.distanceKm-b.distanceKm));
+    }
   };
 
   const handleSignOut = async () => { await supabase.auth.signOut(); };
@@ -528,7 +546,7 @@ export default function App() {
           )}
 
           {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
-            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={handleOpenChatWith} />}
+            {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} onUnswipe={handleUnswipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={handleOpenChatWith} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}
             {tab==="profile" && <ProfileScreen myProfile={myProfile} setMyProfile={setMyProfile} isPro={isPro} boostActive={boostActive} boostAvailable={boostAvailable} onBoost={handleBoost} onBuyBoost={handleBuyBoost} onUpgrade={handleUpgrade} onSignOut={handleSignOut} onDeleteAccount={handleDeleteAccount} />}

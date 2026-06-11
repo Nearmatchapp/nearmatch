@@ -9,12 +9,15 @@ import CardsModal from "./CardsModal.jsx";
 
 const THRESHOLD = 100;
 
-export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActive, isPro, onUpgrade, onOpenChat }) {
+export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe, boostActive, isPro, onUpgrade, onOpenChat }) {
   const [idx, setIdx] = useState(0);
   const [history, setHistory] = useState([]);
   const [cardPage, setCardPage] = useState(0);
   const [drag, setDrag] = useState({ x:0, y:0, dragging:false });
   const [gone, setGone] = useState(false);
+  // A swipe-olt user pillanatképe a kirepülő animáció idejére — a szülő a
+  // listából azonnal eltávolítja, e nélkül a repülő kártya tartalma átváltana
+  const [leaving, setLeaving] = useState(null);
   const [actionLabel, setActionLabel] = useState(null);
   const [proWallType, setProWallType] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -46,7 +49,6 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActiv
   const [slDay, setSlDay] = useState(getTodayKey());
   const slLeft = getTodayKey()!==slDay ? slLimit : Math.max(0, slLimit-slUsed);
 
-  useEffect(() => setCardPage(0), [idx]);
   useEffect(() => setIdx(0), [activeFilters]);
 
   const filteredUsers = swipeUsers.filter(u => {
@@ -59,13 +61,17 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActiv
 
   const isFiltered = activeFilters.minAge !== 18 || activeFilters.maxAge !== 60 || activeFilters.maxDist !== 50 || activeFilters.gender !== "Mindenki" || !!activeFilters.lookingFor;
 
+  // Fotólapozó nullázása, amikor másik user kerül a pakli tetejére
+  const displayedId = (leaving?.user || (filteredUsers.length ? filteredUsers[idx % filteredUsers.length] : null))?.id;
+  useEffect(() => setCardPage(0), [displayedId]);
+
   const applyFilters = () => { setActiveFilters(filters); localStorage.setItem("swipeFilters", JSON.stringify(filters)); setShowFilters(false); };
   const resetFilters = () => { setFilters(DEFAULT_FILTERS); setActiveFilters(DEFAULT_FILTERS); localStorage.setItem("swipeFilters", JSON.stringify(DEFAULT_FILTERS)); setShowFilters(false); };
   const filterPanel = showFilters && (
     <FilterPanel filters={filters} setFilters={setFilters} onClose={() => setShowFilters(false)} onApply={applyFilters} onReset={resetFilters} />
   );
 
-  if (!filteredUsers.length) return (
+  if (!filteredUsers.length && !leaving) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", flex:1, flexDirection:"column", gap:16, padding:"0 24px", position:"relative" }}>
       {filterPanel}
       <div style={{ fontSize:50 }}>😕</div>
@@ -75,25 +81,28 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActiv
     </div>
   );
 
-  const cur = filteredUsers[idx % filteredUsers.length];
-  const next = filteredUsers[(idx+1) % filteredUsers.length];
+  // Animáció alatt a kirepülő kártyát mutatjuk; alatta már az új pakli-első
+  const baseCur = filteredUsers.length ? filteredUsers[idx % filteredUsers.length] : null;
+  const cur = leaving?.user || baseCur;
+  const next = leaving ? baseCur : (filteredUsers.length > 1 ? filteredUsers[(idx+1) % filteredUsers.length] : null);
   const showLabel = (label) => { setActionLabel(label); setTimeout(() => setActionLabel(null), 900); };
 
-  const act = async (dir) => {
-    if (gone) return;
+  const act = (dir) => {
+    if (gone || !cur) return;
     setGone(true);
-    setHistory(h => [...h.slice(-9), { idx, user:cur }]);
+    setLeaving({ user: cur });
+    setHistory(h => [...h.slice(-9), { user: cur }]);
     onSwipe(cur.id, dir);
     if (dir==="superlike") {
       const today = getTodayKey();
       if (today!==slDay) { setSlDay(today); setSlUsed(1); } else { setSlUsed(u=>u+1); }
     }
     setTimeout(() => {
-      // Új kártyára váltás: minden reset azonnal, animáció nélkül
-      setIdx(i=>i+1);
+      // A szülő már kivette a listából — az idx marad, a pakli lép magától
       setCardPage(0);
       setDrag({ x:0, y:0, dragging:false });
       setGone(false);
+      setLeaving(null);
     }, 320);
   };
 
@@ -102,7 +111,10 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, boostActiv
     if (history.length===0) return;
     const prev = history[history.length-1];
     setHistory(h=>h.slice(0,-1));
-    setIdx(prev.idx);
+    // A swipe a DB-ből is törlődik, a user a pakli elejére kerül vissza
+    onUnswipe && onUnswipe(prev.user);
+    setIdx(0);
+    setCardPage(0);
   };
 
   const onMouseDown = (e) => { startPos.current={x:e.clientX,y:e.clientY}; setDrag(d=>({...d,dragging:true})); };
