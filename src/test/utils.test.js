@@ -4,7 +4,7 @@ vi.mock('../supabase.js', () => ({
   supabase: {},
 }))
 
-const { distanceKm, getGhostLabel, isProfileListable, calcAge } = await import('../App.jsx')
+const { distanceKm, getGhostLabel, isProfileListable, calcAge, isoWeekKey, boostMillisLeft } = await import('../App.jsx')
 
 describe('distanceKm', () => {
   it('ugyanaz a pont 0 km', () => {
@@ -99,5 +99,41 @@ describe('calcAge (B2: hónap/nap pontos korhatár)', () => {
     expect(calcAge('', now)).toBeNull()
     expect(calcAge(null, now)).toBeNull()
     expect(calcAge('nem-datum', now)).toBeNull()
+  })
+})
+
+describe('isoWeekKey (B3: heti boost limit kulcs, Postgres IYYYIW-vel egyező)', () => {
+  it('2026-06-11 → 2026. ISO 24. hét', () => {
+    expect(isoWeekKey(new Date('2026-06-11T12:00:00Z'))).toBe(202624)
+  })
+
+  it('évhatár: 2021-01-01 még az előző ISO év 53. hete', () => {
+    expect(isoWeekKey(new Date('2021-01-01T12:00:00Z'))).toBe(202053)
+  })
+
+  it('évhatár: 2024-12-30 már a következő ISO év 1. hete', () => {
+    expect(isoWeekKey(new Date('2024-12-30T12:00:00Z'))).toBe(202501)
+  })
+})
+
+describe('boostMillisLeft (B3: boost állapot a profilból)', () => {
+  const now = new Date('2026-06-11T12:00:00Z').getTime()
+
+  it('nincs boost_expires_at → 0', () => {
+    expect(boostMillisLeft(null, now)).toBe(0)
+    expect(boostMillisLeft({}, now)).toBe(0)
+    expect(boostMillisLeft({ boost_expires_at: null }, now)).toBe(0)
+  })
+
+  it('jövőbeli lejárat → hátralévő ms', () => {
+    expect(boostMillisLeft({ boost_expires_at: '2026-06-11T12:05:00Z' }, now)).toBe(5 * 60 * 1000)
+  })
+
+  it('múltbeli lejárat → 0 (nem negatív)', () => {
+    expect(boostMillisLeft({ boost_expires_at: '2026-06-11T11:00:00Z' }, now)).toBe(0)
+  })
+
+  it('érvénytelen dátum → 0', () => {
+    expect(boostMillisLeft({ boost_expires_at: 'rossz' }, now)).toBe(0)
   })
 })

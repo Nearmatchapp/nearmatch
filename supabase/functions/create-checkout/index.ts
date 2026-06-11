@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
       customer_email: userData.email,
       "metadata[user_id]": userData.id,
       "metadata[mode]": checkoutMode,
+      "metadata[price_id]": price_id,
     });
 
     const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {

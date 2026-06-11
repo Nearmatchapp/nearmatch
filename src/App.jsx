@@ -162,6 +162,26 @@ export function calcAge(birthdate, now = new Date()) {
   return age;
 }
 
+// ISO hét kulcs (ÉÉÉÉHH), a Postgres to_char(now(),'IYYYIW')-vel egyezően —
+// a heti ingyenes boost limitet a szerver ezzel tartja nyilván
+export function isoWeekKey(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const isoYear = d.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return isoYear * 100 + week;
+}
+
+// Hátralévő boost-idő ms-ban a profil boost_expires_at mezőjéből
+export function boostMillisLeft(profile, now = Date.now()) {
+  if (!profile?.boost_expires_at) return 0;
+  const end = new Date(profile.boost_expires_at).getTime();
+  if (isNaN(end)) return 0;
+  return Math.max(0, end - now);
+}
+
 // Közös láthatósági szabály: ki jelenhet meg a Radar/Swipe listákban
 export function isProfileListable(u, { swipedIds, likedUsIds }) {
   if (u.is_banned) return false;
@@ -2808,55 +2828,34 @@ export default function App() {
     const cached = localStorage.getItem("myLocation");
     return cached ? JSON.parse(cached) : null;
   });
-  const [boostActive, setBoostActive] = useState(() => {
-    const boostEnd = localStorage.getItem("boostEnd");
-    if (boostEnd && Date.now() < parseInt(boostEnd)) return true;
-    return false;
-  });
+  // Boost állapot a profil boost_expires_at mezőjéből (a fizetett boostot a
+  // Stripe webhook, a heti ingyeneset a use_weekly_boost RPC állítja be —
+  // kliens-oldalon nem hamisítható)
   const [boostTimeLeft, setBoostTimeLeft] = useState(0);
-  const boostTimerRef = useRef(null);
+  const boostActive = boostTimeLeft > 0;
 
-  // Másodpercenkénti visszaszámláló
   useEffect(() => {
-    if (!boostActive) { setBoostTimeLeft(0); return; }
-    const tick = () => {
-      const boostEnd = localStorage.getItem("boostEnd");
-      if (!boostEnd) { setBoostTimeLeft(0); return; }
-      const remaining = Math.max(0, Math.floor((parseInt(boostEnd) - Date.now()) / 1000));
-      setBoostTimeLeft(remaining);
-      if (remaining <= 0) { setBoostActive(false); localStorage.removeItem("boostEnd"); }
+    const update = () => {
+      const left = Math.ceil(boostMillisLeft(myProfile) / 1000);
+      setBoostTimeLeft(left);
+      return left;
     };
-    tick();
-    const interval = setInterval(tick, 1000);
+    if (update() <= 0) return;
+    const interval = setInterval(() => { if (update() <= 0) clearInterval(interval); }, 1000);
     return () => clearInterval(interval);
-  }, [boostActive]);
+  }, [myProfile?.boost_expires_at]);
 
-  useEffect(() => {
-    const boostEnd = localStorage.getItem("boostEnd");
-    if (boostEnd) {
-      const remaining = parseInt(boostEnd) - Date.now();
-      if (remaining > 0) {
-        boostTimerRef.current = setTimeout(() => { setBoostActive(false); localStorage.removeItem("boostEnd"); }, remaining);
-      } else {
-        setBoostActive(false);
-        localStorage.removeItem("boostEnd");
-      }
-    }
-    return () => { if (boostTimerRef.current) clearTimeout(boostTimerRef.current); };
-  }, []);
-  const [lastBoostWeek, setLastBoostWeek] = useState(null);
-
-  useEffect(() => {
-    if (!myProfile?.id) return;
-    const s = localStorage.getItem(`lastBoostWeek_${myProfile.id}`);
-    setLastBoostWeek(s ? parseInt(s) : null);
-  }, [myProfile?.id]);
   const [newLikesCount, setNewLikesCount] = useState(0);
 
-  const getWeekNumber = () => { const d=new Date(); const oneJan=new Date(d.getFullYear(),0,1); return Math.ceil(((d-oneJan)/86400000+oneJan.getDay()+1)/7); };
   const isPro = myProfile?.is_pro||false;
-  const boostAvailable = isPro && lastBoostWeek!==getWeekNumber() && !boostActive;
-  const handleBoost = () => { if(!boostAvailable) return; const w = getWeekNumber(); const end = Date.now() + 10*60*1000; setBoostActive(true); setLastBoostWeek(w); localStorage.setItem(`lastBoostWeek_${myProfile.id}`, w); localStorage.setItem("boostEnd", end); if(boostTimerRef.current) clearTimeout(boostTimerRef.current); boostTimerRef.current = setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); };
+  const boostAvailable = isPro && !boostActive && myProfile?.last_boost_week !== isoWeekKey();
+
+  const handleBoost = async () => {
+    if (!boostAvailable) return;
+    const { data: expiry, error } = await supabase.rpc("use_weekly_boost");
+    if (error) { console.error("Boost hiba:", error.message); return; }
+    setMyProfile(p => p ? { ...p, boost_active: true, boost_expires_at: expiry, last_boost_week: isoWeekKey() } : p);
+  };
 
   const handleBuyBoost = async () => {
     try {
@@ -2887,7 +2886,19 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("pro") === "success") { setMyProfile(p => p ? {...p, is_pro: true} : p); window.history.replaceState({}, "", window.location.pathname); }
-    if (params.get("boost") === "success") { const end = Date.now() + 10*60*1000; setBoostActive(true); localStorage.setItem("boostEnd", end); setTimeout(()=>{ setBoostActive(false); localStorage.removeItem("boostEnd"); }, 10*60*1000); window.history.replaceState({}, "", window.location.pathname); }
+    if (params.get("boost") === "success" && session?.user?.id) {
+      // A boostot a Stripe webhook aktiválja szerver-oldalon; itt csak
+      // frissítjük a profilt, amíg meg nem jelenik (max ~10 mp)
+      window.history.replaceState({}, "", window.location.pathname);
+      const uid = session.user.id;
+      let tries = 0;
+      const poll = async () => {
+        const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
+        if (data) setMyProfile(data);
+        if ((!data || boostMillisLeft(data) <= 0) && ++tries < 5) setTimeout(poll, 2000);
+      };
+      poll();
+    }
     if (params.get("reveal") === "success" && session?.user?.id) {
       const cardId = localStorage.getItem(`pendingReveal_${session.user.id}`);
       if (cardId) {
@@ -3028,13 +3039,21 @@ export default function App() {
       const sb = b.ghost_score ?? 100;
       return sb - sa;
     };
+    // Boostolt userek mindig előre — eddig a boost mások számára láthatatlan volt
+    const boostRank = (u) => boostMillisLeft(u) > 0 ? 0 : 1;
     const swipeSorted = boostActive
       ? [...forSwipe].sort((a, b) => {
+          const br = boostRank(a) - boostRank(b);
+          if (br !== 0) return br;
           const distDiff = (a.distanceKm||99) - (b.distanceKm||99);
           if (distDiff !== 0) return distDiff;
           return (b.ghost_score ?? 100) - (a.ghost_score ?? 100);
         })
-      : [...forSwipe].sort(ghostSort);
+      : [...forSwipe].sort((a, b) => {
+          const br = boostRank(a) - boostRank(b);
+          if (br !== 0) return br;
+          return ghostSort(a, b);
+        });
     setSwipeUsers(swipeSorted);
   }, [myLocation, session, boostActive]);
 
