@@ -335,7 +335,9 @@ function UsersTab() {
 
   const toggleBan = async () => {
     setSaving(true);
-    await supabase.from("profiles").update({ is_banned: !selectedUser.is_banned }).eq("id", selectedUser.id);
+    // Sima UPDATE-et az RLS blokkolja (csak saját profil írható) — admin RPC kell
+    const { error } = await supabase.rpc("admin_set_banned", { target_id: selectedUser.id, banned: !selectedUser.is_banned });
+    if (error) { alert("Tiltás sikertelen: " + error.message); setSaving(false); return; }
     setSelectedUser(u => ({ ...u, is_banned: !u.is_banned }));
     await load();
     setSaving(false);
@@ -754,7 +756,9 @@ function ReportsTab() {
   };
 
   const banUser = async (userId, reportId) => {
-    await supabase.from("profiles").update({ is_banned: true }).eq("id", userId);
+    // Sima UPDATE-et az RLS blokkolja (csak saját profil írható) — admin RPC kell
+    const { error } = await supabase.rpc("admin_set_banned", { target_id: userId, banned: true });
+    if (error) { alert("Tiltás sikertelen: " + error.message); return; }
     await resolve(reportId);
   };
 

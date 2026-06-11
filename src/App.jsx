@@ -150,6 +150,15 @@ export function distanceKm(lat1, lng1, lat2, lng2) {
 
 function getTodayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
+// Közös láthatósági szabály: ki jelenhet meg a Radar/Swipe listákban
+export function isProfileListable(u, { swipedIds, likedUsIds }) {
+  if (u.is_banned) return false;
+  if (swipedIds.has(u.id)) return false;
+  // Inkognito: csak annak látszik, aki likeolta őt
+  if (u.is_incognito && !likedUsIds.has(u.id)) return false;
+  return true;
+}
+
 async function registerOneSignalUser(userId) {
   try {
     if (!window.OneSignalDeferred) return;
@@ -836,15 +845,24 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
       const mySwipedIds = new Set((mySwipes||[]).map(s => s.swiped_id));
 
       const filtered = swipes.filter(s => !matchedIds.has(s.swiper_id) && !mySwipedIds.has(s.swiper_id));
-      setCount(filtered.length);
+
+      // Kitiltott lájkolók kizárása (számlálóból és listából is)
+      let bannedIds = new Set();
+      if (filtered.length > 0) {
+        const { data: banned } = await supabase.from("profiles").select("id")
+          .in("id", filtered.map(s => s.swiper_id)).eq("is_banned", true);
+        bannedIds = new Set((banned||[]).map(b => b.id));
+      }
+      const visible = filtered.filter(s => !bannedIds.has(s.swiper_id));
+      setCount(visible.length);
 
       if (isPro) {
-        const ids = filtered.map(s => s.swiper_id);
+        const ids = visible.map(s => s.swiper_id);
         if (ids.length > 0) {
           const { data: profiles } = await supabase.from("profiles").select("*").in("id", ids);
-          const withAction = (profiles||[]).map(p => ({
+          const withAction = (profiles||[]).filter(p => !p.is_banned).map(p => ({
             ...p,
-            action: filtered.find(s => s.swiper_id === p.id)?.action
+            action: visible.find(s => s.swiper_id === p.id)?.action
           }));
           setLikers(withAction);
         }
@@ -2913,8 +2931,15 @@ export default function App() {
     // Azokat is kiszűrjük akiket már mi swipe-oltunk
     const { data: mySwipes } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", userId);
     const mySwipedIds = new Set((mySwipes||[]).map(s => s.swiped_id));
-    const count = (swipes||[]).filter(s => !matchedIds.has(s.swiper_id) && !mySwipedIds.has(s.swiper_id)).length;
-    setNewLikesCount(count);
+    const candidates = (swipes||[]).filter(s => !matchedIds.has(s.swiper_id) && !mySwipedIds.has(s.swiper_id));
+    // Kitiltott lájkolók nem számítanak
+    let bannedIds = new Set();
+    if (candidates.length > 0) {
+      const { data: banned } = await supabase.from("profiles").select("id")
+        .in("id", candidates.map(s => s.swiper_id)).eq("is_banned", true);
+      bannedIds = new Set((banned||[]).map(b => b.id));
+    }
+    setNewLikesCount(candidates.filter(s => !bannedIds.has(s.swiper_id)).length);
   };
 
   useEffect(() => {
@@ -2930,8 +2955,9 @@ export default function App() {
         // "Közel voltunk" ellenőrzés – 1km-en belüli aktív userek
         try {
           const { data: nearby } = await supabase.from("profiles")
-            .select("id, name, photo_url, lat, lng, last_seen")
-            .neq("id", session.user.id);
+            .select("id, name, photo_url, lat, lng, last_seen, is_banned")
+            .neq("id", session.user.id)
+            .eq("is_banned", false);
 
           if (nearby) {
             // Már swipe-olt vagy matchelt userek kizárása
@@ -2976,21 +3002,15 @@ export default function App() {
     const swipeExpiry = new Date(); swipeExpiry.setDate(swipeExpiry.getDate() - 20);
     const { data:swipedData } = await supabase.from("swipes").select("swiped_id").eq("swiper_id", session.user.id).gte("created_at", swipeExpiry.toISOString());
     const swipedIds = new Set((swipedData||[]).map(s=>s.swiped_id));
+    const listOpts = { swipedIds, likedUsIds };
     const withDist = data.filter(u => {
       if (!u.lat || !u.lng) return false;
-      if (swipedIds.has(u.id)) return false;
       if (!u.last_seen || (Date.now()-new Date(u.last_seen).getTime()) >= 15*60*1000) return false;
-      // Inkognito: csak azoknak látszik aki likeolta őket
-      if (u.is_incognito && !likedUsIds.has(u.id)) return false;
-      return true;
+      return isProfileListable(u, listOpts);
     }).map(u => ({ ...u, distanceKm: distanceKm(myLocation.lat, myLocation.lng, u.lat, u.lng) })).filter(u => u.distanceKm < 20).sort((a,b) => a.distanceKm-b.distanceKm);
     setNearbyUsers(withDist);
-    const forSwipe = data.filter(u => {
-      if (swipedIds.has(u.id)) return false;
-      // Inkognito: swipe-nál sem látszik hacsak nem likeolta a usert
-      if (u.is_incognito && !likedUsIds.has(u.id)) return false;
-      return true;
-    }).map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null }));
+    const forSwipe = data.filter(u => isProfileListable(u, listOpts))
+      .map(u => ({ ...u, distanceKm: u.lat&&u.lng&&myLocation ? distanceKm(myLocation.lat,myLocation.lng,u.lat,u.lng) : null }));
     // Ghost Score alapú rendezés: null (új user) = 100-nak számít → elöl, alacsony score → hátul
     const ghostSort = (a, b) => {
       const sa = a.ghost_score ?? 100;
