@@ -11,9 +11,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { photo_url, user_id, path } = await req.json();
+    // Caller identity always from JWT, never from body
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const authClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!
+    );
+    const { data: { user: caller }, error: authError } = await authClient.auth.getUser(token);
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
 
-    if (!photo_url || !user_id) {
+    const { photo_url, path } = await req.json();
+    const user_id = caller.id;
+
+    if (!photo_url) {
       return new Response(JSON.stringify({ error: "Missing params" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -41,7 +56,15 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
-      if (path) await supabase.storage.from("avatars").remove([path]);
+      if (path) {
+        // Only allow deleting files owned by the calling user (path format: "userId/filename")
+        if (!path.startsWith(`${user_id}/`)) {
+          return new Response(JSON.stringify({ error: "Forbidden" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+        await supabase.storage.from("avatars").remove([path]);
+      }
       const reason = nudity ? "nudity" : offensive ? "offensive" : "gore";
       return new Response(JSON.stringify({ approved: false, reason }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -54,7 +77,8 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error("moderate-image error:", err);
-    return new Response(JSON.stringify({ approved: true, warning: err.message }), {
+    // Fail-closed: moderation error rejects the image rather than approving it
+    return new Response(JSON.stringify({ approved: false, reason: "moderation_unavailable" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }

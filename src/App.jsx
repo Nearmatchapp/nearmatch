@@ -140,7 +140,7 @@ const getCardsForGender = (gender) => {
   return COMPLIMENT_CARDS.other;
 };
 
-function distanceKm(lat1, lng1, lat2, lng2) {
+export function distanceKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
@@ -1003,7 +1003,7 @@ async function calcAndSaveGhostScore(userId) {
   } catch { return null; }
 }
 
-function getGhostLabel(score) {
+export function getGhostLabel(score) {
   if (score === null || score === undefined) return null;
   if (score >= 81) return { label: "Kiváló válaszoló", desc: "Szinte mindig ír vissza", emoji: "🌟", color: "#3ecf8e" };
   if (score >= 61) return { label: "Megbízható", desc: "Általában válaszol", emoji: "😊", color: "#69db7c" };
