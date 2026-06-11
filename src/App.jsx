@@ -17,6 +17,8 @@ import MatchOverlay from "./components/MatchOverlay.jsx";
 import FilterPanel from "./components/FilterPanel.jsx";
 import BoostCountdown from "./components/BoostCountdown.jsx";
 import { HeartIcon, NearMatchCard, FilterIcon } from "./components/icons.jsx";
+import ProfileDetailModal from "./components/ProfileDetailModal.jsx";
+import { EMOJI_CATEGORIES, REPORT_REASONS } from "./lib/emoji.js";
 
 // ── AUTH ───────────────────────────────────────────────
 function ResetPasswordScreen({ onDone }) {
@@ -395,7 +397,6 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
   const [loading, setLoading] = useState(true);
   const [count, setCount] = useState(0);
   const [profileModal, setProfileModal] = useState(null);
-  const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
 
   const handleAction = async (userId, action) => {
     setLikers(prev => prev.filter(u => u.id !== userId));
@@ -462,63 +463,9 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
   return (
     <div style={{ flex:1, overflowY:"auto", padding:"16px 20px", position:"relative" }}>
 
-      {/* Profil modal */}
       {profileModal && (
-        <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(8,11,16,0.97)", backdropFilter:"blur(8px)", display:"flex", flexDirection:"column" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", borderBottom:`1px solid ${C.border}` }}>
-            <button onClick={() => { setProfileModal(null); setProfilePhotoIdx(0); }} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:20 }}>←</button>
-            <span style={{ color:C.text, fontWeight:700, fontSize:16 }}>{profileModal.name}, {profileModal.age}</span>
-          </div>
-          <div style={{ flex:1, overflowY:"auto" }}>
-            {(() => {
-              const photos = profileModal.photos||(profileModal.photo_url?[profileModal.photo_url]:[]);
-              return photos.length > 0 ? (
-                <div style={{ position:"relative", width:"100%", aspectRatio:"1", background:C.card }}>
-                  <img src={photos[profilePhotoIdx]} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt={profileModal.name} />
-                  {photos.length > 1 && (
-                    <>
-                      <div style={{ position:"absolute", top:10, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4 }}>
-                        {photos.map((_,i) => <div key={i} style={{ width:i===profilePhotoIdx?18:5, height:5, borderRadius:3, background:i===profilePhotoIdx?"#fff":"rgba(255,255,255,0.4)", transition:"width 0.2s" }} />)}
-                      </div>
-                      <button onClick={() => setProfilePhotoIdx(i=>Math.max(0,i-1))} style={{ position:"absolute", left:0, top:0, bottom:0, width:"40%", background:"none", border:"none", cursor:"pointer" }} />
-                      <button onClick={() => setProfilePhotoIdx(i=>Math.min(photos.length-1,i+1))} style={{ position:"absolute", right:0, top:0, bottom:0, width:"40%", background:"none", border:"none", cursor:"pointer" }} />
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div style={{ width:"100%", aspectRatio:"1", background:C.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:60 }}>👤</div>
-              );
-            })()}
-            <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:12 }}>
-              {profileModal.bio && (
-                <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}` }}>
-                  <div style={{ color:C.dim, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Bio</div>
-                  <p style={{ color:C.text, fontSize:14, lineHeight:1.6, margin:0 }}>{profileModal.bio}</p>
-                </div>
-              )}
-              <GhostScoreBadge score={profileModal.ghost_score} />
-              {(profileModal.interests||[]).length > 0 && (
-                <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}` }}>
-                  <div style={{ color:C.dim, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>Érdeklődés</div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                    {profileModal.interests.map(t => <span key={t} style={{ background:C.accentSoft, border:`1px solid ${C.accent}`, borderRadius:20, padding:"5px 11px", fontSize:12, color:C.accent }}>{t}</span>)}
-                  </div>
-                </div>
-              )}
-              {(profileModal.looking_for||profileModal.height||profileModal.education) && (
-                <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:8 }}>
-                  {profileModal.looking_for && <div style={{ color:C.muted, fontSize:13 }}>💍 {profileModal.looking_for}</div>}
-                  {profileModal.height && <div style={{ color:C.muted, fontSize:13 }}>📏 {profileModal.height} cm</div>}
-                  {profileModal.education && <div style={{ color:C.muted, fontSize:13 }}>🎓 {profileModal.education}</div>}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ display:"flex", gap:10, padding:"16px", borderTop:`1px solid ${C.border}` }}>
-            <button onClick={() => handleAction(profileModal.id, "pass")} style={{ flex:1, padding:"16px", background:C.card, border:`1px solid ${C.border}`, borderRadius:16, color:C.text, fontSize:22, cursor:"pointer" }}>✕</button>
-            <button onClick={() => handleAction(profileModal.id, "like")} style={{ flex:2, padding:"16px", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer" }}>❤️ Lájkolom</button>
-          </div>
-        </div>
+        <ProfileDetailModal profile={profileModal} onClose={() => setProfileModal(null)}
+          onPass={() => handleAction(profileModal.id, "pass")} onLike={() => handleAction(profileModal.id, "like")} />
       )}
       <div style={{ marginBottom:20 }}>
         <h2 style={{ color:C.text, fontSize:22, fontWeight:900, margin:"0 0 4px" }}>🔥 Likeok</h2>
@@ -558,7 +505,7 @@ function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
       {isPro && likers.length > 0 && (
         <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
           {likers.map(u => (
-            <div key={u.id} onClick={() => { setProfileModal(u); setProfilePhotoIdx(0); }} style={{ display:"flex", alignItems:"center", gap:12, background:C.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${C.border}`, cursor:"pointer" }}>
+            <div key={u.id} onClick={() => setProfileModal(u)} style={{ display:"flex", alignItems:"center", gap:12, background:C.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${C.border}`, cursor:"pointer" }}>
               <div style={{ position:"relative" }}>
                 <img src={u.photo_url||`https://i.pravatar.cc/300?u=${u.id}`} style={{ width:56, height:56, borderRadius:"50%", objectFit:"cover" }} alt={u.name} />
                 {u.action === "superlike" && <div style={{ position:"absolute", bottom:-2, right:-2, fontSize:14 }}>⭐</div>}
@@ -679,7 +626,6 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
   const [satelliteMode, setSatelliteMode] = useState(false);
   const [localSwipedIds, setLocalSwipedIds] = useState(new Set());
   const [profileModal, setProfileModal] = useState(null);
-  const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({ minAge:18, maxAge:60, maxDist:20 });
   const [activeFilters, setActiveFilters] = useState({ minAge:18, maxAge:60, maxDist:20 });
@@ -702,7 +648,7 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
     await onSwipe(userId, action);
   };
 
-  const openProfile = (u) => { setProfileModal(u); setProfilePhotoIdx(0); };
+  const openProfile = (u) => setProfileModal(u);
 
   useEffect(() => {
     setDots(visibleUsers.map((u, i) => ({ ...u, angle: (i / Math.max(visibleUsers.length, 1)) * Math.PI * 2, r: Math.min(0.9, 0.2 + (u.distanceKm / 20) * 0.7) })));
@@ -740,62 +686,8 @@ function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, on
   return (
     <>
       {profileModal && (
-        <div style={{ position:"absolute",inset:0,zIndex:96,background:"rgba(8,11,16,0.96)",backdropFilter:"blur(8px)",display:"flex",flexDirection:"column" }}>
-          <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}` }}>
-            <button onClick={() => setProfileModal(null)} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
-            <span style={{ color:C.text,fontWeight:700,fontSize:16 }}>{profileModal.name}, {profileModal.age}</span>
-          </div>
-          <div style={{ flex:1,overflowY:"auto" }}>
-            {/* Fotók */}
-            {(() => {
-              const photos = profileModal.photos||(profileModal.photo_url?[profileModal.photo_url]:[]);
-              return photos.length > 0 ? (
-                <div style={{ position:"relative",width:"100%",aspectRatio:"1",background:C.card }}>
-                  <img src={photos[profilePhotoIdx]} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={profileModal.name} />
-                  {photos.length > 1 && (
-                    <>
-                      <div style={{ position:"absolute",top:10,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4 }}>
-                        {photos.map((_,i) => <div key={i} style={{ width:i===profilePhotoIdx?18:5,height:5,borderRadius:3,background:i===profilePhotoIdx?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
-                      </div>
-                      <button onClick={() => setProfilePhotoIdx(i=>Math.max(0,i-1))} style={{ position:"absolute",left:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
-                      <button onClick={() => setProfilePhotoIdx(i=>Math.min(photos.length-1,i+1))} style={{ position:"absolute",right:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div style={{ width:"100%",aspectRatio:"1",background:C.card,display:"flex",alignItems:"center",justifyContent:"center",fontSize:60 }}>👤</div>
-              );
-            })()}
-            <div style={{ padding:"16px 20px",display:"flex",flexDirection:"column",gap:12 }}>
-              {profileModal.bio && (
-                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
-                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
-                  <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{profileModal.bio}</p>
-                </div>
-              )}
-              <GhostScoreBadge score={profileModal.ghost_score} />
-              {(profileModal.interests||[]).length > 0 && (
-                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
-                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>Érdeklődés</div>
-                  <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-                    {profileModal.interests.map(t => <span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"5px 11px",fontSize:12,color:C.accent }}>{t}</span>)}
-                  </div>
-                </div>
-              )}
-              {(profileModal.looking_for||profileModal.height||profileModal.education) && (
-                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8 }}>
-                  {profileModal.looking_for && <div style={{ color:C.muted,fontSize:13 }}>💍 {profileModal.looking_for}</div>}
-                  {profileModal.height && <div style={{ color:C.muted,fontSize:13 }}>📏 {profileModal.height} cm</div>}
-                  {profileModal.education && <div style={{ color:C.muted,fontSize:13 }}>🎓 {profileModal.education}</div>}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ display:"flex",gap:10,padding:"16px",borderTop:`1px solid ${C.border}` }}>
-            <button onClick={() => handleRadarSwipe(profileModal.id,"pass")} style={{ flex:1,padding:"16px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,color:C.text,fontSize:22,cursor:"pointer" }}>✕</button>
-            <button onClick={() => handleRadarSwipe(profileModal.id,"like")} style={{ flex:2,padding:"16px",background:`linear-gradient(135deg,${C.accent},#ff8c42)`,border:"none",borderRadius:16,color:"#fff",fontSize:16,fontWeight:700,cursor:"pointer" }}>❤️ Lájkolom</button>
-          </div>
-        </div>
+        <ProfileDetailModal profile={profileModal} position="absolute" zIndex={96} onClose={() => setProfileModal(null)}
+          onPass={() => handleRadarSwipe(profileModal.id, "pass")} onLike={() => handleRadarSwipe(profileModal.id, "like")} />
       )}
       {showProWall && (
         <div style={{ position:"absolute", inset:0, zIndex:95, background:"rgba(8,11,16,0.92)", backdropFilter:"blur(8px)", display:"flex", alignItems:"flex-end" }}>
@@ -1529,7 +1421,6 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) 
   const [reportSent, setReportSent] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showOtherProfile, setShowOtherProfile] = useState(false);
-  const [otherProfilePhotoIdx, setOtherProfilePhotoIdx] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
@@ -1584,43 +1475,6 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) 
   };
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-
-  const REPORT_REASONS = ["Spam vagy reklám","Hamis profil","Nem megfelelő tartalom","Zaklatás","Egyéb"];
-
-  const EMOJI_CATEGORIES = [
-    {
-      label:"😀", name:"Arckifejezések",
-      emojis:["😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","🥰","😘","😗","😙","😚","🙂","🤗","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","💀","☠️","👻","👽","🤖","😺","😸","😹","😻","😼","😽","🙀","😿","😾"],
-    },
-    {
-      label:"❤️", name:"Szívek & érzelmek",
-      emojis:["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","💟","☮️","✌️","🤞","🤟","🤘","🤙","👌","🤌","🤏","👈","👉","👆","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","🤲","🤝","🙏","💪","🦾","🖖","✍️","💅","🤳"],
-    },
-    {
-      label:"🔥", name:"Népszerű",
-      emojis:["🔥","💯","✨","⭐","🌟","💫","⚡","🎉","🎊","🎈","🎁","🏆","🥇","🎯","💎","👑","🌈","🦋","🌸","🌺","🌻","🌹","🌷","🍀","🎶","🎵","🎤","🎸","🎹","🎺","🎻","🥁","🎷","💃","🕺","🎭","🎪","🎨","🖼️","🎬","📸","📷","🎥","🎮","🕹️","🎲","🃏","🎰","🎳"],
-    },
-    {
-      label:"🍕", name:"Étel & ital",
-      emojis:["🍕","🍔","🍟","🌭","🍿","🧂","🥓","🥚","🍳","🧇","🥞","🧈","🍞","🥐","🥖","🫓","🥨","🥯","🧀","🥗","🥙","🌮","🌯","🫔","🥪","🥫","🍱","🍘","🍙","🍚","🍛","🍜","🍝","🍠","🍢","🍣","🍤","🍥","🥮","🍡","🥟","🥠","🥡","🦀","🦞","🦐","🦑","🦪","🍦","🍧","🍨","🍩","🍪","🎂","🍰","🧁","🥧","🍫","🍬","🍭","🍮","🍯","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑","🧄","🧅","🥔","🌽","🥕","🧆","🥜","🫘","🌰","🍵","☕","🫖","🍶","🍺","🍻","🥂","🍷","🥃","🍸","🍹","🧋","🍾","🧃","🥤","🧉"],
-    },
-    {
-      label:"🐶", name:"Állatok & természet",
-      emojis:["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦟","🦗","🕷️","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍","🦧","🦣","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🦬","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐩","🦮","🐈","🪶","🌵","🎄","🌲","🌳","🌴","🌱","🌿","☘️","🍀","🎍","🎋","🍃","🍂","🍁","🍄","🌾","💐","🌷","🌹","🥀","🌺","🌸","🌼","🌻","🌞","🌝","🌛","🌜","🌚","🌕","🌙","🌟","⭐","🌠","☁️","⛅","🌤️","🌈","🌂","☔","⚡","❄️","☃️","⛄","🌊","🌀"],
-    },
-    {
-      label:"✈️", name:"Utazás & helyek",
-      emojis:["✈️","🚀","🛸","🚁","🛺","🚂","🚃","🚄","🚅","🚆","🚇","🚈","🚉","🚊","🚝","🚞","🚋","🚌","🚍","🚎","🚐","🚑","🚒","🚓","🚔","🚕","🚖","🚗","🚘","🚙","🛻","🚚","🚛","🚜","🏎️","🏍️","🛵","🚲","🛴","🛹","🛼","⛽","🛞","🚨","🚥","🚦","🛑","🚧","⚓","🛟","⛵","🚤","🛥️","🛳️","⛴️","🚢","🗺️","🧭","🏔️","⛰️","🌋","🗻","🏕️","🏖️","🏜️","🏝️","🏞️","🏟️","🏛️","🏗️","🛖","🏠","🏡","🏢","🏥","🏦","🏨","🏩","🏪","🏫","🏬","🏭","🗼","🗽","⛪","🕌","🛕","🕍","⛩️","🕋","⛲","⛺","🌁","🌃","🏙️","🌄","🌅","🌆","🌇","🌉","🎠","🎡","🎢","🎪"],
-    },
-    {
-      label:"⚽", name:"Sport & aktivitás",
-      emojis:["⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍","🏏","🪃","🥅","⛳","🪁","🎣","🤿","🎽","🎿","🛷","🥌","🎯","🏋️","🤼","🤸","⛹️","🤺","🏇","🧘","🏄","🏊","🤽","🚣","🧗","🚵","🚴","🏆","🥇","🥈","🥉","🏅","🎖️","🎗️","🎫","🎟️","🎪","🤹","🎭","🎨","🎬","🎤","🎧","🎼","🎵","🎶","🥁","🎷","🎺","🎸","🎹","🎻","🪕","🎲","♟️","🎯","🎳","🎮","🕹️"],
-    },
-    {
-      label:"💼", name:"Tárgyak & szimbólumok",
-      emojis:["💌","📩","📨","📧","📥","📤","📦","🏷️","📪","📫","📬","📭","📮","📯","📜","📃","📄","📑","🧾","📊","📈","📉","🗒️","🗓️","📆","📅","🗑️","📁","📂","🗂️","🗃️","🗄️","📋","📌","📍","✂️","🖇️","📎","🖊️","✒️","🖋️","📝","✏️","🔍","🔎","🔏","🔐","🔑","🗝️","🔨","🪓","⚒️","🛠️","🔧","🔩","⚙️","🗜️","⚖️","🦯","🔗","⛓️","🪝","🧲","🪜","💊","💉","🩸","🩹","🩺","🌡️","🔭","🔬","🧬","🧪","🧫","💡","🔦","🕯️","🪔","📱","💻","🖥️","🖨️","⌨️","🖱️","💾","💿","📀","📷","📸","📹","🎥","📽️","📞","☎️","📟","📠","📺","📻","🧭","⏱️","⏲️","⏰","🕰️","⌛","⏳","📡","🔋","🔌","💰","💵","💸","💳","🪙","💹","💎","🔭","🔬"],
-    },
-  ];
 
   useEffect(() => {
     // A nekem küldött üzenetek olvasottra jelölése (B6) — a badge ebből számolódik
@@ -1735,64 +1589,13 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) 
 
       {/* Másik fél profil modalja */}
       {showOtherProfile && match.other && (
-        <div style={{ position:"absolute",inset:0,zIndex:101,background:"rgba(8,11,16,0.97)",backdropFilter:"blur(8px)",display:"flex",flexDirection:"column" }}>
-          <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}` }}>
-            <button onClick={() => { setShowOtherProfile(false); setOtherProfilePhotoIdx(0); }} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
-            <span style={{ color:C.text,fontWeight:700,fontSize:16 }}>{match.other.name}, {match.other.age}</span>
-          </div>
-          <div style={{ flex:1,overflowY:"auto" }}>
-            {/* Fotók */}
-            {(() => {
-              const photos = match.other.photos||(match.other.photo_url?[match.other.photo_url]:[]);
-              return photos.length > 0 ? (
-                <div style={{ position:"relative",width:"100%",aspectRatio:"1",background:C.card }}>
-                  <img src={photos[otherProfilePhotoIdx]} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={match.other.name} />
-                  {photos.length > 1 && (
-                    <>
-                      <div style={{ position:"absolute",top:10,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4 }}>
-                        {photos.map((_,i) => <div key={i} style={{ width:i===otherProfilePhotoIdx?18:5,height:5,borderRadius:3,background:i===otherProfilePhotoIdx?"#fff":"rgba(255,255,255,0.4)",transition:"width 0.2s" }} />)}
-                      </div>
-                      <button onClick={() => setOtherProfilePhotoIdx(i=>Math.max(0,i-1))} style={{ position:"absolute",left:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
-                      <button onClick={() => setOtherProfilePhotoIdx(i=>Math.min(photos.length-1,i+1))} style={{ position:"absolute",right:0,top:0,bottom:0,width:"40%",background:"none",border:"none",cursor:"pointer" }} />
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div style={{ width:"100%",aspectRatio:"1",background:C.card,display:"flex",alignItems:"center",justifyContent:"center",fontSize:60 }}>👤</div>
-              );
-            })()}
-            <div style={{ padding:"16px 20px",display:"flex",flexDirection:"column",gap:12 }}>
-              {match.other.bio && (
-                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
-                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
-                  <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{match.other.bio}</p>
-                </div>
-              )}
-              <GhostScoreBadge score={match.other.ghost_score} />
-              {(match.other.interests||[]).length > 0 && (
-                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
-                  <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>Érdeklődés</div>
-                  <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-                    {match.other.interests.map(t => <span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"5px 11px",fontSize:12,color:C.accent }}>{t}</span>)}
-                  </div>
-                </div>
-              )}
-              {(match.other.looking_for||match.other.height||match.other.education) && (
-                <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:8 }}>
-                  {match.other.looking_for && <div style={{ color:C.muted,fontSize:13 }}>💍 {match.other.looking_for}</div>}
-                  {match.other.height && <div style={{ color:C.muted,fontSize:13 }}>📏 {match.other.height} cm</div>}
-                  {match.other.education && <div style={{ color:C.muted,fontSize:13 }}>🎓 {match.other.education}</div>}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <ProfileDetailModal profile={match.other} position="absolute" zIndex={101} onClose={() => setShowOtherProfile(false)} />
       )}
 
       {/* Fejléc */}
       <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}`,background:C.surface }}>
         <button onClick={onBack} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
-        <div onClick={() => { setShowOtherProfile(true); setOtherProfilePhotoIdx(0); }} style={{ display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer" }}>
+        <div onClick={() => setShowOtherProfile(true)} style={{ display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer" }}>
           <img src={match.other?.photo_url||`https://i.pravatar.cc/300?u=${match.other?.id}`} style={{ width:38,height:38,borderRadius:"50%",objectFit:"cover" }} alt={match.other?.name} />
           <div style={{ flex:1 }}>
             <div style={{ color:C.text,fontWeight:700 }}>{match.other?.name}</div>
