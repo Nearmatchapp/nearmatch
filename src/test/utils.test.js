@@ -1,10 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-
-vi.mock('../supabase.js', () => ({
-  supabase: {},
-}))
-
-const { distanceKm, getGhostLabel, isProfileListable, calcAge, isoWeekKey, boostMillisLeft, applyUnread } = await import('../App.jsx')
+import { describe, it, expect } from 'vitest'
+import { distanceKm, getGhostLabel, isProfileListable, calcAge, isoWeekKey, boostMillisLeft, applyUnread } from '../lib/utils.js'
 
 describe('distanceKm', () => {
   it('ugyanaz a pont 0 km', () => {
