@@ -319,7 +319,9 @@ function UsersTab() {
 
   const togglePro = async () => {
     setSaving(true);
-    await supabase.from("profiles").update({ is_pro: !selectedUser.is_pro }).eq("id", selectedUser.id);
+    // Sima UPDATE-et az RLS + a protect_pro_fields trigger blokkolja — admin RPC kell
+    const { error } = await supabase.rpc("admin_set_flags", { target_id: selectedUser.id, set_pro: !selectedUser.is_pro });
+    if (error) { alert("Pro állítás sikertelen: " + error.message); setSaving(false); return; }
     setSelectedUser(u => ({ ...u, is_pro: !u.is_pro }));
     await load();
     setSaving(false);
@@ -327,7 +329,8 @@ function UsersTab() {
 
   const toggleFounder = async () => {
     setSaving(true);
-    await supabase.from("profiles").update({ is_founder: !selectedUser.is_founder }).eq("id", selectedUser.id);
+    const { error } = await supabase.rpc("admin_set_flags", { target_id: selectedUser.id, set_founder: !selectedUser.is_founder });
+    if (error) { alert("Founder állítás sikertelen: " + error.message); setSaving(false); return; }
     setSelectedUser(u => ({ ...u, is_founder: !u.is_founder }));
     await load();
     setSaving(false);
@@ -345,7 +348,10 @@ function UsersTab() {
 
   const deleteUser = async () => {
     setSaving(true);
-    await supabase.from("profiles").delete().eq("id", selectedUser.id);
+    // Az auth user törlésével minden adat kaszkádol; a sima profiles.delete
+    // a DELETE policy hiánya miatt némán elhasalt
+    const { error } = await supabase.rpc("admin_delete_user", { target_id: selectedUser.id });
+    if (error) { alert("Törlés sikertelen: " + error.message); setSaving(false); return; }
     setSelectedUser(null);
     setConfirmDelete(false);
     await load();

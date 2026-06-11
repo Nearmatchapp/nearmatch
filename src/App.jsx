@@ -2308,7 +2308,7 @@ function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) 
   };
 
   const handleDeleteMatch = async () => {
-    await supabase.from("messages").delete().eq("match_id", match.id);
+    // Az üzenetek a match törlésével kaszkádolnak (messages_match_id_fkey ON DELETE CASCADE)
     await supabase.from("matches").delete().eq("id", match.id);
     setShowDeleteConfirm(false);
     onMatchDeleted();
@@ -3240,13 +3240,19 @@ export default function App() {
   const handleDeleteAccount = async () => {
     if (!session?.user?.id) return;
     const uid = session.user.id;
-    const { data: myMatches } = await supabase.from("matches").select("id").or(`user1_id.eq.${uid},user2_id.eq.${uid}`);
-    const matchIds = (myMatches||[]).map(m => m.id);
-    if (matchIds.length > 0) await supabase.from("messages").delete().in("match_id", matchIds);
-    await supabase.from("matches").delete().or(`user1_id.eq.${uid},user2_id.eq.${uid}`);
-    await supabase.from("swipes").delete().eq("swiper_id", uid);
-    await supabase.from("reports").delete().eq("reporter_id", uid);
-    await supabase.from("profiles").delete().eq("id", uid);
+    // Feltöltött fájlok törlése a Storage API-n át (a blobok is törlődnek;
+    // az RPC a metaadatokat amúgy is takarítja)
+    for (const bucket of ["avatars", "voices"]) {
+      try {
+        const { data: files } = await supabase.storage.from(bucket).list(uid);
+        if (files?.length) await supabase.storage.from(bucket).remove(files.map(f => `${uid}/${f.name}`));
+      } catch {}
+    }
+    // Az auth user törlésével minden app-adat kaszkádol (profil, matchek,
+    // üzenetek, swipe-ok, jelentések, kártyák, push tokenek). A korábbi
+    // táblánkénti kliens-törlés a profilnál némán elhasalt (nincs DELETE policy).
+    const { error } = await supabase.rpc("delete_my_account");
+    if (error) { alert("A fiók törlése nem sikerült: " + error.message); return; }
     await supabase.auth.signOut();
   };
   const unreadCount = matches.filter(m=>m.unread).length;
