@@ -6,6 +6,7 @@ import { HeartIcon, NearMatchCard, FilterIcon } from "../components/icons.jsx";
 import FilterPanel from "../components/FilterPanel.jsx";
 import GhostScoreBadge from "../components/GhostScoreBadge.jsx";
 import CardsModal from "./CardsModal.jsx";
+import Avatar from "../components/Avatar.jsx";
 
 const THRESHOLD = 100;
 
@@ -216,7 +217,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
             <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", padding:"20px 16px 40px" }}>
               <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 20px" }} />
               <div style={{ fontWeight:800, fontSize:17, color:C.text, marginBottom:6 }}>Melyik kártyát adod oda?</div>
-              <div style={{ color:C.dim, fontSize:13, marginBottom:20 }}>
+              <div style={{ color:C.muted, fontSize:13, marginBottom:20 }}>
                 {cur?.name} megkapja, felfedés után látja hogy tőled jött 💌
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -259,7 +260,11 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
       <div style={{ flex:1,position:"relative",minHeight:0 }}>
         {next && (
           <div style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",transform:gone?"scale(1)":"scale(0.95)",opacity:gone?1:0.7,transition:"transform 0.32s ease, opacity 0.32s ease" }}>
-            <img src={next.photo_url||`https://i.pravatar.cc/300?u=${next.id}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={next.name} />
+            {next.photo_url ? (
+              <img src={next.photo_url} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={next.name} />
+            ) : (
+              <div style={{ width:"100%",height:"100%",background:"linear-gradient(135deg,#1a2340,#0d1525)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:72,fontWeight:900,color:"rgba(255,255,255,0.25)" }}>{(next.name||"?").slice(0,2).toUpperCase()}</div>
+            )}
             <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.7) 0%,transparent 50%)" }} />
           </div>
         )}
@@ -285,9 +290,9 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
                 {cardPage < photos.length ? (
                   <>
                     {/* Háttér: elmosott kitöltés */}
-                    <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0,filter:"blur(28px) brightness(0.55)",transform:"scale(1.15)" }} alt="" aria-hidden="true" />
+                    <img src={photos[cardPage]} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0,filter:"blur(28px) brightness(0.55)",transform:"scale(1.15)" }} alt="" aria-hidden="true" />
                     {/* Előtér: teljes kép, levágás nélkül */}
-                    <img src={photos[cardPage]||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:"100%",height:"100%",objectFit:"contain",position:"absolute",inset:0 }} alt={cur.name} />
+                    <img src={photos[cardPage]} style={{ width:"100%",height:"100%",objectFit:"contain",position:"absolute",inset:0 }} alt={cur.name} />
                   </>
                 ) : null}
               </>
@@ -322,7 +327,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
             </>
           ) : (
             <div style={{ width:"100%",height:"100%",background:C.bg,overflowY:"auto",padding:"20px 16px" }}>
-              <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}><img src={cur.photo_url||`https://i.pravatar.cc/300?u=${cur.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={cur.name} /><div><div style={{ fontSize:20,fontWeight:900,color:C.text }}>{cur.name}, {cur.age}</div></div></div>
+              <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20 }}><Avatar src={cur.photo_url} name={cur.name} size={52} /><div><div style={{ fontSize:20,fontWeight:900,color:C.text }}>{cur.name}, {cur.age}</div></div></div>
               <div style={{ marginBottom:10 }}><GhostScoreBadge score={cur.ghost_score} /></div>
               {cur.bio&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}`,marginBottom:10 }}><p style={{ color:C.text,fontSize:13,lineHeight:1.6,margin:0 }}>{cur.bio}</p></div>}
               {(cur.interests||[]).length>0&&<div style={{ background:C.card,borderRadius:14,padding:"13px",border:`1px solid ${C.border}` }}><div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>{cur.interests.map(t=><span key={t} style={{ background:C.accentSoft,border:`1px solid ${C.accent}`,borderRadius:20,padding:"4px 10px",fontSize:12,color:C.accent }}>{t}</span>)}</div></div>}

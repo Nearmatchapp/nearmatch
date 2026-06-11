@@ -37,14 +37,14 @@ export default function ProfileDetailModal({ profile, onClose, onPass, onLike, p
         <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:12 }}>
           {profile.bio && (
             <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}` }}>
-              <div style={{ color:C.dim, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Bio</div>
+              <div style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Bio</div>
               <p style={{ color:C.text, fontSize:14, lineHeight:1.6, margin:0 }}>{profile.bio}</p>
             </div>
           )}
           <GhostScoreBadge score={profile.ghost_score} />
           {(profile.interests||[]).length > 0 && (
             <div style={{ background:C.card, borderRadius:14, padding:"14px", border:`1px solid ${C.border}` }}>
-              <div style={{ color:C.dim, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>Érdeklődés</div>
+              <div style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:10 }}>Érdeklődés</div>
               <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                 {profile.interests.map(t => <span key={t} style={{ background:C.accentSoft, border:`1px solid ${C.accent}`, borderRadius:20, padding:"5px 11px", fontSize:12, color:C.accent }}>{t}</span>)}
               </div>

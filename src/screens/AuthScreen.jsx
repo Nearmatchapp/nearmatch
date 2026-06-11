@@ -80,7 +80,7 @@ export default function AuthScreen() {
       {/* Elválasztó */}
       <div style={{ width:"100%", display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
         <div style={{ flex:1, height:1, background:C.border }} />
-        <span style={{ color:C.dim, fontSize:12 }}>vagy</span>
+        <span style={{ color:C.muted, fontSize:12 }}>vagy</span>
         <div style={{ flex:1, height:1, background:C.border }} />
       </div>
 

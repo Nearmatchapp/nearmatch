@@ -95,8 +95,8 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <span style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Fotók ({(myProfile?.photos||[myProfile?.photo_url].filter(Boolean)).length}/6)</span>
           <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-            <button onClick={onSignOut} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:12 }}>Kilépés</button>
-            <button onClick={() => setShowDeleteConfirm(true)} style={{ background:"none", border:"none", color:"rgba(255,92,92,0.5)", cursor:"pointer", fontSize:12 }}>Fiók törlése</button>
+            <button onClick={onSignOut} style={{ background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:12, padding:"14px 8px", margin:"-14px -8px" }}>Kilépés</button>
+            <button onClick={() => setShowDeleteConfirm(true)} style={{ background:"none", border:"none", color:"rgba(255,92,92,0.5)", cursor:"pointer", fontSize:12, padding:"14px 8px", margin:"-14px -8px" }}>Fiók törlése</button>
           </div>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:6 }}>
@@ -104,12 +104,12 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
             <div key={idx} style={{ position:"relative", aspectRatio:"1", borderRadius:12, overflow:"hidden", background:C.card }}>
               <img src={url} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt={`Fotó ${idx+1}`} />
               {idx === 0 && <div style={{ position:"absolute", top:4, left:4, background:C.accent, borderRadius:6, padding:"2px 6px", fontSize:10, color:"#fff", fontWeight:700 }}>Fő</div>}
-              <button onClick={() => handlePhotoDelete(idx)} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", background:"rgba(8,11,16,0.8)", border:"none", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+              <button onClick={() => handlePhotoDelete(idx)} aria-label={`Fotó ${idx+1} törlése`} style={{ position:"absolute", top:0, right:0, width:40, height:40, background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"flex-start", justifyContent:"flex-end", padding:4 }}><span style={{ width:24, height:24, borderRadius:"50%", background:"rgba(8,11,16,0.8)", color:"#fff", fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" }}>×</span></button>
             </div>
           ))}
           {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).length < 6 && (
             <label style={{ aspectRatio:"1", borderRadius:12, background:C.card, border:`2px dashed ${C.border}`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:4 }}>
-              {uploading ? <Spinner /> : <><span style={{ fontSize:24 }}>+</span><span style={{ color:C.dim, fontSize:10 }}>Fotó</span></>}
+              {uploading ? <Spinner /> : <><span style={{ fontSize:24 }}>+</span><span style={{ color:C.muted, fontSize:10 }}>Fotó</span></>}
               <input type="file" accept="image/*" multiple style={{ display:"none" }} onChange={handlePhotoUpload} disabled={uploading} />
             </label>
           )}
@@ -125,17 +125,17 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
         </div>
         {!editing && boostAvailable && (
           <button onClick={onBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,212,59,0.12),rgba(255,140,66,0.12))",border:"1px solid rgba(255,212,59,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:8 }}>
-            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.dim,fontSize:12 }}>10 percig előre kerülsz • Heti 1 db ingyen</div></div>
+            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés használata</div><div style={{ color:C.muted,fontSize:12 }}>10 percig előre kerülsz • Heti 1 db ingyen</div></div>
           </button>
         )}
         {!editing && isPro && !boostAvailable && !boostActive && (
           <div style={{ width:"100%",padding:"14px 16px",background:C.card,border:`1px solid ${C.border}`,borderRadius:16,display:"flex",alignItems:"center",gap:12,marginBottom:8,opacity:0.7 }}>
-            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.muted,fontWeight:700,fontSize:14 }}>Heti ingyenes kiemelés felhasználva</div><div style={{ color:C.dim,fontSize:12 }}>Jövő héten újra jár • vagy vegyél egyet most</div></div>
+            <div style={{ fontSize:26 }}>⚡</div><div style={{ flex:1 }}><div style={{ color:C.muted,fontWeight:700,fontSize:14 }}>Heti ingyenes kiemelés felhasználva</div><div style={{ color:C.muted,fontSize:12 }}>Jövő héten újra jár • vagy vegyél egyet most</div></div>
           </div>
         )}
         {!editing && !boostActive && (
           <button onClick={onBuyBoost} style={{ width:"100%",padding:"14px 16px",background:"linear-gradient(135deg,rgba(255,140,66,0.12),rgba(255,92,92,0.12))",border:"1px solid rgba(255,140,66,0.35)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",marginBottom:8 }}>
-            <div style={{ fontSize:26 }}>🚀</div><div style={{ flex:1 }}><div style={{ color:C.orange,fontWeight:700,fontSize:14 }}>Kiemelés vásárlása</div><div style={{ color:C.dim,fontSize:12 }}>10 perc extra kiemelés • 990 Ft</div></div>
+            <div style={{ fontSize:26 }}>🚀</div><div style={{ flex:1 }}><div style={{ color:C.orange,fontWeight:700,fontSize:14 }}>Kiemelés vásárlása</div><div style={{ color:C.muted,fontSize:12 }}>10 perc extra kiemelés • 990 Ft</div></div>
             <div style={{ color:C.orange,fontSize:12,fontWeight:700 }}>990 Ft</div>
           </button>
         )}
@@ -144,11 +144,11 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
             <div style={{ fontSize:26 }}>⚡</div>
             <div style={{ flex:1 }}>
               <div style={{ color:C.yellow,fontWeight:700,fontSize:14 }}>Kiemelés aktív!</div>
-              <div style={{ color:C.dim,fontSize:12 }}>Most előre kerülsz a listákon</div>
+              <div style={{ color:C.muted,fontSize:12 }}>Most előre kerülsz a listákon</div>
             </div>
             <div style={{ textAlign:"right" }}>
               <div style={{ color:C.yellow,fontWeight:800,fontSize:18,fontVariantNumeric:"tabular-nums" }}><BoostCountdown expiresAt={myProfile?.boost_expires_at} /></div>
-              <div style={{ color:C.dim,fontSize:10 }}>hátra</div>
+              <div style={{ color:C.muted,fontSize:10 }}>hátra</div>
             </div>
           </div>
         )}
@@ -163,7 +163,7 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
             <div style={{ fontSize:26 }}>🎙️</div>
             <div style={{ flex:1 }}>
               <div style={{ color: myProfile?.voice_only ? "#ff8c42" : C.text, fontWeight:700, fontSize:14 }}>Hang üzenet mód {myProfile?.voice_only ? "BE" : "KI"}</div>
-              <div style={{ color:C.dim, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
+              <div style={{ color:C.muted, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
             </div>
             <div style={{ width:44, height:24, borderRadius:12, background: myProfile?.voice_only ? "#ff8c42" : "rgba(240,244,255,0.15)", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
               <div style={{ position:"absolute", top:2, left: myProfile?.voice_only ? 22 : 2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
@@ -174,7 +174,7 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
             <div style={{ fontSize:26 }}>🎙️</div>
             <div style={{ flex:1 }}>
               <div style={{ color:C.yellow, fontWeight:700, fontSize:14 }}>Hang üzenet mód <span style={{ fontSize:11, background:"rgba(255,212,59,0.15)", borderRadius:6, padding:"2px 6px" }}>PRO</span></div>
-              <div style={{ color:C.dim, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
+              <div style={{ color:C.muted, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
             </div>
             <div style={{ color:C.yellow, fontSize:12, fontWeight:600 }}>Upgrade →</div>
           </div>
@@ -190,7 +190,7 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
             <div style={{ fontSize:26 }}>🕵️</div>
             <div style={{ flex:1 }}>
               <div style={{ color: myProfile?.is_incognito ? "#4dabf7" : C.text, fontWeight:700, fontSize:14 }}>Inkognito mód {myProfile?.is_incognito ? "BE" : "KI"}</div>
-              <div style={{ color:C.dim, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
+              <div style={{ color:C.muted, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
             </div>
             <div style={{ width:44, height:24, borderRadius:12, background: myProfile?.is_incognito ? "#4dabf7" : "rgba(240,244,255,0.15)", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
               <div style={{ position:"absolute", top:2, left: myProfile?.is_incognito ? 22 : 2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
@@ -201,7 +201,7 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
             <div style={{ fontSize:26 }}>🕵️</div>
             <div style={{ flex:1 }}>
               <div style={{ color:C.yellow, fontWeight:700, fontSize:14 }}>Inkognito mód <span style={{ fontSize:11, background:"rgba(255,212,59,0.15)", borderRadius:6, padding:"2px 6px" }}>PRO</span></div>
-              <div style={{ color:C.dim, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
+              <div style={{ color:C.muted, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
             </div>
             <div style={{ color:C.yellow, fontSize:12, fontWeight:600 }}>Upgrade →</div>
           </div>
@@ -234,13 +234,13 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
         ) : (
           <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
             <div style={{ background:C.card,borderRadius:14,padding:"14px",border:`1px solid ${C.border}` }}>
-              <div style={{ color:C.dim,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
+              <div style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,marginBottom:8 }}>Bio</div>
               <p style={{ color:C.text,fontSize:14,lineHeight:1.6,margin:0 }}>{myProfile?.bio||"Nincs még bio!"}</p>
             </div>
             {!isPro && (
               <button onClick={onUpgrade} style={{ width:"100%",padding:"14px",background:"linear-gradient(135deg,rgba(255,212,59,0.08),rgba(255,140,66,0.08))",border:"1px solid rgba(255,212,59,0.3)",borderRadius:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12 }}>
                 <span style={{ fontSize:24 }}>⚡</span>
-                <div style={{ flex:1, textAlign:"left" }}><div style={{ color:C.yellow,fontWeight:700 }}>Upgrade Pro-ra</div><div style={{ color:C.dim,fontSize:12 }}>Látod ki lájkolt • Radar like • 10 match</div></div>
+                <div style={{ flex:1, textAlign:"left" }}><div style={{ color:C.yellow,fontWeight:700 }}>Upgrade Pro-ra</div><div style={{ color:C.muted,fontSize:12 }}>Látod ki lájkolt • Radar like • 10 match</div></div>
               </button>
             )}
           </div>

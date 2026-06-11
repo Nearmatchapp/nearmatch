@@ -1,4 +1,5 @@
 import { C } from "../lib/constants.js";
+import Avatar from "../components/Avatar.jsx";
 
 export default function MatchList({ matches, onOpen, isPro, onUpgrade }) {
   const limit = isPro ? 10 : 5;
@@ -16,12 +17,12 @@ export default function MatchList({ matches, onOpen, isPro, onUpgrade }) {
       {active.map(m => (
         <div key={m.id} onClick={() => onOpen(m)} style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer" }}>
           <div style={{ position:"relative" }}>
-            <img src={m.other?.photo_url||`https://i.pravatar.cc/300?u=${m.other?.id}`} style={{ width:52,height:52,borderRadius:"50%",objectFit:"cover" }} alt={m.other?.name} />
+            <Avatar src={m.other?.photo_url} name={m.other?.name} size={52} />
             {(() => { const diffMin = m.other?.last_seen ? Math.floor((Date.now()-new Date(m.other.last_seen).getTime())/60000) : 999; return diffMin < 5 ? <div style={{ position:"absolute",bottom:1,right:1,width:11,height:11,borderRadius:"50%",background:C.green,border:`2px solid ${C.bg}` }} /> : null; })()}
           </div>
           <div style={{ flex:1 }}>
-            <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.text,fontWeight:700 }}>{m.other?.name}</span><span style={{ color:C.dim,fontSize:11 }}>{m.timeLabel}</span></div>
-            <div style={{ color:C.dim,fontSize:13,marginTop:2 }}>{m.lastMsg||"Kezdj el beszélgetni! 👋"}</div>
+            <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.text,fontWeight:700 }}>{m.other?.name}</span><span style={{ color:C.muted,fontSize:11 }}>{m.timeLabel}</span></div>
+            <div style={{ color:C.muted,fontSize:13,marginTop:2 }}>{m.lastMsg||"Kezdj el beszélgetni! 👋"}</div>
           </div>
           {m.unread&&<div style={{ width:8,height:8,borderRadius:"50%",background:C.accent,flexShrink:0 }} />}
         </div>

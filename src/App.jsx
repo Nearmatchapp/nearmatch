@@ -16,6 +16,7 @@ import LikeokScreen from "./screens/LikeokScreen.jsx";
 import MatchList from "./screens/MatchList.jsx";
 import ChatView from "./screens/ChatView.jsx";
 import ProfileScreen from "./screens/ProfileScreen.jsx";
+import Avatar from "./components/Avatar.jsx";
 
 
 
@@ -530,15 +531,15 @@ export default function App() {
           {nearbyAlert && (
             <div style={{ position:"absolute", top:12, left:12, right:12, zIndex:301, background:"linear-gradient(135deg,rgba(15,21,32,0.98),rgba(20,28,43,0.98))", borderRadius:18, padding:"14px 16px", border:"1px solid rgba(255,92,92,0.3)", boxShadow:"0 8px 32px rgba(255,92,92,0.15)", display:"flex", alignItems:"center", gap:12, animation:"slideDown 0.3s ease" }}>
               <div style={{ position:"relative", flexShrink:0 }}>
-                <img src={nearbyAlert.user.photo_url||`https://i.pravatar.cc/300?u=${nearbyAlert.user.id}`} style={{ width:46, height:46, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,92,92,0.5)" }} alt="" />
+                <Avatar src={nearbyAlert.user.photo_url} name={nearbyAlert.user.name} size={46} style={{ border:"2px solid rgba(255,92,92,0.5)" }} />
                 <div style={{ position:"absolute", bottom:-2, right:-2, width:16, height:16, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9 }}>📍</div>
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ color:C.text, fontWeight:700, fontSize:13 }}>Közel vagytok egymáshoz!</div>
                 <div style={{ color:C.accent, fontSize:12, fontWeight:600 }}>{nearbyAlert.user.name} • {nearbyAlert.dist < 100 ? "<100 m" : `~${nearbyAlert.dist} m`} távolságra</div>
-                <div style={{ color:C.dim, fontSize:11, marginTop:2 }}>Nézd meg a profilját a Radar nézetben</div>
+                <div style={{ color:C.muted, fontSize:11, marginTop:2 }}>Nézd meg a profilját a Radar nézetben</div>
               </div>
-              <button onClick={() => setNearbyAlert(null)} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:18, flexShrink:0 }}>✕</button>
+              <button onClick={() => setNearbyAlert(null)} style={{ background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:18, flexShrink:0 }}>✕</button>
             </div>
           )}
 
@@ -546,12 +547,12 @@ export default function App() {
           {inAppToast && (
             <div onClick={() => { setActiveChat(inAppToast.match); setTab("matches"); setInAppToast(null); }}
               style={{ position:"absolute", top:12, left:12, right:12, zIndex:300, background:C.card, borderRadius:18, padding:"12px 14px", border:`1px solid ${C.border}`, boxShadow:"0 8px 32px rgba(0,0,0,0.4)", display:"flex", alignItems:"center", gap:12, cursor:"pointer", animation:"slideDown 0.3s ease" }}>
-              <img src={inAppToast.match.other?.photo_url||`https://i.pravatar.cc/300?u=${inAppToast.match.other?.id}`} style={{ width:42, height:42, borderRadius:"50%", objectFit:"cover", flexShrink:0 }} alt="" />
+              <Avatar src={inAppToast.match.other?.photo_url} name={inAppToast.match.other?.name} size={42} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ color:C.text, fontWeight:700, fontSize:13 }}>{inAppToast.match.other?.name}</div>
                 <div style={{ color:C.muted, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{inAppToast.text}</div>
               </div>
-              <button onClick={e=>{e.stopPropagation();setInAppToast(null);}} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:18, flexShrink:0 }}>✕</button>
+              <button onClick={e=>{e.stopPropagation();setInAppToast(null);}} style={{ background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:18, flexShrink:0 }}>✕</button>
             </div>
           )}
 

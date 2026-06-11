@@ -4,6 +4,18 @@ import { C } from "../lib/constants.js";
 import Spinner from "../components/Spinner.jsx";
 import { HeartIcon } from "../components/icons.jsx";
 import ProfileDetailModal from "../components/ProfileDetailModal.jsx";
+import Avatar from "../components/Avatar.jsx";
+
+// Fix paletta a free nézet elmosott rácsához — korábban Math.random()
+// minden rendernél új színeket sorsolt, ettől villogott (C9)
+const BLUR_GRADIENTS = [
+  "linear-gradient(135deg,#3b2a4d,#1d3a5f)",
+  "linear-gradient(135deg,#4d2a2a,#5f3a1d)",
+  "linear-gradient(135deg,#2a4d3b,#1d5f4a)",
+  "linear-gradient(135deg,#2a2f4d,#5f1d4a)",
+  "linear-gradient(135deg,#4d452a,#1d2f5f)",
+  "linear-gradient(135deg,#43122e,#0f3460)",
+];
 
 export default function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
   const [likers, setLikers] = useState([]);
@@ -98,7 +110,7 @@ export default function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
           <div style={{ position:"relative", marginBottom:16 }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, filter:"blur(12px)", pointerEvents:"none", userSelect:"none" }}>
               {Array.from({ length: Math.min(count, 6) }).map((_, i) => (
-                <div key={i} style={{ aspectRatio:"1", borderRadius:16, background:`linear-gradient(135deg, #${Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')}, #${Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>
+                <div key={i} style={{ aspectRatio:"1", borderRadius:16, background:BLUR_GRADIENTS[i % BLUR_GRADIENTS.length], display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>
                   👤
                 </div>
               ))}
@@ -120,7 +132,7 @@ export default function LikeokScreen({ myId, isPro, onUpgrade, onSwipe }) {
           {likers.map(u => (
             <div key={u.id} onClick={() => setProfileModal(u)} style={{ display:"flex", alignItems:"center", gap:12, background:C.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${C.border}`, cursor:"pointer" }}>
               <div style={{ position:"relative" }}>
-                <img src={u.photo_url||`https://i.pravatar.cc/300?u=${u.id}`} style={{ width:56, height:56, borderRadius:"50%", objectFit:"cover" }} alt={u.name} />
+                <Avatar src={u.photo_url} name={u.name} size={56} />
                 {u.action === "superlike" && <div style={{ position:"absolute", bottom:-2, right:-2, fontSize:14 }}>⭐</div>}
               </div>
               <div style={{ flex:1 }}>

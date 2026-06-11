@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { C } from "../lib/constants.js";
 import { HeartIcon } from "../components/icons.jsx";
 import ProfileDetailModal from "../components/ProfileDetailModal.jsx";
+import Avatar from "../components/Avatar.jsx";
 
 function SatelliteMapView({ myProfile, visibleUsers, isPro, onSelect }) {
   const mapRef = useRef(null);
@@ -217,7 +218,7 @@ export default function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive
           )}
           {selected && (
             <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", background:C.surface, borderRadius:14, border:`1px solid ${C.border}`, padding:"10px 14px", display:"flex", alignItems:"center", gap:10, minWidth:230 }}>
-              {isPro ? (<img src={selected.photo_url||`https://i.pravatar.cc/300?u=${selected.id}`} style={{ width:42, height:42, borderRadius:"50%", objectFit:"cover" }} alt={selected.name} />) : (<div style={{ width:42, height:42, borderRadius:"50%", background:C.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🔒</div>)}
+              {isPro ? (<Avatar src={selected.photo_url} name={selected.name} size={42} />) : (<div style={{ width:42, height:42, borderRadius:"50%", background:C.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🔒</div>)}
               <div style={{ flex:1 }}>
                 {isPro ? (<><div style={{ color:C.text, fontWeight:700 }}>{selected.name}, {selected.age}</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>) : (<><div style={{ color:C.text, fontWeight:700 }}>Ismeretlen profil</div><div style={{ color:C.accent, fontSize:12 }}>● {distLabel(selected.distanceKm)}</div></>)}
               </div>
@@ -231,7 +232,7 @@ export default function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive
         {!isPro && (
           <div style={{ background:"rgba(255,212,59,0.08)", border:"1px solid rgba(255,212,59,0.25)", borderRadius:13, padding:"12px 16px", display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:20 }}>🔒</span>
-            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Profilok rejtve</div><div style={{ color:C.dim, fontSize:11 }}>Pro-val látod ki van közel és likeolhatsz</div></div>
+            <div style={{ flex:1 }}><div style={{ color:C.yellow, fontWeight:700, fontSize:13 }}>Profilok rejtve</div><div style={{ color:C.muted, fontSize:11 }}>Pro-val látod ki van közel és likeolhatsz</div></div>
             <button onClick={onUpgrade} style={{ background:"linear-gradient(135deg,#ffd43b,#ff8c42)", border:"none", borderRadius:10, color:"#000", padding:"8px 12px", cursor:"pointer", fontSize:12, fontWeight:700 }}>Upgrade</button>
           </div>
         )}
@@ -239,7 +240,7 @@ export default function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive
           {visibleUsers.length === 0 && <div style={{ textAlign:"center", padding:"20px", color:C.muted, fontSize:13 }}>Nincs senki a közelben 😕</div>}
           {visibleUsers.map(u => (
             <div key={u.id} onClick={() => isPro && openProfile(u)} style={{ display:"flex", alignItems:"center", gap:10, background:C.card, borderRadius:13, padding:"10px 14px", border:`1px solid ${C.border}`, cursor:isPro?"pointer":"default" }}>
-              {isPro ? (<img src={u.photo_url||`https://i.pravatar.cc/300?u=${u.id}`} style={{ width:40, height:40, borderRadius:"50%", objectFit:"cover" }} alt={u.name} />) : (<div style={{ width:40, height:40, borderRadius:"50%", background:C.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${C.border}`, flexShrink:0 }}>🔒</div>)}
+              {isPro ? (<Avatar src={u.photo_url} name={u.name} size={40} />) : (<div style={{ width:40, height:40, borderRadius:"50%", background:C.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${C.border}`, flexShrink:0 }}>🔒</div>)}
               <div style={{ flex:1 }}>
                 {isPro ? (<><div style={{ color:C.text, fontWeight:600, fontSize:14 }}>{u.name}, {u.age}</div><div style={{ color:C.accent, fontSize:11 }}>● {distLabel(u.distanceKm)}</div></>) : (<><div style={{ color:C.muted, fontWeight:600, fontSize:14 }}>Rejtett profil</div><div style={{ color:C.accent, fontSize:11 }}>● {distLabel(u.distanceKm)}</div></>)}
               </div>

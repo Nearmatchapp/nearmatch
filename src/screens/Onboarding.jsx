@@ -41,7 +41,7 @@ export default function Onboarding({ user, onComplete }) {
     <div style={{ padding:"14px 20px 12px", display:"flex", alignItems:"center", gap:10, borderBottom:`1px solid ${C.border}` }}>
       <button onClick={back} style={{ background:C.card, border:`1px solid ${C.border}`, color:C.text, borderRadius:10, padding:"6px 12px", cursor:"pointer", fontSize:13 }}>← Vissza</button>
       <div style={{ flex:1 }}><ProgressBar /></div>
-      <span style={{ color:C.dim, fontSize:11 }}>{step+1}/{steps}</span>
+      <span style={{ color:C.muted, fontSize:11 }}>{step+1}/{steps}</span>
     </div>
   );
 
@@ -94,7 +94,7 @@ export default function Onboarding({ user, onComplete }) {
       <div style={{ flex:1, padding:"16px 24px", overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
         <h2 style={{ fontSize:24, fontWeight:900, color:C.text, margin:"8px 0 0" }}>Mutatkozz be</h2>
         <div>
-          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><label style={{ color:C.muted, fontSize:11, letterSpacing:1, textTransform:"uppercase" }}>Bio</label><span style={{ color:C.dim, fontSize:11 }}>{(data.bio||"").length}/300</span></div>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><label style={{ color:C.muted, fontSize:11, letterSpacing:1, textTransform:"uppercase" }}>Bio</label><span style={{ color:C.muted, fontSize:11 }}>{(data.bio||"").length}/300</span></div>
           <textarea value={data.bio||""} onChange={e => {
               const val = e.target.value.slice(0,300);
               // Szűrjük ki az Instagram/social linkeket

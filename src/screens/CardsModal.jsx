@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabase.js";
 import { C, COMPLIMENT_CARDS, STRIPE_REVEAL_PRICE_ID } from "../lib/constants.js";
 import { NearMatchCard } from "../components/icons.jsx";
+import Avatar from "../components/Avatar.jsx";
 
 export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat }) {
   const [profileModal, setProfileModal] = useState(null);
@@ -129,7 +130,7 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
           <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 16px" }} />
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
             <div style={{ fontWeight:800, fontSize:17, color:C.text }}>🃏 Kártyák</div>
-            <button onClick={onClose} style={{ background:"none", border:"none", color:C.dim, cursor:"pointer", fontSize:20, padding:0 }}>✕</button>
+            <button onClick={onClose} style={{ background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:20, padding:0 }}>✕</button>
           </div>
         </div>
 
@@ -152,7 +153,7 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:10, color:C.orange, fontWeight:700, marginBottom:4, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
                       <div style={{ color:C.text, fontSize:13, fontWeight:600, lineHeight:1.4 }}>"{card.card_text}"</div>
-                      <div style={{ color:C.dim, fontSize:11, marginTop:6 }}>Swipelés közben adhatod oda 👆</div>
+                      <div style={{ color:C.muted, fontSize:11, marginTop:6 }}>Swipelés közben adhatod oda 👆</div>
                     </div>
                   </div>
                 ))}
@@ -168,7 +169,7 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
               <div style={{ textAlign:"center", padding:"40px 20px" }}>
                 <NearMatchCard size={1.2} />
                 <div style={{ fontWeight:700, color:C.muted, marginTop:16 }}>Még nincs kapott kártyád</div>
-                <div style={{ fontSize:13, color:C.dim, marginTop:6 }}>Amikor valaki swipelés közben neked adja, itt jelenik meg</div>
+                <div style={{ fontSize:13, color:C.muted, marginTop:6 }}>Amikor valaki swipelés közben neked adja, itt jelenik meg</div>
               </div>
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
@@ -180,10 +181,10 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
                         <div style={{ fontSize:10, color:C.yellow, fontWeight:700, marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
                         <div style={{ fontSize:15, color:C.text, fontWeight:600, marginBottom:14, lineHeight:1.5 }}>"{card.card_text}"</div>
                         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-                          <img src={card.sender?.photo_url||`https://i.pravatar.cc/80?u=${card.sender?.id}`} style={{ width:34, height:34, borderRadius:"50%", objectFit:"cover", border:"2px solid rgba(255,212,59,0.4)", cursor:"pointer" }} alt="" onClick={() => setProfileModal(card.sender)} />
+                          <div onClick={() => setProfileModal(card.sender)} style={{ cursor:"pointer" }}><Avatar src={card.sender?.photo_url} name={card.sender?.name} size={34} style={{ border:"2px solid rgba(255,212,59,0.4)" }} /></div>
                           <div>
                             <div style={{ color:C.text, fontWeight:700, fontSize:13 }}>{card.sender?.name}</div>
-                            <div style={{ color:C.dim, fontSize:11 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
+                            <div style={{ color:C.muted, fontSize:11 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
                           </div>
                         </div>
                         <div style={{ display:"flex", gap:8 }}>
@@ -196,11 +197,11 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
                         <NearMatchCard size={0.6} />
                         <div style={{ flex:1 }}>
                           <div style={{ color:C.text, fontWeight:700, fontSize:14 }}>Új kártya érkezett!</div>
-                          <div style={{ color:C.dim, fontSize:12, marginTop:3 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
+                          <div style={{ color:C.muted, fontSize:12, marginTop:3 }}>{new Date(card.created_at).toLocaleDateString("hu-HU")}</div>
                           <div style={{ marginTop:10, display:"inline-flex", alignItems:"center", gap:6, background:C.accentSoft, border:`1px solid rgba(255,92,92,0.3)`, borderRadius:20, padding:"5px 12px" }}>
                             <span style={{ color:C.accent, fontSize:12, fontWeight:700 }}>👆 Koppints a felfedéshez</span>
                           </div>
-                          <div style={{ color:C.dim, fontSize:11, marginTop:6 }}>{isPro ? "PRO: napi 1 ingyenes" : "2 naponta 1 ingyenes"}</div>
+                          <div style={{ color:C.muted, fontSize:11, marginTop:6 }}>{isPro ? "PRO: napi 1 ingyenes" : "2 naponta 1 ingyenes"}</div>
                         </div>
                       </div>
                     )}
@@ -230,7 +231,7 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
           <div style={{ marginTop:"auto", background:C.surface, borderRadius:"24px 24px 0 0", padding:"24px 16px 40px", maxHeight:"70vh", overflowY:"auto" }}>
             <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 20px" }} />
             <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-              <img src={profileModal.photo_url||`https://i.pravatar.cc/120?u=${profileModal.id}`} style={{ width:70, height:70, borderRadius:"50%", objectFit:"cover", border:`3px solid rgba(255,212,59,0.4)` }} alt="" />
+              <Avatar src={profileModal.photo_url} name={profileModal.name} size={70} style={{ border:"3px solid rgba(255,212,59,0.4)" }} />
               <div>
                 <div style={{ fontSize:22, fontWeight:800, color:C.text }}>{profileModal.name}</div>
                 {profileModal.age && <div style={{ color:C.muted, fontSize:14 }}>{profileModal.age} éves</div>}

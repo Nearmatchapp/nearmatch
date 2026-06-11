@@ -7,6 +7,7 @@ import { EMOJI_CATEGORIES, REPORT_REASONS } from "../lib/emoji.js";
 import Spinner from "../components/Spinner.jsx";
 import ProfileDetailModal from "../components/ProfileDetailModal.jsx";
 import VoicePlayer from "../components/VoicePlayer.jsx";
+import Avatar from "../components/Avatar.jsx";
 
 export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) {
   const [msgs, setMsgs] = useState([]);
@@ -212,7 +213,7 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
       <div style={{ display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderBottom:`1px solid ${C.border}`,background:C.surface }}>
         <button onClick={onBack} style={{ background:"none",border:"none",color:C.accent,cursor:"pointer",fontSize:20 }}>←</button>
         <div onClick={() => setShowOtherProfile(true)} style={{ display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer" }}>
-          <img src={match.other?.photo_url||`https://i.pravatar.cc/300?u=${match.other?.id}`} style={{ width:38,height:38,borderRadius:"50%",objectFit:"cover" }} alt={match.other?.name} />
+          <Avatar src={match.other?.photo_url} name={match.other?.name} size={38} />
           <div style={{ flex:1 }}>
             <div style={{ color:C.text,fontWeight:700 }}>{match.other?.name}</div>
             {(() => {
@@ -287,7 +288,7 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
                   <span style={{ color:C.muted, fontSize:12 }}>Felvétel...</span>
                 </div>
               ) : (
-                <span style={{ color:C.dim, fontSize:13 }}>Ez a személy csak hangüzenetet fogad</span>
+                <span style={{ color:C.muted, fontSize:13 }}>Ez a személy csak hangüzenetet fogad</span>
               )}
             </div>
             <button
