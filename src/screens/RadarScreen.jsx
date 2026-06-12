@@ -68,7 +68,7 @@ function SatelliteMapView({ myProfile, visibleUsers, isPro, onSelect }) {
   );
 }
 
-export default function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, onSwipe }) {
+export default function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive, onUpgrade, onSwipe, hasLocation = true, onRequestLocation }) {
   const canvasRef = useRef(null);
   const [dots, setDots] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -132,6 +132,17 @@ export default function RadarScreen({ myProfile, nearbyUsers, isPro, boostActive
   };
 
   const distLabel = (km) => km < 1 ? `${Math.round(km*1000)}m` : `${km.toFixed(1)}km`;
+
+  // GPS nélkül a radar értelmezhetetlen — eddig félrevezetően a
+  // "Nincs senki a közelben" üzenet látszott (C4)
+  if (!hasLocation) return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 32px", gap:14, textAlign:"center" }}>
+      <div style={{ width:86, height:86, borderRadius:26, background:C.accentSoft, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>📍</div>
+      <div style={{ color:C.text, fontSize:18, fontWeight:800 }}>Helymeghatározás szükséges</div>
+      <div style={{ color:C.muted, fontSize:13, lineHeight:1.6 }}>A Radar a közeledben lévőket mutatja, ehhez kell a helyzeted. A pontos koordinátáidat más nem látja.</div>
+      <button onClick={onRequestLocation} style={{ width:"100%", padding:"15px", background:`linear-gradient(135deg,${C.accent},#ff8c42)`, border:"none", borderRadius:16, color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", marginTop:6 }}>📍 Helymeghatározás engedélyezése</button>
+    </div>
+  );
 
   return (
     <>

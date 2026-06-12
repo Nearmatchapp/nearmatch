@@ -17,6 +17,7 @@ import MatchList from "./screens/MatchList.jsx";
 import ChatView from "./screens/ChatView.jsx";
 import ProfileScreen from "./screens/ProfileScreen.jsx";
 import Avatar from "./components/Avatar.jsx";
+import ToastNotice from "./components/ToastNotice.jsx";
 
 
 
@@ -46,6 +47,20 @@ export default function App() {
     const cached = localStorage.getItem("myLocation");
     return cached ? JSON.parse(cached) : null;
   });
+  const [errorNotice, setErrorNotice] = useState("");
+
+  // GPS-engedély kérése a Radar üres állapotának gombjáról (C4)
+  const requestLocation = async () => {
+    try {
+      const pos = await new Promise((res,rej) => navigator.geolocation.getCurrentPosition(res,rej,{ timeout: 8000 }));
+      const { latitude:lat, longitude:lng } = pos.coords;
+      setMyLocation({ lat, lng });
+      localStorage.setItem("myLocation", JSON.stringify({ lat, lng }));
+      if (session?.user?.id) await supabase.from("profiles").update({ lat, lng, last_seen:new Date().toISOString() }).eq("id", session.user.id);
+    } catch {
+      setErrorNotice("Nem kaptunk helyadatot. Engedélyezd a helymeghatározást a böngésző/telefon beállításaiban, majd próbáld újra.");
+    }
+  };
   // Boost állapot a profil boost_expires_at mezőjéből (a fizetett boostot a
   // Stripe webhook, a heti ingyeneset a use_weekly_boost RPC állítja be —
   // kliens-oldalon nem hamisítható). Itt csak a be/ki határátmenet él:
@@ -500,7 +515,7 @@ export default function App() {
     // üzenetek, swipe-ok, jelentések, kártyák, push tokenek). A korábbi
     // táblánkénti kliens-törlés a profilnál némán elhasalt (nincs DELETE policy).
     const { error } = await supabase.rpc("delete_my_account");
-    if (error) { alert("A fiók törlése nem sikerült: " + error.message); return; }
+    if (error) { setErrorNotice("A fiók törlése nem sikerült: " + error.message); return; }
     await supabase.auth.signOut();
   };
   const unreadCount = matches.filter(m=>m.unread).length;
@@ -522,6 +537,7 @@ export default function App() {
         {!myLocation && <div style={{ color:C.yellow,fontSize:11 }}>📍 GPS szükséges</div>}
       </div>
       <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative",minHeight:0 }}>
+        {errorNotice && <ToastNotice message={errorNotice} onClose={() => setErrorNotice("")} />}
         {matchOverlay && <MatchOverlay user={matchOverlay} onMessage={() => { const m=matches.find(x=>x.other?.id===matchOverlay.id); setMatchOverlay(null); if(m){setActiveChat(m);setTab("matches");} }} onClose={()=>setMatchOverlay(null)} />}
         {activeChat ? (
           <ChatView match={activeChat} myId={session.user.id} myVoiceOnly={myProfile?.voice_only} onBack={()=>setActiveChat(null)} onMatchDeleted={()=>{ setActiveChat(null); loadMatches(); }} onRead={loadMatches} />
@@ -556,7 +572,7 @@ export default function App() {
             </div>
           )}
 
-          {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
+          {tab==="radar" && <RadarScreen myProfile={myProfile} nearbyUsers={nearbyUsers} isPro={isPro} boostActive={boostActive} onUpgrade={handleUpgrade} onSwipe={handleSwipe} hasLocation={!!myLocation} onRequestLocation={requestLocation} />}
             {tab==="swipe" && <SwipeScreen myProfile={myProfile} swipeUsers={swipeUsers} onSwipe={handleSwipe} onUnswipe={handleUnswipe} boostActive={boostActive} isPro={isPro} onUpgrade={handleUpgrade} onOpenChat={handleOpenChatWith} />}
             {tab==="likeok" && <LikeokScreen myId={session.user.id} isPro={isPro} onUpgrade={handleUpgrade} onSwipe={handleSwipe} />}
             {tab==="matches" && <MatchList matches={matches} onOpen={m=>{setActiveChat(m);}} isPro={isPro} onUpgrade={handleUpgrade} />}

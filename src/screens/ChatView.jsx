@@ -8,6 +8,7 @@ import Spinner from "../components/Spinner.jsx";
 import ProfileDetailModal from "../components/ProfileDetailModal.jsx";
 import VoicePlayer from "../components/VoicePlayer.jsx";
 import Avatar from "../components/Avatar.jsx";
+import ToastNotice from "../components/ToastNotice.jsx";
 
 export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDeleted, onRead }) {
   const [msgs, setMsgs] = useState([]);
@@ -22,6 +23,7 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showOtherProfile, setShowOtherProfile] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [errorNotice, setErrorNotice] = useState("");
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -47,12 +49,31 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
         if (audioChunksRef.current.length === 0) return; // semmi nem lett felvéve
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         if (blob.size < 1000) return; // túl rövid, eldobjuk
+        // Pending buborék feltöltés közben (C11) — eddig semmi visszajelzés
+        // nem volt, az üzenet "valamikor" felbukkant
+        const temp = { id: `tmp-voice-${Date.now()}`, match_id: match.id, sender_id: myId, text: "🎙️ Hangüzenet (feltöltés...)", created_at: new Date().toISOString(), pending: true };
+        setMsgs(m => [...m, temp]);
         const fileName = `voice_${Date.now()}.${ext}`;
-        const { data, error } = await supabase.storage.from("voices").upload(`${myId}/${fileName}`, blob, { contentType: mimeType, upsert: false });
-        if (error) { console.error("Voice upload error:", error); alert("Feltöltési hiba: " + error.message); return; }
+        const { error } = await supabase.storage.from("voices").upload(`${myId}/${fileName}`, blob, { contentType: mimeType, upsert: false });
+        if (error) {
+          console.error("Voice upload error:", error);
+          setMsgs(m => m.filter(x => x.id !== temp.id));
+          setErrorNotice("A hangüzenet feltöltése nem sikerült: " + error.message);
+          return;
+        }
         const { data: urlData } = supabase.storage.from("voices").getPublicUrl(`${myId}/${fileName}`);
         const voiceUrl = urlData.publicUrl;
-        await supabase.from("messages").insert({ match_id:match.id, sender_id:myId, text:"🎙️ Hangüzenet", voice_url:voiceUrl });
+        const { data: row, error: insErr } = await supabase.from("messages")
+          .insert({ match_id:match.id, sender_id:myId, text:"🎙️ Hangüzenet", voice_url:voiceUrl }).select().single();
+        if (insErr || !row) {
+          setMsgs(m => m.filter(x => x.id !== temp.id));
+          setErrorNotice("A hangüzenet küldése nem sikerült.");
+          return;
+        }
+        setMsgs(m => {
+          const replaced = m.map(x => x.id === temp.id ? row : x);
+          return replaced.filter((x, i) => replaced.findIndex(y => y.id === x.id) === i);
+        });
         calcAndSaveGhostScore(myId).catch(() => {});
         if (match.other?.id) {
           await sendPushNotification(match.other.id, "🎙️ Hangüzenet", "Hangüzenetet kaptál", { type:"message", match_id:match.id });
@@ -62,7 +83,7 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
       setIsRecording(true);
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
-    } catch (e) { alert("Mikrofon hozzáférés szükséges! (" + e.message + ")"); }
+    } catch (e) { setErrorNotice("Mikrofon-hozzáférés szükséges a hangüzenethez. Engedélyezd a böngésző beállításaiban!"); }
   };
 
   const stopRecording = () => {
@@ -157,6 +178,7 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
 
   return (
     <div style={{ display:"flex",flexDirection:"column",height:"100%",position:"relative" }}>
+      {errorNotice && <ToastNotice message={errorNotice} onClose={() => setErrorNotice("")} />}
 
       {/* Match törlés megerősítés */}
       {showDeleteConfirm && (

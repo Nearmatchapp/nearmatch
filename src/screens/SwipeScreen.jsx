@@ -223,7 +223,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {myCards.map(card => (
                   <button key={card.id} onClick={() => handleGiveCard(card)} disabled={givingCard}
-                    style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:16, background:C.card, border:`1px solid rgba(255,140,66,0.3)`, cursor:"pointer", textAlign:"left" }}>
+                    style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px", borderRadius:16, background:C.card, border:`1px solid rgba(255,140,66,0.3)`, cursor:givingCard?"wait":"pointer", textAlign:"left", opacity:givingCard?0.5:1, transition:"opacity 0.2s" }}>
                     <NearMatchCard size={0.55} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:10, color:C.orange, fontWeight:700, marginBottom:4, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
