@@ -28,6 +28,8 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
   // A swipe-olt user pillanatképe a kirepülő animáció idejére — a szülő a
   // listából azonnal eltávolítja, e nélkül a repülő kártya tartalma átváltana
   const [leaving, setLeaving] = useState(null);
+  // Szív-burst lájkoláskor (D12/2) — a kulcs az újraindításhoz timestamp
+  const [burst, setBurst] = useState(null);
   const [actionLabel, setActionLabel] = useState(null);
   const [proWallType, setProWallType] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -112,6 +114,10 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
       el.style.transform = `translateX(${flyRight?600:-600}px) rotate(${flyRight?25:-25}deg)`;
     }
     onSwipe(cur.id, dir);
+    if (dir === "like" || dir === "superlike") {
+      setBurst(Date.now());
+      setTimeout(() => setBurst(null), 750);
+    }
     if (dir==="superlike") {
       const today = getTodayKey();
       if (today!==slDay) { setSlDay(today); setSlUsed(1); } else { setSlUsed(u=>u+1); }
@@ -258,6 +264,14 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
         </div>
       )}
       <div style={{ flex:1,position:"relative",minHeight:0 }}>
+        {burst && (
+          <div key={burst} style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none", zIndex:30 }}>
+            {[...Array(6)].map((_, i) => {
+              const ang = (i / 6) * Math.PI * 2 - Math.PI / 2;
+              return <span key={i} style={{ position:"absolute", fontSize:26, "--bx": `${Math.round(Math.cos(ang)*90)}px`, "--by": `${Math.round(Math.sin(ang)*90 - 30)}px`, animation:"burstFly 0.7s ease-out forwards" }}>❤️</span>;
+            })}
+          </div>
+        )}
         {next && (
           <div style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",transform:gone?"scale(1)":"scale(0.95)",opacity:gone?1:0.7,transition:"transform 0.32s ease, opacity 0.32s ease" }}>
             {next.photo_url ? (

@@ -172,10 +172,13 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
                 <div style={{ fontSize:13, color:C.muted, marginTop:6 }}>Amikor valaki swipelés közben neked adja, itt jelenik meg</div>
               </div>
             ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:12, perspective:800 }}>
                 {receivedCards.map(card => (
+                  // Igazi flip (D12/3): felfedéskor 90°-ig fordul a hátlappal,
+                  // majd a felfedett tartalommal fordul vissza — eddig csak
+                  // az áttetszőség villant
                   <div key={card.id} onClick={() => !card.revealed && handleReveal(card)}
-                    style={{ borderRadius:16, border:`1px solid ${card.revealed?"rgba(255,212,59,0.3)":C.border}`, background:card.revealed?"linear-gradient(135deg,rgba(255,212,59,0.07),rgba(255,140,66,0.07))":C.card, cursor:card.revealed?"default":"pointer", opacity:flipping===card.id?0.3:1, transition:"opacity 0.3s" }}>
+                    style={{ borderRadius:16, border:`1px solid ${card.revealed?"rgba(255,212,59,0.3)":C.border}`, background:card.revealed?"linear-gradient(135deg,rgba(255,212,59,0.07),rgba(255,140,66,0.07))":C.card, cursor:card.revealed?"default":"pointer", transform:flipping===card.id && !card.revealed ? "rotateY(90deg)" : "rotateY(0deg)", transition:"transform 0.3s ease, background 0.3s" }}>
                     {card.revealed ? (
                       <div style={{ padding:"16px" }}>
                         <div style={{ fontSize:10, color:C.yellow, fontWeight:700, marginBottom:8, textTransform:"uppercase", letterSpacing:1 }}>{card.category}</div>
