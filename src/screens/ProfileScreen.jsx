@@ -4,9 +4,10 @@ import { C, EDU_OPTIONS, SMOKING_OPTIONS, LOOKING_FOR_OPTIONS } from "../lib/con
 import { sanitizeBio } from "../lib/utils.js";
 import Spinner from "../components/Spinner.jsx";
 import BoostCountdown from "../components/BoostCountdown.jsx";
+import SettingsModal from "../components/SettingsModal.jsx";
 
-export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostActive, boostAvailable, onBoost, onBuyBoost, onUpgrade, onSignOut, onDeleteAccount }) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+export default function ProfileScreen({ myProfile, setMyProfile, email, isPro, boostActive, boostAvailable, onBoost, onBuyBoost, onUpgrade, onSignOut, onDeleteAccount }) {
+  const [showSettings, setShowSettings] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -82,26 +83,14 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
   return (
     <div style={{ flex:1,overflowY:"auto", position:"relative" }}>
 
-      {showDeleteConfirm && (
-        <div style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(8,11,16,0.92)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
-          <div style={{ background:C.card, borderRadius:20, padding:28, border:"1px solid rgba(255,92,92,0.3)", maxWidth:340, width:"100%" }}>
-            <div style={{ fontSize:32, textAlign:"center", marginBottom:16 }}>⚠️</div>
-            <div style={{ color:C.text, fontWeight:700, fontSize:18, textAlign:"center", marginBottom:10 }}>Fiók törlése</div>
-            <div style={{ color:C.muted, fontSize:13, textAlign:"center", lineHeight:1.6, marginBottom:24 }}>Ez véglegesen törli a profilodat, matchjeidet, üzeneteidet és minden adatodat. Ez nem vonható vissza.</div>
-            <div style={{ display:"flex", gap:10 }}>
-              <button onClick={() => setShowDeleteConfirm(false)} style={{ flex:1, padding:"14px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, color:C.text, fontSize:14, cursor:"pointer", fontWeight:600 }}>Mégsem</button>
-              <button onClick={onDeleteAccount} style={{ flex:1, padding:"14px", background:"rgba(255,92,92,0.15)", border:"1px solid rgba(255,92,92,0.4)", borderRadius:14, color:"#ff5c5c", fontSize:14, cursor:"pointer", fontWeight:700 }}>Törlés</button>
-            </div>
-          </div>
-        </div>
+      {showSettings && (
+        <SettingsModal myProfile={myProfile} setMyProfile={setMyProfile} email={email} isPro={isPro}
+          onUpgrade={onUpgrade} onSignOut={onSignOut} onDeleteAccount={onDeleteAccount} onClose={() => setShowSettings(false)} />
       )}
       <div style={{ padding:"16px 20px 0" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <span style={{ color:C.muted, fontSize:11, textTransform:"uppercase", letterSpacing:1 }}>Fotók ({(myProfile?.photos||[myProfile?.photo_url].filter(Boolean)).length}/6)</span>
-          <div style={{ display:"flex", gap:12, alignItems:"center" }}>
-            <button onClick={onSignOut} style={{ background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:12, padding:"14px 8px", margin:"-14px -8px" }}>Kilépés</button>
-            <button onClick={() => setShowDeleteConfirm(true)} style={{ background:"none", border:"none", color:"rgba(255,92,92,0.5)", cursor:"pointer", fontSize:12, padding:"14px 8px", margin:"-14px -8px" }}>Fiók törlése</button>
-          </div>
+          <button onClick={() => setShowSettings(true)} aria-label="Beállítások" style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, color:C.text, cursor:"pointer", fontSize:14, padding:"8px 12px", display:"flex", alignItems:"center", gap:6 }}>⚙️ <span style={{ fontSize:13, fontWeight:600 }}>Beállítások</span></button>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:6 }}>
           {(myProfile?.photos||(myProfile?.photo_url?[myProfile.photo_url]:[])).map((url, idx) => (
@@ -157,59 +146,6 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
           </div>
         )}
 
-        {/* Hang üzenet mód */}
-        {!editing && (isPro ? (
-          <div onClick={async () => {
-            const newVal = !myProfile?.voice_only;
-            await supabase.from("profiles").update({ voice_only: newVal }).eq("id", myProfile.id);
-            setMyProfile(p => ({ ...p, voice_only: newVal }));
-          }} style={{ display:"flex", alignItems:"center", gap:12, background: myProfile?.voice_only ? "rgba(255,140,66,0.1)" : C.card, border: `1px solid ${myProfile?.voice_only ? "rgba(255,140,66,0.4)" : C.border}`, borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:8 }}>
-            <div style={{ fontSize:26 }}>🎙️</div>
-            <div style={{ flex:1 }}>
-              <div style={{ color: myProfile?.voice_only ? "#ff8c42" : C.text, fontWeight:700, fontSize:14 }}>Hang üzenet mód {myProfile?.voice_only ? "BE" : "KI"}</div>
-              <div style={{ color:C.muted, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
-            </div>
-            <div style={{ width:44, height:24, borderRadius:12, background: myProfile?.voice_only ? "#ff8c42" : "rgba(240,244,255,0.15)", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
-              <div style={{ position:"absolute", top:2, left: myProfile?.voice_only ? 22 : 2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
-            </div>
-          </div>
-        ) : (
-          <div onClick={onUpgrade} style={{ display:"flex", alignItems:"center", gap:12, background:"rgba(255,212,59,0.05)", border:"1px solid rgba(255,212,59,0.2)", borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:8 }}>
-            <div style={{ fontSize:26 }}>🎙️</div>
-            <div style={{ flex:1 }}>
-              <div style={{ color:C.yellow, fontWeight:700, fontSize:14 }}>Hang üzenet mód <span style={{ fontSize:11, background:"rgba(255,212,59,0.15)", borderRadius:6, padding:"2px 6px" }}>PRO</span></div>
-              <div style={{ color:C.muted, fontSize:12 }}>Csak hangüzenettel lehet neked írni</div>
-            </div>
-            <div style={{ color:C.yellow, fontSize:12, fontWeight:600 }}>Upgrade →</div>
-          </div>
-        ))}
-
-        {/* Inkognito mód */}
-        {!editing && (isPro ? (
-          <div onClick={async () => {
-            const newVal = !myProfile?.is_incognito;
-            await supabase.from("profiles").update({ is_incognito: newVal }).eq("id", myProfile.id);
-            setMyProfile(p => ({ ...p, is_incognito: newVal }));
-          }} style={{ display:"flex", alignItems:"center", gap:12, background: myProfile?.is_incognito ? "rgba(77,171,247,0.1)" : C.card, border: `1px solid ${myProfile?.is_incognito ? "rgba(77,171,247,0.4)" : C.border}`, borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:16 }}>
-            <div style={{ fontSize:26 }}>🕵️</div>
-            <div style={{ flex:1 }}>
-              <div style={{ color: myProfile?.is_incognito ? "#4dabf7" : C.text, fontWeight:700, fontSize:14 }}>Inkognito mód {myProfile?.is_incognito ? "BE" : "KI"}</div>
-              <div style={{ color:C.muted, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
-            </div>
-            <div style={{ width:44, height:24, borderRadius:12, background: myProfile?.is_incognito ? "#4dabf7" : "rgba(240,244,255,0.15)", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
-              <div style={{ position:"absolute", top:2, left: myProfile?.is_incognito ? 22 : 2, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
-            </div>
-          </div>
-        ) : (
-          <div onClick={onUpgrade} style={{ display:"flex", alignItems:"center", gap:12, background:"rgba(255,212,59,0.05)", border:"1px solid rgba(255,212,59,0.2)", borderRadius:16, padding:"14px 16px", cursor:"pointer", marginBottom:16 }}>
-            <div style={{ fontSize:26 }}>🕵️</div>
-            <div style={{ flex:1 }}>
-              <div style={{ color:C.yellow, fontWeight:700, fontSize:14 }}>Inkognito mód <span style={{ fontSize:11, background:"rgba(255,212,59,0.15)", borderRadius:6, padding:"2px 6px" }}>PRO</span></div>
-              <div style={{ color:C.muted, fontSize:12 }}>Csak akiket likeoltál látnak a Radaron és Swipe-on</div>
-            </div>
-            <div style={{ color:C.yellow, fontSize:12, fontWeight:600 }}>Upgrade →</div>
-          </div>
-        ))}
         {editing ? (
           <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
             <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
