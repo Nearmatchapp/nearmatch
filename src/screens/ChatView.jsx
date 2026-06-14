@@ -67,6 +67,42 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
     g.axis = null;
   };
 
+  // WhatsApp-stílusú időbélyeg-felfedés: az üzeneteket balra (befelé) húzva
+  // előbújik a jobb oldali sávban, mikor lett elküldve. Elengedéskor
+  // visszacsúszik. (A jobbra húzás a fenti visszalépés, a függőleges görget.)
+  const msgsWrapRef = useRef(null);
+  const peek = useRef({ startX:0, startY:0, axis:null, dx:0 });
+  const PEEK_MAX = 76;
+  const onPeekStart = (e) => {
+    if (overlayOpen()) { peek.current.axis = "lock"; return; }
+    const t = e.touches[0];
+    peek.current = { startX:t.clientX, startY:t.clientY, axis:null, dx:0 };
+  };
+  const onPeekMove = (e) => {
+    const g = peek.current;
+    if (g.axis === "lock" || g.axis === "scroll") return;
+    const t = e.touches[0];
+    const dx = t.clientX - g.startX, dy = t.clientY - g.startY;
+    if (g.axis === null) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      g.axis = (Math.abs(dx) > Math.abs(dy) && dx < 0) ? "peek" : "scroll";
+    }
+    if (g.axis === "peek") {
+      g.dx = Math.min(PEEK_MAX, -dx);
+      const el = msgsWrapRef.current;
+      if (el) { el.style.transition = "none"; el.style.transform = `translateX(${-g.dx}px)`; }
+    }
+  };
+  const onPeekEnd = () => {
+    const g = peek.current;
+    const el = msgsWrapRef.current;
+    if (g.axis === "peek" && el) {
+      el.style.transition = "transform 0.25s ease";
+      el.style.transform = "translateX(0)";
+    }
+    g.axis = null;
+  };
+
   const startRecording = async () => {
     if (isRecording) return;
     try {
@@ -298,19 +334,29 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
       </div>
 
       {/* Üzenetek */}
-      <div style={{ flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8 }} onClick={() => { setShowMenu(false); setShowEmojiPicker(false); }}>
-        {loading && <div style={{ textAlign:"center",paddingTop:20 }}><Spinner /></div>}
-        {msgs.map(m => (
-          <div key={m.id} style={{ display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start" }}>
-            <div style={{ maxWidth:"72%",padding:"10px 14px",borderRadius:m.sender_id===myId?"18px 18px 4px 18px":"18px 18px 18px 4px",background:m.sender_id===myId?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,color:"#fff",fontSize:14,opacity:m.pending?0.6:1,transition:"opacity 0.2s" }}>
-              {m.voice_url ? (
-                <VoicePlayer src={m.voice_url} isMine={m.sender_id===myId} />
-              ) : m.text}
-              <div style={{ fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4,textAlign:"right" }}>{timeLabel(m.created_at)}</div>
+      <div style={{ flex:1,overflowY:"auto",overflowX:"hidden",padding:"16px" }} onClick={() => { setShowMenu(false); setShowEmojiPicker(false); }}
+        onTouchStart={onPeekStart} onTouchMove={onPeekMove} onTouchEnd={onPeekEnd}>
+        <div ref={msgsWrapRef} style={{ display:"flex",flexDirection:"column",gap:8 }}>
+          {loading && <div style={{ textAlign:"center",paddingTop:20 }}><Spinner /></div>}
+          {msgs.map(m => (
+            <div key={m.id} style={{ display:"flex",alignItems:"center" }}>
+              <div style={{ width:"100%",flexShrink:0,display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start" }}>
+                <div style={{ maxWidth:"72%",padding:"10px 14px",borderRadius:m.sender_id===myId?"18px 18px 4px 18px":"18px 18px 18px 4px",background:m.sender_id===myId?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,color:"#fff",fontSize:14,opacity:m.pending?0.6:1,transition:"opacity 0.2s" }}>
+                  {m.voice_url ? (
+                    <VoicePlayer src={m.voice_url} isMine={m.sender_id===myId} />
+                  ) : m.text}
+                  <div style={{ fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4,textAlign:"right" }}>{timeLabel(m.created_at)}</div>
+                </div>
+              </div>
+              {/* Befelé húzáskor előbújó küldési idő (jobb oldali sáv) */}
+              <div style={{ width:PEEK_MAX,flexShrink:0,paddingLeft:10,fontSize:11,color:C.muted,lineHeight:1.3 }}>
+                <div>{new Date(m.created_at).toLocaleDateString("hu",{ month:"short", day:"numeric" })}</div>
+                <div style={{ fontWeight:600 }}>{timeLabel(m.created_at)}</div>
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
+          ))}
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* Emoji picker */}
