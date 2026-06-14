@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabase.js";
 import { C, INTERESTS_ALL, LOOKING_FOR_OPTIONS } from "../lib/constants.js";
-import { calcAge } from "../lib/utils.js";
+import { calcAge, sanitizeBio } from "../lib/utils.js";
 import Spinner from "../components/Spinner.jsx";
 
 export default function Onboarding({ user, onComplete }) {
@@ -23,7 +23,7 @@ export default function Onboarding({ user, onComplete }) {
     }
     const age = calcAge(data.birthdate);
     if (age === null || age < 18) { setSaving(false); return; }
-    const profile = { id: user.id, name: data.name, bio: data.bio, age, gender: data.gender, interests: data.interests, looking_for: data.lookingFor, is_pro: true, is_founder: true, lat, lng, last_seen: new Date().toISOString() };
+    const profile = { id: user.id, name: data.name, bio: sanitizeBio(data.bio), age, gender: data.gender, interests: data.interests, looking_for: data.lookingFor, is_pro: true, is_founder: true, lat, lng, last_seen: new Date().toISOString() };
     const { error } = await supabase.from("profiles").upsert(profile);
     if (!error) onComplete(profile);
     setSaving(false);
@@ -95,12 +95,7 @@ export default function Onboarding({ user, onComplete }) {
         <h2 style={{ fontSize:24, fontWeight:900, color:C.text, margin:"8px 0 0" }}>Mutatkozz be</h2>
         <div>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}><label style={{ color:C.muted, fontSize:11, letterSpacing:1, textTransform:"uppercase" }}>Bio</label><span style={{ color:C.muted, fontSize:11 }}>{(data.bio||"").length}/300</span></div>
-          <textarea value={data.bio||""} onChange={e => {
-              const val = e.target.value.slice(0,300);
-              // Szűrjük ki az Instagram/social linkeket
-              const filtered = val.replace(/(@[\w.]+|instagram\.com\/[\w.]+|ig:\s*[\w.]+|insta:\s*[\w.]+|fb\.com\/[\w.]+|tiktok\.com\/[\w.]+|snapchat:\s*[\w.]+)/gi, "");
-              setData(d=>({...d,bio:filtered}));
-            }} placeholder="Mesélj magadról..."
+          <textarea value={data.bio||""} onChange={e => setData(d=>({...d,bio:e.target.value.slice(0,300)}))} placeholder="Mesélj magadról... (az Instagram/közösségi elérhetőség mentéskor törlődik)"
             style={{ width:"100%", padding:"14px", borderRadius:13, background:C.card, border:`1px solid ${C.border}`, color:C.text, fontSize:14, outline:"none", resize:"none", minHeight:100, lineHeight:1.6 }} />
         </div>
         <div>

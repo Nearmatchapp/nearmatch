@@ -57,6 +57,24 @@ export function isProfileListable(u, { swipedIds, likedUsIds }) {
   return true;
 }
 
+// Kiszűri a bióból az Instagram (és egyéb közösségi) elérhetőség-megosztást,
+// hogy a felhasználók ne vigyék le a beszélgetést a platformról. Kezeli:
+//   @felhasznalonev · instagram.com/nev · "insta: nev" · "ig - nev" · "IG @nev" stb.
+// Szándékosan elválasztót (vagy @-ot) vár a kulcsszó után, hogy a normál
+// mondatokat ("imádom az instagramot") ne csonkítsa meg.
+export function sanitizeBio(text) {
+  if (!text) return text;
+  let out = text;
+  // 1) Teljes profil-URL-ek
+  out = out.replace(/(?:https?:\/\/)?(?:www\.)?(?:instagram\.com|instagr\.am|ig\.me|tiktok\.com|facebook\.com|fb\.com|fb\.me|snapchat\.com)\/\S+/gi, "");
+  // 2) Kulcsszó + elválasztó (: = . - @ /) + felhasználónév
+  out = out.replace(/\b(?:insta(?:gram)?|ig|snap(?:chat)?|tiktok|fb|facebook)\b\s*[:=._\-–—@/]+\s*@?[a-z0-9._]{2,30}/gi, "");
+  // 3) Maradék @említések (email-t nem bánt, mert előtte szóköz/sorelej kell)
+  out = out.replace(/(^|[^\w@./])@[a-z0-9._]{2,30}/gi, "$1");
+  // 4) A kivágások utáni felesleges szóközök/üres sorok rendezése
+  return out.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function getGhostLabel(score) {
   if (score === null || score === undefined) return null;
   if (score >= 81) return { label: "Kiváló válaszoló", desc: "Szinte mindig ír vissza", emoji: "🌟", color: "#3ecf8e" };

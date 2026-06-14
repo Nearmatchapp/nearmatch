@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { distanceKm, getGhostLabel, isProfileListable, calcAge, isoWeekKey, boostMillisLeft, applyUnread } from '../lib/utils.js'
+import { distanceKm, getGhostLabel, isProfileListable, calcAge, isoWeekKey, boostMillisLeft, applyUnread, sanitizeBio } from '../lib/utils.js'
 
 describe('distanceKm', () => {
   it('ugyanaz a pont 0 km', () => {
@@ -148,5 +148,38 @@ describe('applyUnread (B6: olvasatlan badge)', () => {
     const [m] = applyUnread([{ id: 'm1', other: { name: 'X' } }], new Set(['m1']))
     expect(m.other.name).toBe('X')
     expect(m.unread).toBe(true)
+  })
+})
+
+describe('sanitizeBio (Instagram/social elérhetőség szűrése)', () => {
+  it('@felhasznalonevet kivesz', () => {
+    expect(sanitizeBio('Kövess @peti_official vagyok').trim()).toBe('Kövess vagyok')
+  })
+
+  it('"insta: nev" formát kivesz', () => {
+    expect(sanitizeBio('Szia! insta: peti123').trim()).toBe('Szia!')
+  })
+
+  it('"ig - nev" és "IG @nev" formát kivesz', () => {
+    expect(sanitizeBio('ig - peti').trim()).toBe('')
+    expect(sanitizeBio('követs IG @peti.k').trim()).toBe('követs')
+  })
+
+  it('instagram.com/nev URL-t kivesz', () => {
+    expect(sanitizeBio('profilom instagram.com/peti.official itt').trim()).toBe('profilom itt')
+  })
+
+  it('a normál mondatot nem csonkítja ("imádom az instagramot")', () => {
+    expect(sanitizeBio('Imádom az instagramot és a fotózást')).toBe('Imádom az instagramot és a fotózást')
+  })
+
+  it('az email címet békén hagyja', () => {
+    expect(sanitizeBio('Írj: peti@gmail.com')).toBe('Írj: peti@gmail.com')
+  })
+
+  it('üres/hiányzó értékkel elszáll-mentes', () => {
+    expect(sanitizeBio('')).toBe('')
+    expect(sanitizeBio(null)).toBe(null)
+    expect(sanitizeBio(undefined)).toBe(undefined)
   })
 })

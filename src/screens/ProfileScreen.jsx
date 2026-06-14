@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../supabase.js";
 import { C, EDU_OPTIONS, SMOKING_OPTIONS, LOOKING_FOR_OPTIONS } from "../lib/constants.js";
+import { sanitizeBio } from "../lib/utils.js";
 import Spinner from "../components/Spinner.jsx";
 import BoostCountdown from "../components/BoostCountdown.jsx";
 
@@ -14,7 +15,10 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
 
   const save = async () => {
     setSaving(true);
-    const { data } = await supabase.from("profiles").update(draft).eq("id", myProfile.id).select().single();
+    // Insta/social elérhetőségek kiszűrése mentéskor (nem gépelés közben,
+    // hogy a beírás ne tördelődjön szét)
+    const payload = { ...draft, bio: sanitizeBio(draft.bio) };
+    const { data } = await supabase.from("profiles").update(payload).eq("id", myProfile.id).select().single();
     if (data) setMyProfile(p=>({...p,...data}));
     setSaving(false); setEditing(false);
   };
@@ -209,11 +213,8 @@ export default function ProfileScreen({ myProfile, setMyProfile, isPro, boostAct
         {editing ? (
           <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
             <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Név</label><input value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:15,outline:"none" }} /></div>
-            <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e => {
-                  const val = e.target.value;
-                  const filtered = val.replace(/(@[\w.]+|instagram\.com\/[\w.]+|ig:\s*[\w.]+|insta:\s*[\w.]+|fb\.com\/[\w.]+|tiktok\.com\/[\w.]+|snapchat:\s*[\w.]+)/gi, "");
-                  setDraft(d=>({...d,bio:filtered}));
-                }} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} /></div>
+            <div><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1,display:"block",marginBottom:6 }}>Bio</label><textarea value={draft.bio} onChange={e => setDraft(d=>({...d,bio:e.target.value.slice(0,300)}))} style={{ width:"100%",padding:"12px 14px",borderRadius:12,background:C.card,border:`1px solid ${C.border}`,color:C.text,fontSize:14,outline:"none",resize:"none",minHeight:80,lineHeight:1.6 }} />
+              <div style={{ color:C.muted,fontSize:11,marginTop:5 }}>Az Instagram-/közösségi elérhetőségek mentéskor automatikusan törlődnek.</div></div>
             <div>
               <div style={{ display:"flex",justifyContent:"space-between",marginBottom:8 }}><label style={{ color:C.muted,fontSize:11,textTransform:"uppercase",letterSpacing:1 }}>📏 Magasság</label><span style={{ color:C.accent,fontWeight:700,fontSize:13 }}>{draft.height} cm</span></div>
               <input type="range" min={135} max={230} step={1} value={draft.height} onChange={e=>setDraft(d=>({...d,height:+e.target.value}))} style={{ width:"100%" }} />
