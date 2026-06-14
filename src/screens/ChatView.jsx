@@ -72,7 +72,7 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
   // visszacsúszik. (A jobbra húzás a fenti visszalépés, a függőleges görget.)
   const msgsWrapRef = useRef(null);
   const peek = useRef({ startX:0, startY:0, axis:null, dx:0 });
-  const PEEK_MAX = 76;
+  const PEEK_MAX = 54;
   const onPeekStart = (e) => {
     if (overlayOpen()) { peek.current.axis = "lock"; return; }
     const t = e.touches[0];
@@ -334,25 +334,22 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
       </div>
 
       {/* Üzenetek */}
-      <div style={{ flex:1,overflowY:"auto",overflowX:"hidden",padding:"16px" }} onClick={() => { setShowMenu(false); setShowEmojiPicker(false); }}
+      <div style={{ flex:1,overflowY:"auto",overflowX:"hidden",padding:"16px 0" }} onClick={() => { setShowMenu(false); setShowEmojiPicker(false); }}
         onTouchStart={onPeekStart} onTouchMove={onPeekMove} onTouchEnd={onPeekEnd}>
         <div ref={msgsWrapRef} style={{ display:"flex",flexDirection:"column",gap:8 }}>
           {loading && <div style={{ textAlign:"center",paddingTop:20 }}><Spinner /></div>}
           {msgs.map(m => (
             <div key={m.id} style={{ display:"flex",alignItems:"center" }}>
-              <div style={{ width:"100%",flexShrink:0,display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start" }}>
+              <div style={{ width:"100%",flexShrink:0,display:"flex",justifyContent:m.sender_id===myId?"flex-end":"flex-start",padding:"0 16px" }}>
                 <div style={{ maxWidth:"72%",padding:"10px 14px",borderRadius:m.sender_id===myId?"18px 18px 4px 18px":"18px 18px 18px 4px",background:m.sender_id===myId?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card,color:"#fff",fontSize:14,opacity:m.pending?0.6:1,transition:"opacity 0.2s" }}>
                   {m.voice_url ? (
                     <VoicePlayer src={m.voice_url} isMine={m.sender_id===myId} />
                   ) : m.text}
-                  <div style={{ fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4,textAlign:"right" }}>{timeLabel(m.created_at)}</div>
                 </div>
               </div>
-              {/* Befelé húzáskor előbújó küldési idő (jobb oldali sáv) */}
-              <div style={{ width:PEEK_MAX,flexShrink:0,paddingLeft:10,fontSize:11,color:C.muted,lineHeight:1.3 }}>
-                <div>{new Date(m.created_at).toLocaleDateString("hu",{ month:"short", day:"numeric" })}</div>
-                <div style={{ fontWeight:600 }}>{timeLabel(m.created_at)}</div>
-              </div>
+              {/* Befelé húzáskor előbújó küldési idő (csak óra:perc, alapból a
+                  jobb él mögött, teljesen elrejtve) */}
+              <div style={{ width:PEEK_MAX,flexShrink:0,paddingLeft:10,fontSize:12,color:C.muted,whiteSpace:"nowrap" }}>{timeLabel(m.created_at)}</div>
             </div>
           ))}
           <div ref={bottomRef} />
