@@ -7,11 +7,12 @@ import GhostScoreBadge from "./GhostScoreBadge.jsx";
 // csak akkor jelenik meg, ha onPass/onLike propot kap.
 export default function ProfileDetailModal({ profile, onClose, onPass, onLike, position = "fixed", zIndex = 200 }) {
   const [photoIdx, setPhotoIdx] = useState(0);
-  const [dragX, setDragX] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  // A gesztus tengelyét az első érdemi mozdulatnál rögzítjük, hogy a
-  // függőleges görgetést ne keverjük össze a visszahúzással.
-  const gesture = useRef({ startX:0, startY:0, axis:null });
+  const rootRef = useRef(null);
+  // A húzást ref-en + közvetlen DOM-transformon kezeljük (nem state-en), így
+  // iOS-en is sima és megbízhatóan elsül a touchend. A tengelyt az első
+  // érdemi mozdulatnál rögzítjük, hogy a függőleges görgetést ne keverjük
+  // össze a visszahúzással.
+  const gesture = useRef({ startX:0, startY:0, axis:null, dx:0 });
   useEffect(() => { setPhotoIdx(0); }, [profile?.id]);
   if (!profile) return null;
   const photos = profile.photos || (profile.photo_url ? [profile.photo_url] : []);
@@ -20,7 +21,7 @@ export default function ProfileDetailModal({ profile, onClose, onPass, onLike, p
 
   const onTouchStart = (e) => {
     const t = e.touches[0];
-    gesture.current = { startX:t.clientX, startY:t.clientY, axis:null };
+    gesture.current = { startX:t.clientX, startY:t.clientY, axis:null, dx:0 };
   };
   const onTouchMove = (e) => {
     const g = gesture.current;
@@ -31,17 +32,27 @@ export default function ProfileDetailModal({ profile, onClose, onPass, onLike, p
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // még túl pici
       // csak jobbra húzás indít visszalépést, függőleges mozgás = görgetés
       g.axis = (Math.abs(dx) > Math.abs(dy) && dx > 0) ? "back" : "scroll";
-      if (g.axis === "back") setDragging(true);
     }
-    if (g.axis === "back") setDragX(Math.max(0, dx));
+    if (g.axis === "back") {
+      g.dx = Math.max(0, dx);
+      const el = rootRef.current;
+      if (el) {
+        el.style.transition = "none";
+        el.style.transform = `translateX(${g.dx}px)`;
+        el.style.opacity = String(Math.max(0.35, 1 - g.dx / 600));
+      }
+    }
   };
   const onTouchEnd = () => {
-    if (gesture.current.axis === "back") {
-      setDragging(false);
-      if (dragX > BACK_THRESHOLD) { onClose(); return; }
-      setDragX(0); // visszacsúszik a helyére
+    const g = gesture.current;
+    const el = rootRef.current;
+    if (g.axis === "back" && el) {
+      if (g.dx > BACK_THRESHOLD) { onClose(); return; }
+      el.style.transition = "transform 0.2s ease, opacity 0.2s ease";
+      el.style.transform = "translateX(0)";
+      el.style.opacity = "1";
     }
-    gesture.current.axis = null;
+    g.axis = null;
   };
 
   // A vízszintes safe-area inset elhanyagolható, a felső a lényeg: fixed
@@ -51,21 +62,22 @@ export default function ProfileDetailModal({ profile, onClose, onPass, onLike, p
 
   return (
     <div
+      ref={rootRef}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       style={{
         position, inset:0, zIndex, background:"rgba(8,11,16,0.97)", backdropFilter:"blur(8px)",
         display:"flex", flexDirection:"column",
-        transform: dragX ? `translateX(${dragX}px)` : undefined,
-        transition: dragging ? "none" : "transform 0.2s ease",
+        // a vízszintes gesztust a JS kezeli, a böngésző csak függőlegesen görget
+        touchAction:"pan-y",
       }}
     >
       <div style={{ display:"flex", alignItems:"center", gap:12, padding:`${headerPadTop} 16px 14px`, borderBottom:`1px solid ${C.border}` }}>
         <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:20 }}>←</button>
         <span style={{ color:C.text, fontWeight:700, fontSize:16 }}>{profile.name}, {profile.age}</span>
       </div>
-      <div style={{ flex:1, overflowY:"auto" }}>
+      <div style={{ flex:1, overflowY:"auto", touchAction:"pan-y" }}>
         {photos.length > 0 ? (
           <div style={{ position:"relative", width:"100%", aspectRatio:"1", background:C.card }}>
             <img src={photos[photoIdx]} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt={profile.name} />
