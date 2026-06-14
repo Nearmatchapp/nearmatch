@@ -9,7 +9,7 @@ import SliderTrack from "./SliderTrack.jsx";
 // jogi, fiók-műveletek. A felfedezési szűrőket a localStorage `swipeFilters`
 // kulcson keresztül osztja meg a Swipe nézettel (laza csatolás).
 const DEFAULT_FILTERS = { minAge:18, maxAge:60, maxDist:50, gender:"Mindenki", lookingFor:"" };
-const GENDERS = ["Mindenki","Nő","Férfi","Non-binary"];
+const GENDERS = ["Mindenki","Nő","Férfi"];
 
 function Toggle({ on }) {
   return (

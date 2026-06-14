@@ -79,7 +79,7 @@ export default function Onboarding({ user, onComplete }) {
           <div>
             <label style={{ color:C.muted, fontSize:11, letterSpacing:1, textTransform:"uppercase" }}>Nemed</label>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginTop:8 }}>
-              {["Nő","Férfi","Non-binary","Egyéb"].map(g => (<button key={g} onClick={() => setData(d=>({...d,gender:g}))} style={{ padding:"12px", borderRadius:12, border:`1px solid ${data.gender===g?C.accent:C.border}`, background:data.gender===g?C.accentSoft:C.card, color:data.gender===g?C.accent:C.text, cursor:"pointer", fontWeight:600, fontSize:14 }}>{g}</button>))}
+              {["Nő","Férfi","Egyéb"].map(g => (<button key={g} onClick={() => setData(d=>({...d,gender:g}))} style={{ padding:"12px", borderRadius:12, border:`1px solid ${data.gender===g?C.accent:C.border}`, background:data.gender===g?C.accentSoft:C.card, color:data.gender===g?C.accent:C.text, cursor:"pointer", fontWeight:600, fontSize:14 }}>{g}</button>))}
             </div>
           </div>
           <button onClick={next} disabled={!canProceed} style={{ width:"100%", padding:"16px", background:canProceed?`linear-gradient(135deg,${C.accent},#ff8c42)`:C.card, border:"none", borderRadius:16, color:"#fff", fontSize:16, fontWeight:700, cursor:canProceed?"pointer":"not-allowed", opacity:canProceed?1:0.5 }}>Tovább →</button>

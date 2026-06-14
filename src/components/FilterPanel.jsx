@@ -38,7 +38,7 @@ export default function FilterPanel({ filters, setFilters, onClose, onApply, onR
           <div>
             <span style={{ color:C.muted, fontSize:13, fontWeight:600, display:"block", marginBottom:10 }}>Keresett nem</span>
             <div style={{ display:"flex", gap:8 }}>
-              {["Mindenki","Nő","Férfi","Non-binary"].map(g => (
+              {["Mindenki","Nő","Férfi"].map(g => (
                 <button key={g} onClick={() => setFilters(f=>({...f,gender:g}))}
                   style={{ flex:1,padding:"10px 4px",borderRadius:12,border:`1px solid ${filters.gender===g?C.accent:C.border}`,background:filters.gender===g?C.accentSoft:C.card,color:filters.gender===g?C.accent:C.muted,cursor:"pointer",fontSize:11,fontWeight:700,transition:"all 0.15s" }}>
                   {g}
