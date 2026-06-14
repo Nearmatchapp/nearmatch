@@ -21,12 +21,17 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
 
   useEffect(() => { loadData(); }, []);
 
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
   const loadData = async () => {
     setLoading(true);
-    // Kártyák amiket én kioszthatom (is_mine_to_give = true, még nem adtam oda)
+    // Kártyák amiket én kioszthatom (is_mine_to_give = true, még nem adtam oda
+    // és 24 órán belül keletkezett — a lejártakat nem mutatjuk)
+    const dayAgoIso = new Date(Date.now() - DAY_MS).toISOString();
     const { data: mine } = await supabase.from("compliment_cards")
       .select("*").eq("sender_id", myId).eq("is_mine_to_give", true)
-      .is("given_to", null).order("created_at", { ascending: false });
+      .is("given_to", null).gte("created_at", dayAgoIso)
+      .order("created_at", { ascending: false });
     setMyCards(mine || []);
 
     // Kártyák amiket kaptam (valaki nekem adta)
@@ -40,56 +45,54 @@ export default function CardsModal({ myId, isPro, onClose, onUpgrade, onOpenChat
 
   const genLock = useRef(false);
 
+  // Egyszerre max 3 kiosztható kártyád lehet, és 24 óránként frissül a paklid:
+  // ha a 24 óra letelik és nem osztottad ki őket, elveszíted (töröljük) és
+  // 3 új jön. Ha a batched még 24 órán belüli, marad (akkor sem töltjük fel
+  // 3-ra, ha közben odaadtál párat — a teljes új 3-as a következő ciklusban jár).
   const generateDailyCards = async () => {
     if (!myId || genLock.current) return;
     genLock.current = true;
+    try {
+      const now = Date.now();
 
-    const lastGenKey = `cardsGeneratedAt_${myId}`;
-    const lastGen = localStorage.getItem(lastGenKey);
-    const now = Date.now();
+      // Az összes még ki nem osztott, kiosztható kártya
+      const { data: givable, error: checkError } = await supabase
+        .from("compliment_cards")
+        .select("id, created_at")
+        .eq("sender_id", myId)
+        .eq("is_mine_to_give", true)
+        .is("given_to", null);
 
-    // 24 órán belül generált? Akkor skip — semmi DB hívás
-    if (lastGen && (now - parseInt(lastGen)) < 24 * 60 * 60 * 1000) {
-      genLock.current = false;
-      return;
-    }
+      if (checkError) { console.error("Card check error:", checkError); return; }
 
-    // DB ellenőrzés: van-e az elmúlt 24 órában generált kártya
-    const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
-    const { data: existing, error: checkError } = await supabase
-      .from("compliment_cards")
-      .select("id, created_at")
-      .eq("sender_id", myId)
-      .eq("is_mine_to_give", true)
-      .gte("created_at", dayAgo.toISOString());
+      // Lejárt (24 óránál régebbi), el nem küldött kártyák — ezeket elveszti
+      const stale = (givable || []).filter(c => (now - new Date(c.created_at).getTime()) >= 24 * 60 * 60 * 1000);
+      if (stale.length > 0) {
+        await supabase.from("compliment_cards").delete().in("id", stale.map(c => c.id));
+      }
 
-    if (checkError) { console.error("Card check error:", checkError); genLock.current = false; return; }
+      // Van még 24 órán belüli (élő) kártya? Akkor marad a jelenlegi pakli.
+      const freshCount = (givable || []).length - stale.length;
+      if (freshCount > 0) {
+        if (stale.length > 0) await loadData(); // a lejártak eltűntek a listáról
+        return;
+      }
 
-    if ((existing||[]).length > 0) {
-      const latest = Math.max(...existing.map(c => new Date(c.created_at).getTime()));
-      localStorage.setItem(lastGenKey, latest.toString());
-      genLock.current = false;
-      return;
-    }
+      // Nincs élő kártya → 3 új generálása
+      const categories = Object.keys(COMPLIMENT_CARDS.other);
+      const shuffledCats = [...categories].sort(() => Math.random() - 0.5).slice(0, 3);
+      const cards = shuffledCats.map(cat => {
+        const texts = COMPLIMENT_CARDS.other[cat];
+        const text = texts[Math.floor(Math.random() * texts.length)];
+        return { sender_id: myId, receiver_id: myId, card_text: text, category: cat, is_mine_to_give: true };
+      });
 
-    // Generálás
-    const categories = Object.keys(COMPLIMENT_CARDS.other);
-    const shuffledCats = [...categories].sort(() => Math.random() - 0.5).slice(0, 3);
-    const cards = shuffledCats.map(cat => {
-      const texts = COMPLIMENT_CARDS.other[cat];
-      const text = texts[Math.floor(Math.random() * texts.length)];
-      return { sender_id: myId, receiver_id: myId, card_text: text, category: cat, is_mine_to_give: true };
-    });
-
-    const { error } = await supabase.from("compliment_cards").insert(cards);
-    if (!error) {
-      // Időbélyeg AZONNAL mentve, mielőtt bármi más történne — ez akadályozza meg az újragenerálást
-      localStorage.setItem(lastGenKey, now.toString());
+      const { error } = await supabase.from("compliment_cards").insert(cards);
+      if (error) { console.error("Card insert error:", error); return; }
       await loadData();
-    } else {
-      console.error("Card insert error:", error);
+    } finally {
+      genLock.current = false;
     }
-    genLock.current = false;
   };
 
   useEffect(() => {

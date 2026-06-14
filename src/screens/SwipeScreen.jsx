@@ -48,9 +48,12 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
 
   const loadMyCards = useCallback(async () => {
     if (!myProfile?.id) return;
+    // Csak a 24 órán belüli, még ki nem osztott kártyák oszthatók ki — a
+    // lejártakat (amiket nem küldtél el időben) nem ajánljuk fel
+    const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data } = await supabase.from("compliment_cards")
       .select("*").eq("sender_id", myProfile.id).eq("is_mine_to_give", true)
-      .is("given_to", null);
+      .is("given_to", null).gte("created_at", dayAgoIso);
     setMyCards(data || []);
   }, [myProfile?.id]);
 
