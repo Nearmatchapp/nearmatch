@@ -306,10 +306,11 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
                 </div>
                 {cardPage < photos.length ? (
                   <>
-                    {/* Háttér: elmosott kitöltés */}
-                    <img src={photos[cardPage]} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0,filter:"blur(28px) brightness(0.55)",transform:"scale(1.15)" }} alt="" aria-hidden="true" />
-                    {/* Előtér: teljes kép, levágás nélkül */}
-                    <img src={photos[cardPage]} style={{ width:"100%",height:"100%",objectFit:"contain",position:"absolute",inset:0 }} alt={cur.name} />
+                    {/* Háttér: ugyanaz a kép erősen elmosva — ebbe olvad bele a szél */}
+                    <img src={photos[cardPage]} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0,filter:"blur(26px) brightness(0.7)",transform:"scale(1.25)" }} alt="" aria-hidden="true" />
+                    {/* Előtér: nagy, kitöltő kép (Tinder-stílus); a szélei lágyan
+                        elmosódnak a háttérbe egy radiális maszkkal */}
+                    <img src={photos[cardPage]} style={{ width:"100%",height:"100%",objectFit:"cover",position:"absolute",inset:0,WebkitMaskImage:"radial-gradient(135% 115% at 50% 42%, #000 74%, transparent 100%)",maskImage:"radial-gradient(135% 115% at 50% 42%, #000 74%, transparent 100%)" }} alt={cur.name} />
                   </>
                 ) : null}
               </>
