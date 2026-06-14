@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { C } from "../lib/constants.js";
 import GhostScoreBadge from "./GhostScoreBadge.jsx";
 
@@ -7,13 +7,61 @@ import GhostScoreBadge from "./GhostScoreBadge.jsx";
 // csak akkor jelenik meg, ha onPass/onLike propot kap.
 export default function ProfileDetailModal({ profile, onClose, onPass, onLike, position = "fixed", zIndex = 200 }) {
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  // A gesztus tengelyét az első érdemi mozdulatnál rögzítjük, hogy a
+  // függőleges görgetést ne keverjük össze a visszahúzással.
+  const gesture = useRef({ startX:0, startY:0, axis:null });
   useEffect(() => { setPhotoIdx(0); }, [profile?.id]);
   if (!profile) return null;
   const photos = profile.photos || (profile.photo_url ? [profile.photo_url] : []);
 
+  const BACK_THRESHOLD = 90; // ennyi px vízszintes húzás után megy vissza
+
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    gesture.current = { startX:t.clientX, startY:t.clientY, axis:null };
+  };
+  const onTouchMove = (e) => {
+    const g = gesture.current;
+    const t = e.touches[0];
+    const dx = t.clientX - g.startX;
+    const dy = t.clientY - g.startY;
+    if (g.axis === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // még túl pici
+      // csak jobbra húzás indít visszalépést, függőleges mozgás = görgetés
+      g.axis = (Math.abs(dx) > Math.abs(dy) && dx > 0) ? "back" : "scroll";
+      if (g.axis === "back") setDragging(true);
+    }
+    if (g.axis === "back") setDragX(Math.max(0, dx));
+  };
+  const onTouchEnd = () => {
+    if (gesture.current.axis === "back") {
+      setDragging(false);
+      if (dragX > BACK_THRESHOLD) { onClose(); return; }
+      setDragX(0); // visszacsúszik a helyére
+    }
+    gesture.current.axis = null;
+  };
+
+  // A vízszintes safe-area inset elhanyagolható, a felső a lényeg: fixed
+  // módban a modal a teljes képernyőt fedi (a notch/állapotsáv alatt is),
+  // ezért a vissza gomb fejlécét le kell tolni az elérhető részre.
+  const headerPadTop = position === "fixed" ? "calc(14px + env(safe-area-inset-top))" : "14px";
+
   return (
-    <div style={{ position, inset:0, zIndex, background:"rgba(8,11,16,0.97)", backdropFilter:"blur(8px)", display:"flex", flexDirection:"column" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", borderBottom:`1px solid ${C.border}` }}>
+    <div
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={{
+        position, inset:0, zIndex, background:"rgba(8,11,16,0.97)", backdropFilter:"blur(8px)",
+        display:"flex", flexDirection:"column",
+        transform: dragX ? `translateX(${dragX}px)` : undefined,
+        transition: dragging ? "none" : "transform 0.2s ease",
+      }}
+    >
+      <div style={{ display:"flex", alignItems:"center", gap:12, padding:`${headerPadTop} 16px 14px`, borderBottom:`1px solid ${C.border}` }}>
         <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:20 }}>←</button>
         <span style={{ color:C.text, fontWeight:700, fontSize:16 }}>{profile.name}, {profile.age}</span>
       </div>
