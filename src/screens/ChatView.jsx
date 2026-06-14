@@ -29,6 +29,44 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
 
+  // Jobbra-húzós visszalépés (mint a profil-modalban): ref + közvetlen
+  // DOM-transform, hogy iOS-en is megbízható legyen. Nyitott felugró
+  // ablaknál (menü/emoji/jelentés/törlés/profil) nem indul el.
+  const rootRef = useRef(null);
+  const backDrag = useRef({ startX:0, startY:0, axis:null, dx:0 });
+  const overlayOpen = () => showMenu || showEmojiPicker || showReportModal || showDeleteConfirm || showOtherProfile;
+  const onBackTouchStart = (e) => {
+    if (overlayOpen()) { backDrag.current.axis = "scroll"; return; }
+    const t = e.touches[0];
+    backDrag.current = { startX:t.clientX, startY:t.clientY, axis:null, dx:0 };
+  };
+  const onBackTouchMove = (e) => {
+    const g = backDrag.current;
+    if (g.axis === "scroll") return;
+    const t = e.touches[0];
+    const dx = t.clientX - g.startX, dy = t.clientY - g.startY;
+    if (g.axis === null) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      g.axis = (Math.abs(dx) > Math.abs(dy) && dx > 0) ? "back" : "scroll";
+    }
+    if (g.axis === "back") {
+      g.dx = Math.max(0, dx);
+      const el = rootRef.current;
+      if (el) { el.style.transition="none"; el.style.transform=`translateX(${g.dx}px)`; el.style.opacity=String(Math.max(0.4, 1 - g.dx/600)); }
+    }
+  };
+  const onBackTouchEnd = () => {
+    const g = backDrag.current;
+    const el = rootRef.current;
+    if (g.axis === "back" && el) {
+      if (g.dx > 90) { onBack(); return; }
+      el.style.transition="transform 0.2s ease, opacity 0.2s ease";
+      el.style.transform="translateX(0)";
+      el.style.opacity="1";
+    }
+    g.axis = null;
+  };
+
   const startRecording = async () => {
     if (isRecording) return;
     try {
@@ -177,7 +215,8 @@ export default function ChatView({ match, myId, myVoiceOnly, onBack, onMatchDele
   const timeLabel = (ts) => new Date(ts).toLocaleTimeString("hu", { hour:"2-digit", minute:"2-digit" });
 
   return (
-    <div style={{ display:"flex",flexDirection:"column",height:"100%",position:"relative" }}>
+    <div ref={rootRef} onTouchStart={onBackTouchStart} onTouchMove={onBackTouchMove} onTouchEnd={onBackTouchEnd}
+      style={{ display:"flex",flexDirection:"column",height:"100%",position:"relative",touchAction:"pan-y pinch-zoom" }}>
       {errorNotice && <ToastNotice message={errorNotice} onClose={() => setErrorNotice("")} />}
 
       {/* Match törlés megerősítés */}

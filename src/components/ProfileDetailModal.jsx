@@ -70,14 +70,14 @@ export default function ProfileDetailModal({ profile, onClose, onPass, onLike, p
         position, inset:0, zIndex, background:"rgba(8,11,16,0.97)", backdropFilter:"blur(8px)",
         display:"flex", flexDirection:"column",
         // a vízszintes gesztust a JS kezeli, a böngésző csak függőlegesen görget
-        touchAction:"pan-y",
+        touchAction:"pan-y pinch-zoom",
       }}
     >
       <div style={{ display:"flex", alignItems:"center", gap:12, padding:`${headerPadTop} 16px 14px`, borderBottom:`1px solid ${C.border}` }}>
         <button onClick={onClose} style={{ background:"none", border:"none", color:C.accent, cursor:"pointer", fontSize:20 }}>←</button>
         <span style={{ color:C.text, fontWeight:700, fontSize:16 }}>{profile.name}, {profile.age}</span>
       </div>
-      <div style={{ flex:1, overflowY:"auto", touchAction:"pan-y" }}>
+      <div style={{ flex:1, overflowY:"auto", touchAction:"pan-y pinch-zoom" }}>
         {photos.length > 0 ? (
           <div style={{ position:"relative", width:"100%", aspectRatio:"1", background:C.card }}>
             <img src={photos[photoIdx]} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt={profile.name} />
