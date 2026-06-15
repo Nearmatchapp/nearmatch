@@ -130,10 +130,25 @@ export default function SettingsModal({ myProfile, setMyProfile, email, isPro, o
 
         {/* ÉRTESÍTÉSEK */}
         <Section title="Értesítések">
-          <Row label="Push értesítések"
-            sub={notifPerm === "granted" ? "Bekapcsolva" : notifPerm === "denied" ? "A böngésző tiltja – engedélyezd a beállításokban" : notifPerm === "unsupported" ? "Nem támogatott ezen az eszközön" : "Új match-ekről és üzenetekről"}
-            right={notifPerm === "granted" ? <span style={{ color:C.green, fontSize:18 }}>✓</span> : notifPerm === "default" ? <span style={{ color:C.accent, fontSize:13, fontWeight:700 }}>Bekapcsol</span> : null}
-            onClick={notifPerm === "default" ? enableNotifications : undefined} />
+          <div style={{ padding:"14px 16px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ color:C.text, fontSize:14, fontWeight:600 }}>Push értesítések</div>
+                <div style={{ color:C.muted, fontSize:12, marginTop:2 }}>
+                  {notifPerm === "granted" ? "Az eszközön engedélyezve" : notifPerm === "denied" ? "A böngésző tiltja – engedélyezd az eszköz beállításaiban" : notifPerm === "unsupported" ? "Nem támogatott ezen az eszközön" : "Engedélyezd, hogy értesülj a match-ekről és üzenetekről"}
+                </div>
+              </div>
+              {notifPerm === "granted" ? <span style={{ color:C.green, fontSize:18 }}>✓</span>
+                : notifPerm === "default" ? <button onClick={enableNotifications} style={{ background:C.accent, border:"none", borderRadius:10, color:"#fff", fontSize:13, fontWeight:700, padding:"8px 14px", cursor:"pointer" }}>Bekapcsol</button>
+                : null}
+            </div>
+          </div>
+          <Row label="Új match-ek" sub="Ha valaki visszalájkol"
+            right={<Toggle on={myProfile?.notif_match !== false} />}
+            onClick={() => setFlag("notif_match", myProfile?.notif_match === false)} />
+          <Row label="Üzenetek" sub="Új üzenet egy match-től"
+            right={<Toggle on={myProfile?.notif_message !== false} />}
+            onClick={() => setFlag("notif_message", myProfile?.notif_message === false)} />
         </Section>
 
         {/* JOGI / SÚGÓ */}

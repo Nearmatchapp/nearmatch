@@ -47,6 +47,23 @@ serve(async (req) => {
       }
     }
 
+    // A címzett értesítési beállításai — a tiltott típust kihagyjuk.
+    // (match → notif_match, message → notif_message; egyéb típus mindig megy.)
+    const notifType = data?.type;
+    if (notifType === "match" || notifType === "message") {
+      const col = notifType === "match" ? "notif_match" : "notif_message";
+      const { data: prefRow } = await supabase
+        .from("profiles")
+        .select(col)
+        .eq("id", user_id)
+        .maybeSingle();
+      if (prefRow && prefRow[col] === false) {
+        return new Response(JSON.stringify({ success: true, skipped: "muted" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const response = await fetch("https://api.onesignal.com/notifications", {
       method: "POST",
       headers: {
