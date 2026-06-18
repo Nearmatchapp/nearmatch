@@ -118,10 +118,17 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
     const x = dragRef.current.x;
     const flyRight = x !== 0 ? x > 0 : dir !== "pass";
     const el = cardRef.current;
+    // Lendület-alapú kirepülés: minél gyorsabb volt a pöccintés, annál
+    // rövidebb/gyorsabb a repülés — így folytonos a mozdulat, nem áll meg
+    const speed = Math.min(2.2, Math.abs(velRef.current.vx) || 0.6);
+    const dur = Math.round(Math.max(120, FLY_MS - speed * 45));
     if (el) {
-      // Gyors, snappy kirepülés — a pöccintés lendülete továbbviszi a kártyát
-      el.style.transition = `transform ${FLY_MS}ms cubic-bezier(0.22,0.61,0.36,1)`;
-      el.style.transform = `translateX(${flyRight?700:-700}px) translateY(${dragRef.current.y*0.4}px) rotate(${flyRight?22:-22}deg)`;
+      // A még függőben lévő drag-rAF kilövése, KÜLÖNBEN utólag visszaírná a
+      // kártyát az elengedés pozíciójába (transition:none) → ott "megfagyna"
+      if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      // ease-IN kimenet (gyorsuló), hogy a kártya tényleg "kilőjön", ne lassuljon
+      el.style.transition = `transform ${dur}ms cubic-bezier(0.4,0,0.9,0.55)`;
+      el.style.transform = `translateX(${flyRight?800:-800}px) translateY(${dragRef.current.y*0.5}px) rotate(${flyRight?28:-28}deg)`;
     }
     onSwipe(cur.id, dir);
     if (dir === "like" || dir === "superlike") {
@@ -139,7 +146,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
       velRef.current = { vx:0, x:0, t:0 };
       setGone(false);
       setLeaving(null);
-    }, FLY_MS);
+    }, dur);
   };
 
   const handleRewind = () => {
@@ -156,6 +163,8 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
   // A húzás React-render nélkül, közvetlenül a DOM-ra írva fut (D2)
   const applyDrag = () => {
     rafRef.current = null;
+    // Elengedés után már fut a kirepülés — ilyenkor tilos visszaírni
+    if (!draggingRef.current) return;
     const el = cardRef.current; if (!el) return;
     const { x, y } = dragRef.current;
     el.style.transition = "none";
