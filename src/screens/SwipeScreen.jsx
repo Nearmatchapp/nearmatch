@@ -8,7 +8,11 @@ import GhostScoreBadge from "../components/GhostScoreBadge.jsx";
 import CardsModal from "./CardsModal.jsx";
 import Avatar from "../components/Avatar.jsx";
 
-const THRESHOLD = 100;
+const THRESHOLD = 80;
+// Pöccintés-érzékelés: ennél gyorsabb mozdulat (px/ms) küszöb alatt is dob,
+// így a swipe pont olyan fürge, mint a Tinder/Yubo gyors pöccintése
+const FLICK_V = 0.45;
+const FLY_MS = 200;
 
 export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe, boostActive, isPro, onUpgrade, onOpenChat }) {
   const [idx, setIdx] = useState(0);
@@ -21,6 +25,8 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
   const dragRef = useRef({ x:0, y:0 });
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
+  // Lendület-követés a pöccintés-érzékeléshez (utolsó pozíció + idő)
+  const velRef = useRef({ vx:0, x:0, t:0 });
   const rafRef = useRef(null);
   const cardRef = useRef(null);
   const likeRef = useRef(null);
@@ -113,8 +119,9 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
     const flyRight = x !== 0 ? x > 0 : dir !== "pass";
     const el = cardRef.current;
     if (el) {
-      el.style.transition = "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)";
-      el.style.transform = `translateX(${flyRight?600:-600}px) rotate(${flyRight?25:-25}deg)`;
+      // Gyors, snappy kirepülés — a pöccintés lendülete továbbviszi a kártyát
+      el.style.transition = `transform ${FLY_MS}ms cubic-bezier(0.22,0.61,0.36,1)`;
+      el.style.transform = `translateX(${flyRight?700:-700}px) translateY(${dragRef.current.y*0.4}px) rotate(${flyRight?22:-22}deg)`;
     }
     onSwipe(cur.id, dir);
     if (dir === "like" || dir === "superlike") {
@@ -129,9 +136,10 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
       // A szülő már kivette a listából — az idx marad, a pakli lép magától
       setCardPage(0);
       dragRef.current = { x:0, y:0 };
+      velRef.current = { vx:0, x:0, t:0 };
       setGone(false);
       setLeaving(null);
-    }, 320);
+    }, FLY_MS);
   };
 
   const handleRewind = () => {
@@ -159,15 +167,27 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
   const resetCardPosition = () => {
     dragRef.current = { x:0, y:0 };
     const el = cardRef.current; if (!el) return;
-    el.style.transition = "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)";
+    // Rugalmas, gyors visszaugrás (spring-érzet) ha nem volt elég a húzás
+    el.style.transition = "transform 0.25s cubic-bezier(0.34,1.56,0.64,1)";
     el.style.transform = "translateX(0px) translateY(0px) rotate(0deg)";
     if (likeRef.current) likeRef.current.style.opacity = 0;
     if (passRef.current) passRef.current.style.opacity = 0;
   };
-  const beginDrag = (x, y) => { startPos.current = { x, y }; draggingRef.current = true; movedRef.current = false; };
+  const beginDrag = (x, y) => {
+    startPos.current = { x, y };
+    draggingRef.current = true;
+    movedRef.current = false;
+    velRef.current = { vx:0, x, t:performance.now() };
+  };
   const moveDrag = (x, y) => {
     if (!draggingRef.current || !startPos.current) return;
     dragRef.current = { x: x - startPos.current.x, y: y - startPos.current.y };
+    // Pillanatnyi vízszintes sebesség (px/ms) a pöccintés-érzékeléshez
+    const now = performance.now();
+    const dt = now - velRef.current.t;
+    if (dt > 0) velRef.current.vx = (x - velRef.current.x) / dt;
+    velRef.current.x = x;
+    velRef.current.t = now;
     if (Math.abs(dragRef.current.x) > 5) movedRef.current = true;
     scheduleDrag();
   };
@@ -175,9 +195,12 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
     if (!draggingRef.current) return;
     draggingRef.current = false;
     const x = dragRef.current.x;
+    const vx = velRef.current.vx;
     startPos.current = null;
-    if (x > THRESHOLD) { showLabel("LIKE"); act("like"); }
-    else if (x < -THRESHOLD) { showLabel("PASS"); act("pass"); }
+    // Dobás, ha vagy elég messzire húztad, VAGY gyorsan pöccintetted (akár
+    // kis elmozdulásnál is) — ettől lesz fürge, mint a Tinder/Yubo
+    if (x > THRESHOLD || (vx > FLICK_V && x > 24)) { showLabel("LIKE"); act("like"); }
+    else if (x < -THRESHOLD || (vx < -FLICK_V && x < -24)) { showLabel("PASS"); act("pass"); }
     else resetCardPosition();
   };
   const onMouseDown = (e) => beginDrag(e.clientX, e.clientY);
@@ -276,7 +299,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
           </div>
         )}
         {next && (
-          <div style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",transform:gone?"scale(1)":"scale(0.95)",opacity:gone?1:0.7,transition:"transform 0.32s ease, opacity 0.32s ease" }}>
+          <div style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",transform:gone?"scale(1)":"scale(0.95)",opacity:gone?1:0.7,transition:"transform 0.2s ease, opacity 0.2s ease" }}>
             {next.photo_url ? (
               <img src={next.photo_url} style={{ width:"100%",height:"100%",objectFit:"cover" }} alt={next.name} />
             ) : (
@@ -295,7 +318,7 @@ export default function SwipeScreen({ myProfile, swipeUsers, onSwipe, onUnswipe,
             if(x > rect.width*0.5) setCardPage(p=>Math.min(p+1, totalPages-1));
             else setCardPage(p=>Math.max(p-1,0));
           }}
-          style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab" }}>
+          style={{ position:"absolute",inset:0,borderRadius:24,overflow:"hidden",background:C.card,cursor:"grab",touchAction:"pan-y",willChange:"transform" }}>
           {(() => {
             const photos = cur.photos||(cur.photo_url?[cur.photo_url]:[]);
             const totalPages = photos.length;
