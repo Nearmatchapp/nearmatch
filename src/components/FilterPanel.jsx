@@ -7,9 +7,9 @@ import SliderTrack from "./SliderTrack.jsx";
 export default function FilterPanel({ filters, setFilters, onClose, onApply, onReset }) {
   return (
     <div style={{ position:"absolute",inset:0,zIndex:95,background:"rgba(8,11,16,0.92)",backdropFilter:"blur(12px)",display:"flex",alignItems:"flex-end" }}>
-      <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"8px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column" }}>
-        <div style={{ width:36,height:4,borderRadius:2,background:C.border,margin:"0 auto 20px" }} />
-        <div style={{ padding:"0 20px 40px", display:"flex", flexDirection:"column", gap:24 }}>
+      <div style={{ width:"100%",background:C.surface,borderRadius:"28px 28px 0 0",padding:"8px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",maxHeight:"88vh",overflowY:"auto",WebkitOverflowScrolling:"touch",touchAction:"pan-y" }}>
+        <div style={{ width:36,height:4,borderRadius:2,background:C.border,margin:"0 auto 20px",flexShrink:0 }} />
+        <div style={{ padding:"0 20px calc(40px + env(safe-area-inset-bottom))", display:"flex", flexDirection:"column", gap:24 }}>
           <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
             <span style={{ color:C.text,fontWeight:800,fontSize:18 }}>Szűrők</span>
             <button onClick={onClose} style={{ width:32,height:32,borderRadius:"50%",background:C.card,border:`1px solid ${C.border}`,color:C.muted,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center" }}>✕</button>
